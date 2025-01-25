@@ -5,7 +5,7 @@ interface ProcessedBookmark {
     title: string;
     url?: string;
     parentId?: string;
-    index?: number;
+    position?: number;
     dateAdded?: number;
 }
 
@@ -27,7 +27,12 @@ export class BookmarkManager {
             // Queue for sync
             await this.storageManager.queueChange({
                 type: 'CREATE',
-                data: processedBookmark
+                data: {
+                    type: bookmark.url ? 'bookmark' : 'folder',
+                    browserId: id,
+                    userId: 'default',
+                    ...processedBookmark
+                }
             });
             console.log('Bookmark created:', processedBookmark);
         } catch (error) {
@@ -39,7 +44,11 @@ export class BookmarkManager {
         try {
             await this.storageManager.queueChange({
                 type: 'DELETE',
-                data: { id }
+                data: {
+                    type: 'bookmark', // We don't know if it was a folder, but server handles both the same
+                    browserId: id,
+                    userId: 'default'
+                }
             });
             console.log('Bookmark deleted:', id);
         } catch (error) {
@@ -52,7 +61,12 @@ export class BookmarkManager {
             // Queue the update
             await this.storageManager.queueChange({
                 type: 'UPDATE',
-                data: { id, changes: changeInfo }
+                data: {
+                    type: 'bookmark', // Title/URL changes only apply to bookmarks
+                    browserId: id,
+                    userId: 'default',
+                    changes: changeInfo
+                }
             });
             console.log('Bookmark updated:', { id, changes: changeInfo });
         } catch (error) {
@@ -62,11 +76,21 @@ export class BookmarkManager {
 
     private async handleBookmarkMoved(id: string, moveInfo: chrome.bookmarks.BookmarkMoveInfo): Promise<void> {
         try {
+            // Get the node to determine if it's a bookmark or folder
+            const nodes = await chrome.bookmarks.get(id);
+            const node = nodes[0];
+            const isBookmark = !!node.url;
+
             // Only queue if it's a real move (different parent folders)
             if (moveInfo.parentId !== moveInfo.oldParentId) {
                 await this.storageManager.queueChange({
                     type: 'MOVE',
-                    data: { id, moveInfo }
+                    data: {
+                        type: isBookmark ? 'bookmark' : 'folder',
+                        browserId: id,
+                        userId: 'default',
+                        moveInfo
+                    }
                 });
                 console.log('Bookmark moved:', { id, moveInfo });
             }
@@ -83,7 +107,7 @@ export class BookmarkManager {
             title: bookmark.title,
             url: bookmark.url,
             parentId: bookmark.parentId,
-            index: bookmark.index,
+            position: bookmark.index || 0,
             dateAdded: bookmark.dateAdded
         };
     }

@@ -33,13 +33,12 @@ class BackgroundService {
     }
 
     private setupEventListeners(): void {
-        // Listen for extension installation/update
+        // Existing listeners
         chrome.runtime.onInstalled.addListener(this.handleInstall.bind(this));
-        
-        // Listen for browser startup
         chrome.runtime.onStartup.addListener(this.handleStartup.bind(this));
-
+    
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            // Existing sync handler
             if (message.action === 'syncNow') {
                 console.log('Received sync request from popup');
                 this.syncManager.sync()
@@ -51,11 +50,65 @@ class BackgroundService {
                         console.error('Sync failed:', error);
                         sendResponse({ success: false, error: error.message });
                     });
-                return true; // Will respond asynchronously
+                return true;
+            }
+    
+            // Sync status handler
+            if (message.action === 'getSyncStatus') {
+                (async () => {
+                    try {
+                        const deviceId = await this.storageManager.getDeviceId();
+                        console.log('Debug - deviceId before request:', deviceId);
+            
+                        const response = await fetch('http://localhost:3005/api/v1/sync/status', {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Device-ID': deviceId
+                            }
+                        });                        
+            
+                        if (!response.ok) {
+                            console.error('Server response not OK:', response.status);
+                            throw new Error('Failed to get sync status');
+                        }
+            
+                        const serverStatus = await response.json();
+                        console.log('Server status:', serverStatus);
+    
+                        // Get local changes
+                        const localChanges = await this.storageManager.getQueuedChanges();
+    
+                        // Count local changes by type
+                        const local = {
+                            adds: localChanges.filter(c => c.type === 'CREATE').length,
+                            updates: localChanges.filter(c => c.type === 'UPDATE').length,
+                            moves: localChanges.filter(c => c.type === 'MOVE').length,
+                            deletes: localChanges.filter(c => c.type === 'DELETE').length
+                        };
+    
+                        sendResponse({
+                            success: true,
+                            data: {
+                                isInitialSync: serverStatus.data.needsInitialSync,
+                                local,
+                                remote: serverStatus.data.pendingChanges
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Error getting sync status:', error);
+                        sendResponse({
+                            success: false,
+                            error: {
+                                message: 'Failed to get sync status',
+                                details: error instanceof Error ? error.message : String(error)
+                            }
+                        });
+                    }
+                })();
+                return true; // Keep the message channel open for async response
             }
         });
-
-
     }
 
     private async handleInstall(details: chrome.runtime.InstalledDetails): Promise<void> {

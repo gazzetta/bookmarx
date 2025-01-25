@@ -13,7 +13,7 @@ interface ChangeMetadata {
 }
 
 interface QueuedChange {
-    type: 'CREATE' | 'UPDATE' | 'DELETE' | 'MOVE';
+    type: string;
     data: any;
     timestamp: number;
     metadata: ChangeMetadata;
@@ -34,9 +34,10 @@ export class StorageManager {
         changes: [],
         lastSync: 0,
         settings: {
-            syncInterval: 5 * 60 * 1000, // 5 minutes
+            syncInterval: 5 * 60 * 1000,
             autoSync: false
-        }
+        },
+        deviceId: '' // Add this, but we'll set it properly in setDefaults
     };
 
     public async initialize(): Promise<void> {
@@ -47,7 +48,14 @@ export class StorageManager {
     }
 
     public async setDefaults(): Promise<void> {
-        await chrome.storage.local.set(this.defaults);
+        // Generate a deviceId when setting defaults
+        const deviceId = crypto.randomUUID();
+        const defaultsWithDeviceId = {
+            ...this.defaults,
+            deviceId
+        };
+        await chrome.storage.local.set(defaultsWithDeviceId);
+        console.log('Set defaults with deviceId:', deviceId);  // Debug log
     }
 
     public async getData(): Promise<StorageData | null> {
@@ -55,29 +63,34 @@ export class StorageManager {
         return Object.keys(data).length ? data as StorageData : null;
     }
 
-    public async queueChange(change: { type: ChangeType; data: any }): Promise<void> {
+    public async setData(data: StorageData): Promise<void> {
+        await chrome.storage.local.set(data);
+    }
+
+    public async queueChange(change: { type: string; data: any }): Promise<void> {
         const data = await this.getData() || this.defaults;
-        
-        // Get browser/system info
-        const platformInfo = await this.getPlatformInfo();
-        
-        data.changes.push({
+        const deviceId = await this.getDeviceId();
+
+        const metadata: ChangeMetadata = {
+            timestamp: Date.now(),
+            deviceInfo: {
+                browser: 'Chrome',
+                browserVersion: navigator.userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || '',
+                deviceId,
+                os: navigator.platform,
+                osVersion: navigator.userAgent
+            },
+            userAgent: navigator.userAgent
+        };
+
+        const queuedChange: QueuedChange = {
             ...change,
             timestamp: Date.now(),
-            metadata: {
-                timestamp: Date.now(),
-                deviceInfo: {
-                    os: platformInfo.os,
-                    osVersion: platformInfo.osVersion,
-                    browser: this.getBrowserInfo().name,
-                    browserVersion: this.getBrowserInfo().version,
-                    deviceId: await this.getOrCreateDeviceId()
-                },
-                userAgent: navigator.userAgent
-            }
-        });
-        
-        await chrome.storage.local.set(data);
+            metadata
+        };
+
+        data.changes.push(queuedChange);
+        await this.setData(data);
     }
 
     private async getPlatformInfo(): Promise<{os: string; osVersion: string}> {
@@ -150,7 +163,14 @@ export class StorageManager {
         if (data?.deviceId) {
             return data.deviceId;
         }
-        return '';
+        // If no deviceId exists, create one
+        const deviceId = crypto.randomUUID();
+        await chrome.storage.local.set({ 
+            ...data || this.defaults,
+            deviceId 
+        });
+        console.log('Generated new deviceId:', deviceId);  // Debug log
+        return deviceId;
     }
 }
 

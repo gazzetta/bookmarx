@@ -1,3 +1,5 @@
+import { SyncConfirmDialog, SyncSummary } from '../components/SyncConfirmDialog';
+
 class PopupManager {
     private syncButton: HTMLButtonElement;
     private lastSyncElement: HTMLElement;
@@ -5,12 +7,15 @@ class PopupManager {
     private totalCountElement: HTMLElement;
     private syncStatusElement: HTMLElement;
     private errorContainer: HTMLElement;
+    private syncConfirmDialog: SyncConfirmDialog;
 
     constructor() {
+        this.syncConfirmDialog = new SyncConfirmDialog();
         this.initializeElements();
         this.attachEventListeners();
         this.updateUI();
     }
+
 
     private initializeElements(): void {
         this.syncButton = document.getElementById('syncNow') as HTMLButtonElement;
@@ -97,30 +102,69 @@ class PopupManager {
     }
 
     private async handleSync(): Promise<void> {
-        this.syncButton.disabled = true;
-        this.syncStatusElement.classList.add('syncing');
-    
         try {
-            console.log('Starting sync from popup...');
-            const response = await chrome.runtime.sendMessage({ action: 'syncNow' });
-            console.log('Sync response:', response);
-            
-            if (response.success) {
-                this.showSuccess('Sync completed successfully');
-            } else {
-                this.showError(response.error || 'Sync failed. Please try again.');
+            // Get sync status from server
+            const response = await this.getSyncStatus();
+            if (!response.success) {
+                throw new Error(response.error?.message || 'Failed to get sync status');
             }
-            
-            await this.updateUI();
+
+            // Count all bookmarks for initial sync
+            let summary = response.data;
+            if (summary.isInitialSync) {
+                const bookmarkCount = await this.getTotalBookmarkCount();
+                summary = {
+                    ...summary,
+                    local: {
+                        adds: bookmarkCount,
+                        updates: 0,
+                        moves: 0,
+                        deletes: 0
+                    }
+                };
+            }
+
+            // Show confirmation dialog
+            const confirmed = await this.syncConfirmDialog.showConfirmation(summary);
+            if (!confirmed) return;
+
+            // Trigger sync
+            const syncResult = await this.triggerSync();
+            if (syncResult.success) {
+                this.updateUI();
+            } else {
+                throw new Error(syncResult.error?.message || 'Sync failed');
+            }
         } catch (error) {
-            console.error('Sync error:', error);
-            this.showError('Sync failed. Please try again.');
-        } finally {
-            this.syncButton.disabled = false;
-            this.syncStatusElement.classList.remove('syncing');
+            this.showError((error as Error).message);
         }
     }
-    
+
+    private getTotalBookmarkCount(): Promise<number> {
+        return new Promise((resolve) => {
+            chrome.bookmarks.getTree((bookmarkItems) => {
+                const count = this.countBookmarks(bookmarkItems);
+                resolve(count);
+            });
+        });
+    }
+
+    private async getSyncStatus(): Promise<any> {
+        return new Promise((resolve) => {
+            chrome.runtime.sendMessage({ action: 'getSyncStatus' }, (response) => {
+                resolve(response);
+            });
+        });
+    }
+
+    private async triggerSync(): Promise<any> {
+        return new Promise((resolve) => {
+            chrome.runtime.sendMessage({ action: 'syncNow' }, (response) => {
+                resolve(response);
+            });
+        });
+    }
+
     private showSuccess(message: string): void {
         const errorContainer = document.getElementById('errorContainer');
         if (errorContainer) {
