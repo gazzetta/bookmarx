@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookMarx</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="popup-container">
+        <header class="popup-header">
+            <h1>BookMarx</h1>
+            <div id="syncStatus" class="sync-status">
+                <!-- Status icon will be inserted here -->
+            </div>
+        </header>
+
+        <div class="sync-info">
+            <div id="lastSync" class="last-sync">
+                Last synced: Never
+            </div>
+            <button id="syncNow" class="sync-button">
+                Sync Now
+            </button>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-item">
+                <span class="stat-label">Pending Changes</span>
+                <span id="pendingCount" class="stat-value">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Total Bookmarks</span>
+                <span id="totalCount" class="stat-value">0</span>
+            </div>
+        </div>
+
+        <div class="actions-container">
+            <button id="openOptions" class="action-button">
+                Settings
+            </button>
+            <button id="openManager" class="action-button">
+                Manage Bookmarks
+            </button>
+        </div>
+
+        <div id="errorContainer" class="error-container hidden">
+            <!-- Error messages will be inserted here -->
+        </div>
+        <button id="debugStorage" class="action-button" style="margin-top: 10px;">
+            Debug Storage
+        </button>
+
+    </div>
+    <script src="index.js" type="module"></script>
+</body>
+</html>

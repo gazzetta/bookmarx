@@ -1,0 +1,23 @@
+{
+    "manifest_version": 3,
+    "name": "BookMarx",
+    "version": "1.0.0",
+    "description": "Cross-browser bookmark synchronization system",
+    "permissions": [
+      "bookmarks",
+      "storage",
+      "identity",
+      "alarms"
+    ],
+    "background": {
+      "service_worker": "background/index.js",
+      "type": "module"
+    },
+    "action": {
+      "default_popup": "popup/index.html"
+    },
+    "host_permissions": [
+      "http://localhost:*/*",
+      "http://127.0.0.1:*/*"
+    ]
+  }
