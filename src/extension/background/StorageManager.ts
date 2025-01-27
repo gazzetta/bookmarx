@@ -8,6 +8,7 @@ interface ChangeMetadata {
         browser: string;
         browserVersion: string;
         deviceId: string;
+        browserInstanceId: string;
     };
     userAgent: string;
 }
@@ -20,13 +21,14 @@ interface QueuedChange {
 }
 
 interface StorageData {
-    changes: QueuedChange[];  // Updated to use QueuedChange
+    changes: QueuedChange[];
     lastSync: number;
     settings: {
         syncInterval: number;
         autoSync: boolean;
     };
     deviceId?: string;
+    browserInstanceId?: string;
 }
 
 export class StorageManager {
@@ -37,25 +39,27 @@ export class StorageManager {
             syncInterval: 5 * 60 * 1000,
             autoSync: false
         },
-        deviceId: '' // Add this, but we'll set it properly in setDefaults
+        deviceId: '',
+        browserInstanceId: ''
     };
 
     public async initialize(): Promise<void> {
         const data = await this.getData();
-        if (!data) {
+        if (!data || !data.browserInstanceId) {
             await this.setDefaults();
         }
     }
 
     public async setDefaults(): Promise<void> {
-        // Generate a deviceId when setting defaults
         const deviceId = crypto.randomUUID();
-        const defaultsWithDeviceId = {
+        const browserInstanceId = crypto.randomUUID();
+        const defaultsWithIds = {
             ...this.defaults,
-            deviceId
+            deviceId,
+            browserInstanceId
         };
-        await chrome.storage.local.set(defaultsWithDeviceId);
-        console.log('Set defaults with deviceId:', deviceId);  // Debug log
+        await chrome.storage.local.set(defaultsWithIds);
+        console.log('Set defaults with deviceId and browserInstanceId:', { deviceId, browserInstanceId });
     }
 
     public async getData(): Promise<StorageData | null> {
@@ -70,13 +74,16 @@ export class StorageManager {
     public async queueChange(change: { type: string; data: any }): Promise<void> {
         const data = await this.getData() || this.defaults;
         const deviceId = await this.getDeviceId();
+        const browserInstanceId = await this.getBrowserInstanceId();
+        const { name: browser, version: browserVersion } = this.getBrowserInfo();
 
         const metadata: ChangeMetadata = {
             timestamp: Date.now(),
             deviceInfo: {
-                browser: 'Chrome',
-                browserVersion: navigator.userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || '',
+                browser,
+                browserVersion,
                 deviceId,
+                browserInstanceId,
                 os: navigator.platform,
                 osVersion: navigator.userAgent
             },
@@ -155,7 +162,13 @@ export class StorageManager {
     public async debugCurrentState(): Promise<void> {
         console.log('=== BookMarx Storage Debug ===');
         const data = await this.getData();
-        console.log('Storage Data:', JSON.stringify(data, null, 2));
+        console.log('Current Storage State:', {
+            deviceId: data?.deviceId,
+            browserInstanceId: data?.browserInstanceId,
+            lastSync: data?.lastSync,
+            settings: data?.settings,
+            changesCount: data?.changes?.length || 0
+        });
     }   
     
     public async getDeviceId(): Promise<string> {
@@ -171,6 +184,22 @@ export class StorageManager {
         });
         console.log('Generated new deviceId:', deviceId);  // Debug log
         return deviceId;
+    }
+
+    public async getBrowserInstanceId(): Promise<string> {
+        const data = await this.getData();
+        const browserInstanceId = data?.browserInstanceId || '';
+        console.log('Current browserInstanceId:', browserInstanceId);  // Debug log
+        return browserInstanceId;
+    }
+
+    public async setBrowserInstanceId(id: string): Promise<void> {
+        const data = await this.getData() || this.defaults;
+        await this.setData({
+            ...data,
+            browserInstanceId: id
+        });
+        console.log('Set browserInstanceId:', id);
     }
 }
 

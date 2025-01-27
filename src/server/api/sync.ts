@@ -5,7 +5,20 @@ import { SyncRequest, InitialSyncRequest, SyncChange } from '../types/sync';
 export const handleSync = async (req: Request, res: Response) => {
     try {
         console.log('\n=== Sync Request ===');
-        const { changes, deviceId } = req.body as SyncRequest;
+        const { changes, deviceId, metadata } = req.body as SyncRequest;
+        const { deviceInfo } = metadata;
+
+        // Register or update browser first
+        db.registerBrowser({
+            browserInstanceId: deviceInfo.browserInstanceId,
+            userId: deviceInfo.userId,
+            deviceId: deviceInfo.deviceId,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            userAgent: metadata.userAgent
+        });
 
         // Check if this is the first sync
         const existingBookmarks = db.getBookmarkCount(deviceId);
@@ -26,23 +39,59 @@ export const handleSync = async (req: Request, res: Response) => {
         const results = [];
         
         for (const change of changes) {
-            const { type, data, metadata } = change;
+            const { type, data } = change;
             
             try {
                 switch (type) {
                     case 'CREATE':
                         if (data.type === 'bookmark') {
-                            results.push(db.createBookmark({ ...data, metadata }));
+                            results.push(db.createBookmark({ 
+                                ...data, 
+                                metadata: { 
+                                    ...metadata,
+                                    deviceInfo: {
+                                        ...deviceInfo,
+                                        browserInstanceId: deviceInfo.browserInstanceId
+                                    }
+                                }
+                            }));
                         } else {
-                            results.push(db.createFolder({ ...data, metadata }));
+                            results.push(db.createFolder({ 
+                                ...data, 
+                                metadata: { 
+                                    ...metadata,
+                                    deviceInfo: {
+                                        ...deviceInfo,
+                                        browserInstanceId: deviceInfo.browserInstanceId
+                                    }
+                                }
+                            }));
                         }
                         break;
                         
                     case 'UPDATE':
                         if (data.type === 'bookmark') {
-                            results.push(db.updateBookmark(data));
+                            results.push(db.updateBookmark({ 
+                                ...data, 
+                                metadata: { 
+                                    ...metadata,
+                                    deviceInfo: {
+                                        ...deviceInfo,
+                                        browserInstanceId: deviceInfo.browserInstanceId
+                                    }
+                                }
+                            }));
                         } else {
-                            results.push(db.updateFolder(data));
+                            results.push(db.updateFolder({ 
+                                ...data, 
+                                metadata: { 
+                                    ...metadata,
+                                    deviceInfo: {
+                                        ...deviceInfo,
+                                        browserInstanceId: deviceInfo.browserInstanceId
+                                    }
+                                }
+                            }));
                         }
                         break;
                         
@@ -50,19 +99,32 @@ export const handleSync = async (req: Request, res: Response) => {
                         if (data.type === 'bookmark') {
                             results.push(db.updateBookmark({ 
                                 ...data, 
-                                status: 'deleted' 
+                                status: 'deleted', 
+                                metadata: { 
+                                    ...metadata,
+                                    deviceInfo: {
+                                        ...deviceInfo,
+                                        browserInstanceId: deviceInfo.browserInstanceId
+                                    }
+                                }
                             }));
                         } else {
                             results.push(db.updateFolder({ 
                                 ...data, 
-                                status: 'deleted' 
+                                status: 'deleted', 
+                                metadata: { 
+                                    ...metadata,
+                                    deviceInfo: {
+                                        ...deviceInfo,
+                                        browserInstanceId: deviceInfo.browserInstanceId
+                                    }
+                                }
                             }));
                         }
                         break;
                 }
-            } catch (err) {
-                const error = err as Error;
-                console.error(`Error processing change:`, error);
+            } catch (error) {
+                console.error('Error processing change:', error);
                 results.push({ error: error.message });
             }
         }
@@ -90,15 +152,11 @@ export const handleSync = async (req: Request, res: Response) => {
             }
         });
 
-    } catch (err) {
-        const error = err as Error;
+    } catch (error) {
         console.error('Sync error:', error);
-        res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to process sync request',
-                details: error.message
-            }
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
         });
     }
 };

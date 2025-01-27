@@ -2,6 +2,7 @@
 export interface DeviceInfo {
     browser: string;
     browserVersion: string;
+    browserInstanceId: string;
     deviceId: string;
     os: string;
     osVersion: string;

@@ -100,16 +100,19 @@ export class SyncManager {
     private async sendChangesToServer(changes: any[]): Promise<SyncResponse> {
         try {
             const deviceId = await this.storageManager.getDeviceId();
+            const browserInstanceId = await this.storageManager.getBrowserInstanceId();
             
             const response = await fetch(this.API_ENDPOINT, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Device-ID': deviceId
+                    'X-Device-ID': deviceId,
+                    'X-Browser-Instance-ID': browserInstanceId
                 },
                 body: JSON.stringify({
                     changes,
                     deviceId,
+                    browserInstanceId,
                     timestamp: Date.now()
                 })
             });
@@ -142,10 +145,17 @@ export class SyncManager {
             const deviceInfo = {
                 browser: 'Chrome',
                 browserVersion: navigator.userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || '',
+                browserInstanceId: await this.storageManager.getBrowserInstanceId() || crypto.randomUUID(),
                 deviceId: await this.storageManager.getDeviceId(),
                 os: navigator.platform,
                 osVersion: navigator.userAgent
             };
+
+            // Save the browserInstanceId if it was just generated
+            if (!await this.storageManager.getBrowserInstanceId()) {
+                await this.storageManager.setBrowserInstanceId(deviceInfo.browserInstanceId);
+            }
+
             console.log('Device Info:', deviceInfo);
             
             // Prepare sync metadata

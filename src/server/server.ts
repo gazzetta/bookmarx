@@ -205,6 +205,20 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
         console.log(`Received ${bookmarks.length} bookmarks and ${folders.length} folders`);
         console.log('Device Info:', metadata.deviceInfo);
 
+        // Register browser first
+        console.log('\nRegistering browser...');
+        const deviceInfo = metadata.deviceInfo;
+        db.registerBrowser({
+            browserInstanceId: deviceInfo.browserInstanceId,
+            userId: deviceId,
+            deviceId: deviceInfo.deviceId,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            userAgent: metadata.userAgent
+        });
+
         // Process initial sync
         const folderResults = [];
         const bookmarkResults = [];

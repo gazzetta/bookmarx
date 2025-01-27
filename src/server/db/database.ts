@@ -2,6 +2,17 @@ import Database from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 
+interface Browser {
+    browserInstanceId: string;
+    userId: string;
+    deviceId: string;
+    browser: string;
+    browserVersion: string;
+    os: string;
+    osVersion: string;
+    userAgent: string;
+}
+
 class DatabaseService {
     private db: Database.Database;
     private static instance: DatabaseService;
@@ -34,20 +45,45 @@ class DatabaseService {
         this.db.exec(schema);
     }
 
+    // Register or update a browser instance
+    public registerBrowser(browser: Browser): void {
+        const stmt = this.db.prepare(`
+            INSERT INTO browsers (
+                browserInstanceId, userId, deviceId, browser, browserVersion,
+                os, osVersion, userAgent, lastSeen, updatedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
+            ON CONFLICT(browserInstanceId) DO UPDATE SET
+                browserVersion = excluded.browserVersion,
+                lastSeen = strftime('%s', 'now'),
+                updatedAt = strftime('%s', 'now')
+        `);
+
+        stmt.run(
+            browser.browserInstanceId,
+            browser.userId,
+            browser.deviceId,
+            browser.browser,
+            browser.browserVersion,
+            browser.os,
+            browser.osVersion,
+            browser.userAgent
+        );
+    }
+
     // Folder operations
     public createFolder(folder: any) {
         const stmt = this.db.prepare(`
             INSERT INTO folders (
-                browserId, userId, title, parentId, position, dateAdded,
-                status, syncVersion, browser, browserVersion, deviceId,
-                os, osVersion, userAgent, timestamp
+                browserId, browserInstanceId, userId, title, parentId, 
+                position, dateAdded, status, syncVersion, timestamp
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         `);
         
         return stmt.run(
             folder.browserId,
+            folder.metadata?.deviceInfo?.browserInstanceId,
             folder.userId,
             folder.title,
             folder.parentId,
@@ -55,12 +91,6 @@ class DatabaseService {
             folder.dateAdded,
             folder.status || 'active',
             folder.syncVersion || 1,
-            folder.metadata?.deviceInfo?.browser,
-            folder.metadata?.deviceInfo?.browserVersion,
-            folder.metadata?.deviceInfo?.deviceId,
-            folder.metadata?.deviceInfo?.os,
-            folder.metadata?.deviceInfo?.osVersion,
-            folder.metadata?.userAgent,
             folder.metadata?.timestamp
         );
     }
@@ -69,16 +99,16 @@ class DatabaseService {
     public createBookmark(bookmark: any) {
         const stmt = this.db.prepare(`
             INSERT INTO bookmarks (
-                browserId, userId, url, title, parentId, position, dateAdded,
-                status, syncVersion, browser, browserVersion, deviceId,
-                os, osVersion, userAgent, timestamp
+                browserId, browserInstanceId, userId, url, title, 
+                parentId, position, dateAdded, status, syncVersion, timestamp
             ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
         `);
         
         return stmt.run(
             bookmark.browserId,
+            bookmark.metadata?.deviceInfo?.browserInstanceId,
             bookmark.userId,
             bookmark.url,
             bookmark.title,
@@ -87,12 +117,6 @@ class DatabaseService {
             bookmark.dateAdded,
             bookmark.status || 'active',
             bookmark.syncVersion || 1,
-            bookmark.metadata?.deviceInfo?.browser,
-            bookmark.metadata?.deviceInfo?.browserVersion,
-            bookmark.metadata?.deviceInfo?.deviceId,
-            bookmark.metadata?.deviceInfo?.os,
-            bookmark.metadata?.deviceInfo?.osVersion,
-            bookmark.metadata?.userAgent,
             bookmark.metadata?.timestamp
         );
     }
@@ -101,45 +125,23 @@ class DatabaseService {
     public createSyncHistory(sync: any) {
         const stmt = this.db.prepare(`
             INSERT INTO sync_history (
-                userId, deviceId, type, changesCount, status,
-                bookmarksProcessed, foldersProcessed,
-                browser, browserVersion, os, osVersion,
-                userAgent, timestamp
-            ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
+                userId, browserInstanceId, type, changesCount, status,
+                bookmarksProcessed, foldersProcessed, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         const result = stmt.run(
             sync.userId,
-            sync.deviceId,
+            sync.metadata?.deviceInfo?.browserInstanceId,
             sync.type,
             sync.changesCount,
             sync.status,
-            sync.details?.bookmarksProcessed || 0,
-            sync.details?.foldersProcessed || 0,
-            sync.metadata?.deviceInfo?.browser,
-            sync.metadata?.deviceInfo?.browserVersion,
-            sync.metadata?.deviceInfo?.os,
-            sync.metadata?.deviceInfo?.osVersion,
-            sync.metadata?.userAgent,
-            sync.metadata?.timestamp
+            sync.bookmarksProcessed || 0,
+            sync.foldersProcessed || 0,
+            Date.now()
         );
 
-        // Insert any errors
-        if (sync.details?.errors && sync.details.errors.length > 0) {
-            const errorStmt = this.db.prepare(`
-                INSERT INTO sync_history_errors (
-                    syncHistoryId, type, itemId, message
-                ) VALUES (?, ?, ?, ?)
-            `);
-
-            for (const error of sync.details.errors) {
-                errorStmt.run(result.lastInsertRowid, error.type, error.itemId, error.message);
-            }
-        }
-
-        return result;
+        return result.lastInsertRowid;
     }
 
     // Query helpers
