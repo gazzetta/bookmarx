@@ -295,6 +295,47 @@ class DatabaseService {
     public close() {
         this.db.close();
     }
+
+    public getAllBookmarks(userId: string) {
+        console.log('Getting all bookmarks for userId:', userId);
+        const stmt = this.db.prepare(`
+            SELECT 
+                browserId as id,
+                title,
+                url,
+                parentId as folderId,
+                dateAdded,
+                position
+            FROM bookmarks 
+            WHERE userId = ? 
+            AND status = 'active'
+            ORDER BY dateAdded ASC
+        `);
+        
+        const results = stmt.all(userId);
+        console.log(`Found ${results.length} bookmarks`);
+        return results;
+    }
+
+    public getAllFolders(userId: string) {
+        console.log('Getting all folders for userId:', userId);
+        const stmt = this.db.prepare(`
+            SELECT 
+                browserId as id,
+                title,
+                parentId,
+                dateAdded,
+                position
+            FROM folders 
+            WHERE userId = ? 
+            AND status = 'active'
+            ORDER BY dateAdded ASC
+        `);
+        
+        const results = stmt.all(userId);
+        console.log(`Found ${results.length} folders`);
+        return results;
+    }
 }
 
 export const db = DatabaseService.getInstance();

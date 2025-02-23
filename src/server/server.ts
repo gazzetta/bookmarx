@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { db } from './db/database';
 import { InitialSyncRequest } from './types/sync';
+import { getBookmarkTree } from './api/bookmarks';
 
 interface SyncRequest {
     changes: Array<{
@@ -300,6 +301,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
 // Mount routes
 app.post('/api/v1/sync', handleSync);
 app.post('/api/v1/sync/initial', handleInitialSync);
+app.get('/api/v1/bookmarks/tree/:userId', getBookmarkTree);
 
 // Get sync status
 app.get('/api/v1/sync/status', async (req: Request, res: Response) => {

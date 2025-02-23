@@ -11,8 +11,4 @@ git clean -fd
 
 ## Clean DB
 
-DELETE FROM sync_history_errors;
-DELETE FROM sync_history;
-DELETE FROM bookmarks;
-DELETE FROM folders;
-DELETE FROM browsers;
+DELETE FROM sync_history_errors;DELETE FROM sync_history;DELETE FROM bookmarks;DELETE FROM folders;DELETE FROM browsers;

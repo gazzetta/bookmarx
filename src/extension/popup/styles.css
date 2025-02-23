@@ -130,6 +130,14 @@ body {
     background-color: #f5f5f5;
 }
 
+.action-button.warning {
+    background-color: #dc3545;
+}
+
+.action-button.warning:hover {
+    background-color: #c82333;
+}
+
 .error-container,
 .success-container {
     margin-top: 16px;
@@ -230,4 +238,10 @@ body {
 }
 .sync-cancel-btn:hover {
     background: #e8eaed;
+}
+
+.debug-buttons {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
 }

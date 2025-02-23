@@ -5,12 +5,14 @@ module.exports = {
     mode: 'development',
     devtool: 'source-map',
     entry: {
-        background: './background/index.ts',
-        popup: './popup/index.ts'
+        'background/index': './background/index.ts',
+        'popup/index': './popup/index.ts',
+        'pages/master-collection': './pages/master-collection.ts'
     },
     output: {
-        path: path.resolve(__dirname, './dist'),
-        filename: '[name]/index.js'
+        path: path.resolve(__dirname, 'dist'),
+        filename: '[name].js',
+        clean: true // This will clean the dist folder before each build
     },
     module: {
         rules: [
@@ -27,26 +29,22 @@ module.exports = {
     plugins: [
         new CopyPlugin({
             patterns: [
-                // Copy manifest
                 { 
-                    from: './manifest.json', 
-                    to: './' 
+                    from: 'manifest.json',
+                    to: 'manifest.json'
                 },
-                // Copy HTML files
                 { 
-                    from: './popup/index.html', 
-                    to: './popup/index.html' 
+                    from: 'popup/index.html',
+                    to: 'popup/index.html'
                 },
-                // Copy CSS files
+                {
+                    from: 'pages/master-collection.html',
+                    to: 'pages/master-collection.html'
+                },
                 { 
-                    from: './popup/styles.css', 
-                    to: './popup/styles.css' 
-                },
-                // Copy assets (when we add them)
-                // { 
-                //     from: './assets', 
-                //     to: './assets' 
-                // }
+                    from: 'popup/styles.css',
+                    to: 'popup/styles.css'
+                }
             ]
         })
     ]

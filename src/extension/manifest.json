@@ -4,20 +4,28 @@
     "version": "1.0.0",
     "description": "Cross-browser bookmark synchronization system",
     "permissions": [
-      "bookmarks",
-      "storage",
-      "identity",
-      "alarms"
+        "bookmarks",
+        "storage",
+        "identity",
+        "alarms"
     ],
     "background": {
-      "service_worker": "background/index.js",
-      "type": "module"
+        "service_worker": "background/index.js",
+        "type": "module"
     },
     "action": {
-      "default_popup": "popup/index.html"
+        "default_popup": "popup/index.html"
     },
+    "web_accessible_resources": [{
+        "resources": [
+            "pages/*",
+            "pages/master-collection.html",
+            "pages/master-collection.js"
+        ],
+        "matches": ["<all_urls>"]
+    }],
     "host_permissions": [
-      "http://localhost:*/*",
-      "http://127.0.0.1:*/*"
+        "http://localhost:*/*",
+        "http://127.0.0.1:*/*"
     ]
-  }
+}

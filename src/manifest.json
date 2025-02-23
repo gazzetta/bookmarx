@@ -1,0 +1,12 @@
+{
+  // ... other manifest properties ...
+  "web_accessible_resources": [{
+    "resources": ["pages/master-collection.html"],
+    "matches": ["<all_urls>"]
+  }],
+  "permissions": [
+    "bookmarks",
+    "storage",
+    "http://localhost:3005/*"
+  ]
+}

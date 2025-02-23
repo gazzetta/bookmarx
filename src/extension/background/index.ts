@@ -66,6 +66,22 @@ class BackgroundService {
                 return true; // Keep the message channel open for async response
             }
 
+            if (message.action === 'clearStorage') {
+                (async () => {
+                    try {
+                        await this.storageManager.clearAllStorage();
+                        sendResponse({ success: true });
+                    } catch (error) {
+                        console.error('Clear Storage Error:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true; // Keep the message channel open for async response
+            }
+
             // Existing sync handler
             if (message.action === 'syncNow') {
                 console.log('Received sync request from popup');

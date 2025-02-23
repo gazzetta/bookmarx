@@ -34,7 +34,8 @@ class PopupManager {
         });
 
         document.getElementById('openManager')?.addEventListener('click', () => {
-            chrome.tabs.create({ url: 'chrome://bookmarks' });
+            const url = chrome.runtime.getURL('pages/master-collection.html');
+            chrome.tabs.create({ url });
         });
 
         document.getElementById('debugStorage')?.addEventListener('click', async () => {
@@ -47,6 +48,20 @@ class PopupManager {
                 console.log('Local Storage Data:', localData);
             } catch (error) {
                 console.error('Debug Storage Error:', error);
+            }
+        });
+
+        document.getElementById('clearStorage')?.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to clear all extension storage? This will reset all settings and sync data.')) {
+                try {
+                    await chrome.runtime.sendMessage({ action: 'clearStorage' });
+                    this.showSuccess('Storage cleared successfully');
+                    // Refresh the UI
+                    await this.updateUI();
+                } catch (error) {
+                    this.showError('Failed to clear storage');
+                    console.error('Clear Storage Error:', error);
+                }
             }
         });
     }

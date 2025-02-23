@@ -211,6 +211,13 @@ export class StorageManager {
         const data = await this.getData();
         return data?.userId || '1';
     }
+
+    public async clearAllStorage(): Promise<void> {
+        await chrome.storage.local.clear();
+        console.log('Storage cleared');
+        // Reinitialize with defaults
+        await this.setDefaults();
+    }
 }
 
 export async function debugStorage() {
