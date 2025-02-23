@@ -38,6 +38,34 @@ class BackgroundService {
         chrome.runtime.onStartup.addListener(this.handleStartup.bind(this));
     
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (message.action === 'debugStorage') {
+                (async () => {
+                    try {
+                        await this.storageManager.debugCurrentState();
+                        const storageData = await this.storageManager.getData();
+                        sendResponse({
+                            success: true,
+                            data: {
+                                userId: storageData?.userId,
+                                deviceId: storageData?.deviceId,
+                                browserInstanceId: storageData?.browserInstanceId,
+                                lastSync: storageData?.lastSync,
+                                settings: storageData?.settings,
+                                pendingChanges: storageData?.changes?.length || 0,
+                                changes: storageData?.changes || []
+                            }
+                        });
+                    } catch (error) {
+                        console.error('Debug Storage Error:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true; // Keep the message channel open for async response
+            }
+
             // Existing sync handler
             if (message.action === 'syncNow') {
                 console.log('Received sync request from popup');

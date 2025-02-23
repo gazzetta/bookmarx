@@ -1,24 +1,4 @@
-type ChangeType = 'CREATE' | 'UPDATE' | 'DELETE' | 'MOVE';
-
-interface ChangeMetadata {
-    timestamp: number;
-    deviceInfo: {
-        os: string;
-        osVersion: string;
-        browser: string;
-        browserVersion: string;
-        deviceId: string;
-        browserInstanceId: string;
-    };
-    userAgent: string;
-}
-
-interface QueuedChange {
-    type: string;
-    data: any;
-    timestamp: number;
-    metadata: ChangeMetadata;
-}
+import { QueuedChange, ChangeMetadata } from './types';
 
 interface StorageData {
     changes: QueuedChange[];
@@ -27,6 +7,7 @@ interface StorageData {
         syncInterval: number;
         autoSync: boolean;
     };
+    userId: string;
     deviceId?: string;
     browserInstanceId?: string;
 }
@@ -39,6 +20,7 @@ export class StorageManager {
             syncInterval: 5 * 60 * 1000,
             autoSync: false
         },
+        userId: '1',
         deviceId: '',
         browserInstanceId: ''
     };
@@ -73,6 +55,7 @@ export class StorageManager {
 
     public async queueChange(change: { type: string; data: any }): Promise<void> {
         const data = await this.getData() || this.defaults;
+        const userId = await this.getUserId();
         const deviceId = await this.getDeviceId();
         const browserInstanceId = await this.getBrowserInstanceId();
         const { name: browser, version: browserVersion } = this.getBrowserInfo();
@@ -93,7 +76,8 @@ export class StorageManager {
         const queuedChange: QueuedChange = {
             ...change,
             timestamp: Date.now(),
-            metadata
+            metadata,
+            userId
         };
 
         data.changes.push(queuedChange);
@@ -160,15 +144,36 @@ export class StorageManager {
     }
 
     public async debugCurrentState(): Promise<void> {
-        console.log('=== BookMarx Storage Debug ===');
+        console.group('=== BookMarx Storage Debug ===');
         const data = await this.getData();
-        console.log('Current Storage State:', {
-            deviceId: data?.deviceId,
-            browserInstanceId: data?.browserInstanceId,
-            lastSync: data?.lastSync,
-            settings: data?.settings,
-            changesCount: data?.changes?.length || 0
-        });
+        
+        if (!data) {
+            console.log('No storage data found');
+            console.groupEnd();
+            return;
+        }
+
+        console.log('User ID:', data.userId);
+        console.log('Device ID:', data.deviceId);
+        console.log('Browser Instance ID:', data.browserInstanceId);
+        console.log('Last Sync:', data.lastSync ? new Date(data.lastSync).toISOString() : 'Never');
+        console.log('Settings:', data.settings);
+        console.log('Pending Changes:', data.changes?.length || 0);
+        
+        if (data.changes && data.changes.length > 0) {
+            console.group('Queued Changes:');
+            data.changes.forEach((change, index) => {
+                console.group(`Change ${index + 1}:`);
+                console.log('Type:', change.type);
+                console.log('Data:', change.data);
+                console.log('Timestamp:', new Date(change.timestamp).toISOString());
+                console.log('User ID:', change.userId);
+                console.groupEnd();
+            });
+            console.groupEnd();
+        }
+        
+        console.groupEnd();
     }   
     
     public async getDeviceId(): Promise<string> {
@@ -200,6 +205,11 @@ export class StorageManager {
             browserInstanceId: id
         });
         console.log('Set browserInstanceId:', id);
+    }
+
+    public async getUserId(): Promise<string> {
+        const data = await this.getData();
+        return data?.userId || '1';
     }
 }
 

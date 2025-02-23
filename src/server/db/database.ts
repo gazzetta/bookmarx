@@ -46,21 +46,17 @@ class DatabaseService {
     }
 
     // Register or update a browser instance
-    public registerBrowser(browser: Browser): void {
+    public registerBrowser(browser: any) {
         const stmt = this.db.prepare(`
-            INSERT INTO browsers (
-                browserInstanceId, userId, deviceId, browser, browserVersion,
-                os, osVersion, userAgent, lastSeen, updatedAt
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'), strftime('%s', 'now'))
-            ON CONFLICT(browserInstanceId) DO UPDATE SET
-                browserVersion = excluded.browserVersion,
-                lastSeen = strftime('%s', 'now'),
-                updatedAt = strftime('%s', 'now')
+            INSERT OR REPLACE INTO browsers (
+                browserInstanceId, userId, deviceId, browser, 
+                browserVersion, os, osVersion, userAgent
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
         stmt.run(
             browser.browserInstanceId,
-            browser.userId,
+            browser.userId,  // This will now be '1' instead of deviceId
             browser.deviceId,
             browser.browser,
             browser.browserVersion,
@@ -76,15 +72,13 @@ class DatabaseService {
             INSERT INTO folders (
                 browserId, browserInstanceId, userId, title, parentId, 
                 position, dateAdded, status, syncVersion, timestamp
-            ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         return stmt.run(
             folder.browserId,
             folder.metadata?.deviceInfo?.browserInstanceId,
-            folder.userId,
+            folder.userId,  // This will now be '1'
             folder.title,
             folder.parentId,
             folder.position,
@@ -101,15 +95,13 @@ class DatabaseService {
             INSERT INTO bookmarks (
                 browserId, browserInstanceId, userId, url, title, 
                 parentId, position, dateAdded, status, syncVersion, timestamp
-            ) VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-            )
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         return stmt.run(
             bookmark.browserId,
             bookmark.metadata?.deviceInfo?.browserInstanceId,
-            bookmark.userId,
+            bookmark.userId,  // This will now be '1'
             bookmark.url,
             bookmark.title,
             bookmark.parentId,

@@ -167,16 +167,19 @@ export class SyncManager {
             
             // Send to server
             console.log('\nSending initial sync request to server...');
+            const userId = await this.storageManager.getUserId();
             const deviceId = await this.storageManager.getDeviceId();
             const response = await fetch(`${this.API_ENDPOINT}/initial`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Device-ID': deviceId
+                    'X-Device-ID': deviceId,
+                    'X-User-ID': userId
                 },
                 body: JSON.stringify({
                     bookmarks,
                     folders,
+                    userId,
                     deviceId,
                     metadata
                 })

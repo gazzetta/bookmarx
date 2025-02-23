@@ -30,7 +30,7 @@ export class BookmarkManager {
                 data: {
                     type: bookmark.url ? 'bookmark' : 'folder',
                     browserId: id,
-                    userId: 'default',
+                    userId: '1',  // Fixed userId instead of 'default'
                     ...processedBookmark
                 }
             });

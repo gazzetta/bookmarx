@@ -210,7 +210,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
         const deviceInfo = metadata.deviceInfo;
         db.registerBrowser({
             browserInstanceId: deviceInfo.browserInstanceId,
-            userId: deviceId,
+            userId: req.body.userId,  // Use userId from request instead of deviceId
             deviceId: deviceInfo.deviceId,
             browser: deviceInfo.browser,
             browserVersion: deviceInfo.browserVersion,
@@ -231,7 +231,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
                 folderResults.push(
                     db.createFolder({
                         ...folder,
-                        userId: deviceId,
+                        userId: req.body.userId,  // Use userId from request
                         metadata
                     })
                 );
@@ -244,7 +244,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
                 bookmarkResults.push(
                     db.createBookmark({
                         ...bookmark,
-                        userId: deviceId,
+                        userId: req.body.userId,  // Use userId from request
                         metadata
                     })
                 );
@@ -253,7 +253,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
             // Create sync history entry
             console.log('\nCreating sync history entry...');
             db.createSyncHistory({
-                userId: deviceId,
+                userId: req.body.userId,  // Use userId from request
                 deviceId,
                 type: 'INITIAL_IMPORT',
                 changesCount: bookmarks.length + folders.length,

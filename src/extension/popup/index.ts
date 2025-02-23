@@ -38,9 +38,17 @@ class PopupManager {
         });
 
         document.getElementById('debugStorage')?.addEventListener('click', async () => {
-            const data = await this.getStorageData();
-            console.log('Storage Debug:', JSON.stringify(data, null, 2));
-        });        
+            try {
+                const response = await chrome.runtime.sendMessage({ action: 'debugStorage' });
+                console.log('Storage Debug Response:', response);
+                
+                // Also log local storage data
+                const localData = await this.getStorageData();
+                console.log('Local Storage Data:', localData);
+            } catch (error) {
+                console.error('Debug Storage Error:', error);
+            }
+        });
     }
 
     private async updateUI(): Promise<void> {
