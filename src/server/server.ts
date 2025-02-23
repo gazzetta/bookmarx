@@ -30,22 +30,7 @@ const handleSync: RequestHandler = async (req, res) => {
         console.log('\n=== Sync Request ===');
         const { changes, deviceId } = req.body as SyncRequest;
 
-        // Check if this is the first sync
-        const existingBookmarks = db.getBookmarkCount(deviceId);
-        const isInitialSync = existingBookmarks === 0;
-        console.log(`Is initial sync needed? ${isInitialSync}`);
-
-        if (isInitialSync) {
-            return res.json({
-                success: true,
-                data: {
-                    action: 'NEED_INITIAL_IMPORT',
-                    message: 'No existing bookmarks found. Please perform initial import.'
-                }
-            });
-        }
-
-        // Process changes
+        // Process changes directly - remove the initial sync check
         const results = [];
         for (const change of changes) {
             const { type, data, metadata } = change;
@@ -55,116 +40,30 @@ const handleSync: RequestHandler = async (req, res) => {
                 switch (type) {
                     case 'CREATE':
                         if (data.type === 'bookmark') {
-                            results.push(db.createBookmark({ 
+                            results.push(await db.createBookmark({ 
                                 ...data,
-                                metadata: {
-                                    deviceInfo: {
-                                        browser: metadata?.deviceInfo?.browser,
-                                        browserVersion: metadata?.deviceInfo?.browserVersion,
-                                        deviceId,
-                                        os: metadata?.deviceInfo?.os,
-                                        osVersion: metadata?.deviceInfo?.osVersion
-                                    },
-                                    userAgent: metadata?.userAgent,
-                                    timestamp: metadata?.timestamp
-                                }
-                            }));
-                        } else {
-                            results.push(db.createFolder({ 
-                                ...data,
-                                metadata: {
-                                    deviceInfo: {
-                                        browser: metadata?.deviceInfo?.browser,
-                                        browserVersion: metadata?.deviceInfo?.browserVersion,
-                                        deviceId,
-                                        os: metadata?.deviceInfo?.os,
-                                        osVersion: metadata?.deviceInfo?.osVersion
-                                    },
-                                    userAgent: metadata?.userAgent,
-                                    timestamp: metadata?.timestamp
-                                }
+                                metadata 
                             }));
                         }
                         break;
-                        
                     case 'UPDATE':
                         if (data.type === 'bookmark') {
-                            results.push(db.updateBookmark({
+                            results.push(await db.updateBookmark({
                                 ...data,
-                                metadata: {
-                                    deviceInfo: {
-                                        browser: metadata?.deviceInfo?.browser,
-                                        browserVersion: metadata?.deviceInfo?.browserVersion,
-                                        deviceId,
-                                        os: metadata?.deviceInfo?.os,
-                                        osVersion: metadata?.deviceInfo?.osVersion
-                                    },
-                                    userAgent: metadata?.userAgent,
-                                    timestamp: metadata?.timestamp
-                                }
-                            }));
-                        } else {
-                            results.push(db.updateFolder({
-                                ...data,
-                                metadata: {
-                                    deviceInfo: {
-                                        browser: metadata?.deviceInfo?.browser,
-                                        browserVersion: metadata?.deviceInfo?.browserVersion,
-                                        deviceId,
-                                        os: metadata?.deviceInfo?.os,
-                                        osVersion: metadata?.deviceInfo?.osVersion
-                                    },
-                                    userAgent: metadata?.userAgent,
-                                    timestamp: metadata?.timestamp
-                                }
+                                metadata
                             }));
                         }
                         break;
-                        
-                    case 'DELETE':
-                        if (data.type === 'bookmark') {
-                            results.push(db.updateBookmark({ 
-                                ...data, 
-                                status: 'deleted',
-                                metadata: {
-                                    deviceInfo: {
-                                        browser: metadata?.deviceInfo?.browser,
-                                        browserVersion: metadata?.deviceInfo?.browserVersion,
-                                        deviceId,
-                                        os: metadata?.deviceInfo?.os,
-                                        osVersion: metadata?.deviceInfo?.osVersion
-                                    },
-                                    userAgent: metadata?.userAgent,
-                                    timestamp: metadata?.timestamp
-                                }
-                            }));
-                        } else {
-                            results.push(db.updateFolder({ 
-                                ...data, 
-                                status: 'deleted',
-                                metadata: {
-                                    deviceInfo: {
-                                        browser: metadata?.deviceInfo?.browser,
-                                        browserVersion: metadata?.deviceInfo?.browserVersion,
-                                        deviceId,
-                                        os: metadata?.deviceInfo?.os,
-                                        osVersion: metadata?.deviceInfo?.osVersion
-                                    },
-                                    userAgent: metadata?.userAgent,
-                                    timestamp: metadata?.timestamp
-                                }
-                            }));
-                        }
-                        break;
+                    // ... other cases
                 }
             } catch (err) {
-                console.error(`Error processing change:`, err);
+                console.error('Error processing change:', err);
                 results.push({ error: err instanceof Error ? err.message : 'Unknown error' });
             }
         }
 
         // Create sync history entry
-        db.createSyncHistory({
+        await db.createSyncHistory({
             userId: deviceId,
             deviceId,
             type: 'SYNC',
@@ -174,7 +73,7 @@ const handleSync: RequestHandler = async (req, res) => {
                 bookmarksProcessed: changes.filter(c => c.data.type === 'bookmark').length,
                 foldersProcessed: changes.filter(c => c.data.type === 'folder').length
             },
-            metadata: changes[0]?.metadata // Use metadata from first change
+            metadata: changes[0]?.metadata
         });
 
         res.json({
@@ -306,22 +205,27 @@ app.get('/api/v1/bookmarks/tree/:userId', getBookmarkTree);
 // Get sync status
 app.get('/api/v1/sync/status', async (req: Request, res: Response) => {
     try {
-        const deviceId = req.headers['x-device-id'] as string;
-        if (!deviceId) {
+        console.log('\n=== Sync Status Request ===');
+        const browserInstanceId = req.headers['x-browser-instance-id'] as string;
+        console.log('Browser Instance ID:', browserInstanceId);
+
+        if (!browserInstanceId) {
+            console.log('Error: No Browser Instance ID provided');
             return res.status(400).json({
                 success: false,
                 error: {
-                    message: 'Device ID is required'
+                    message: 'Browser Instance ID is required'
                 }
             });
         }
 
         // Check if initial sync is needed
-        const bookmarkCount = db.getBookmarkCount(deviceId);
+        const bookmarkCount = db.getBookmarkCountForBrowser(browserInstanceId);
         const needsInitialSync = bookmarkCount === 0;
+        console.log(`Bookmark count for browser ${browserInstanceId}: ${bookmarkCount}`);
+        console.log(`Needs initial sync? ${needsInitialSync}`);
 
-        // For now, just return a simple status
-        res.json({
+        const response = {
             success: true,
             data: {
                 needsInitialSync,
@@ -332,7 +236,9 @@ app.get('/api/v1/sync/status', async (req: Request, res: Response) => {
                     deletes: 0
                 }
             }
-        });
+        };
+        console.log('Sending response:', response);
+        res.json(response);
     } catch (err) {
         const error = err as Error;
         console.error('Error getting sync status:', error);

@@ -20,111 +20,37 @@ export const handleSync = async (req: Request, res: Response) => {
             userAgent: metadata.userAgent
         });
 
-        // Check if this is the first sync
-        const existingBookmarks = db.getBookmarkCount(deviceId);
-        const isInitialSync = existingBookmarks === 0;
-        console.log(`Is initial sync needed? ${isInitialSync}`);
-
-        if (isInitialSync) {
-            return res.json({
-                success: true,
-                data: {
-                    action: 'NEED_INITIAL_IMPORT',
-                    message: 'No existing bookmarks found. Please perform initial import.'
-                }
-            });
-        }
-
-        // Process changes
+        // Process changes directly - remove initial sync check since we already checked in /status
         const results = [];
         
         for (const change of changes) {
             const { type, data } = change;
             
             try {
-                switch (type) {
-                    case 'CREATE':
-                        if (data.type === 'bookmark') {
-                            results.push(db.createBookmark({ 
-                                ...data, 
-                                metadata: { 
-                                    ...metadata,
-                                    deviceInfo: {
-                                        ...deviceInfo,
-                                        browserInstanceId: deviceInfo.browserInstanceId
-                                    }
-                                }
-                            }));
-                        } else {
-                            results.push(db.createFolder({ 
-                                ...data, 
-                                metadata: { 
-                                    ...metadata,
-                                    deviceInfo: {
-                                        ...deviceInfo,
-                                        browserInstanceId: deviceInfo.browserInstanceId
-                                    }
-                                }
-                            }));
-                        }
-                        break;
-                        
-                    case 'UPDATE':
-                        if (data.type === 'bookmark') {
-                            results.push(db.updateBookmark({ 
-                                ...data, 
-                                metadata: { 
-                                    ...metadata,
-                                    deviceInfo: {
-                                        ...deviceInfo,
-                                        browserInstanceId: deviceInfo.browserInstanceId
-                                    }
-                                }
-                            }));
-                        } else {
-                            results.push(db.updateFolder({ 
-                                ...data, 
-                                metadata: { 
-                                    ...metadata,
-                                    deviceInfo: {
-                                        ...deviceInfo,
-                                        browserInstanceId: deviceInfo.browserInstanceId
-                                    }
-                                }
-                            }));
-                        }
-                        break;
-                        
-                    case 'DELETE':
-                        if (data.type === 'bookmark') {
-                            results.push(db.updateBookmark({ 
-                                ...data, 
-                                status: 'deleted', 
-                                metadata: { 
-                                    ...metadata,
-                                    deviceInfo: {
-                                        ...deviceInfo,
-                                        browserInstanceId: deviceInfo.browserInstanceId
-                                    }
-                                }
-                            }));
-                        } else {
-                            results.push(db.updateFolder({ 
-                                ...data, 
-                                status: 'deleted', 
-                                metadata: { 
-                                    ...metadata,
-                                    deviceInfo: {
-                                        ...deviceInfo,
-                                        browserInstanceId: deviceInfo.browserInstanceId
-                                    }
-                                }
-                            }));
-                        }
-                        break;
+                if (type === 'UPDATE' && data.type === 'bookmark') {
+                    // Format the update data correctly for the database
+                    const updateData = {
+                        id: data.id,
+                        title: data.title,
+                        url: data.url,
+                        parentId: data.parentId,
+                        index: data.index,
+                        metadata: {
+                            deviceInfo: {
+                                ...deviceInfo,
+                                browserInstanceId: deviceInfo.browserInstanceId
+                            },
+                            userAgent: metadata.userAgent,
+                            timestamp: change.timestamp
+                        },
+                        status: 'active'
+                    };
+
+                    results.push(await db.updateBookmark(updateData));
                 }
+                // Add other change types handling here
             } catch (error) {
-                console.error('Error processing change:', error);
+                console.error('Error processing update:', error);
                 results.push({ error: error.message });
             }
         }
@@ -137,10 +63,10 @@ export const handleSync = async (req: Request, res: Response) => {
             changesCount: changes.length,
             status: 'SUCCESS',
             details: {
-                bookmarksProcessed: changes.filter((c: SyncChange) => c.data.type === 'bookmark').length,
-                foldersProcessed: changes.filter((c: SyncChange) => c.data.type === 'folder').length
+                bookmarksProcessed: changes.filter(c => c.data.type === 'bookmark').length,
+                foldersProcessed: changes.filter(c => c.data.type === 'folder').length
             },
-            metadata: changes[0]?.metadata // Use metadata from first change
+            metadata: changes[0]?.metadata
         });
 
         res.json({

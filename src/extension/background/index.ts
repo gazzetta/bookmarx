@@ -101,36 +101,57 @@ class BackgroundService {
             if (message.action === 'getSyncStatus') {
                 (async () => {
                     try {
-                        const deviceId = await this.storageManager.getDeviceId();
-                        console.log('Debug - deviceId before request:', deviceId);
-            
+                        // First check local storage
+                        const storageData = await this.storageManager.getData();
+                        const hasInitialSync = storageData?.lastSync != null && storageData.lastSync > 0;
+
+                        if (hasInitialSync) {
+                            // Already synced before, just get local changes
+                            const localChanges = await this.storageManager.getQueuedChanges();
+                            const local = {
+                                adds: localChanges.filter(c => c.type === 'CREATE').length,
+                                updates: localChanges.filter(c => c.type === 'UPDATE').length,
+                                moves: localChanges.filter(c => c.type === 'MOVE').length,
+                                deletes: localChanges.filter(c => c.type === 'DELETE').length
+                            };
+
+                            sendResponse({
+                                success: true,
+                                data: {
+                                    isInitialSync: false,
+                                    local,
+                                    remote: { adds: 0, updates: 0, moves: 0, deletes: 0 }
+                                }
+                            });
+                            return;
+                        }
+
+                        // If no initial sync yet, then check with server
+                        const browserInstanceId = await this.storageManager.getBrowserInstanceId();
                         const response = await fetch('http://localhost:3005/api/v1/sync/status', {
                             method: 'GET',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-Device-ID': deviceId
+                                'X-Browser-Instance-ID': browserInstanceId
                             }
                         });                        
-            
+
                         if (!response.ok) {
-                            console.error('Server response not OK:', response.status);
                             throw new Error('Failed to get sync status');
                         }
-            
+
                         const serverStatus = await response.json();
                         console.log('Server status:', serverStatus);
-    
+
                         // Get local changes
                         const localChanges = await this.storageManager.getQueuedChanges();
-    
-                        // Count local changes by type
                         const local = {
                             adds: localChanges.filter(c => c.type === 'CREATE').length,
                             updates: localChanges.filter(c => c.type === 'UPDATE').length,
                             moves: localChanges.filter(c => c.type === 'MOVE').length,
                             deletes: localChanges.filter(c => c.type === 'DELETE').length
                         };
-    
+
                         sendResponse({
                             success: true,
                             data: {

@@ -167,8 +167,22 @@ class DatabaseService {
     }
 
     // Get bookmark count for a user
+    public getBookmarkCountForBrowser(browserInstanceId: string): number {
+        const stmt = this.db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM bookmarks 
+            WHERE browserInstanceId = ? AND status = 'active'
+        `);
+        const result = stmt.get(browserInstanceId) as { count: number };
+        return result.count;
+    }
+
     public getBookmarkCount(userId: string): number {
-        const stmt = this.db.prepare('SELECT COUNT(*) as count FROM bookmarks WHERE userId = ?');
+        const stmt = this.db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM bookmarks 
+            WHERE userId = ? AND status = 'active'
+        `);
         const result = stmt.get(userId) as { count: number };
         return result.count;
     }
@@ -177,20 +191,26 @@ class DatabaseService {
     public updateBookmark(bookmark: any) {
         const stmt = this.db.prepare(`
             UPDATE bookmarks 
-            SET title = ?, url = ?, parentId = ?, position = ?,
-                status = ?, syncVersion = syncVersion + 1,
+            SET title = ?,
+                url = ?,
+                parentId = ?,
+                position = ?,
+                status = ?,
+                syncVersion = syncVersion + 1,
+                timestamp = ?,
                 updatedAt = strftime('%s', 'now')
-            WHERE browserId = ? AND userId = ?
+            WHERE browserId = ? AND browserInstanceId = ?
         `);
         
         return stmt.run(
             bookmark.title,
             bookmark.url,
             bookmark.parentId,
-            bookmark.position,
-            bookmark.status,
-            bookmark.browserId,
-            bookmark.userId
+            bookmark.index,
+            'active',
+            bookmark.metadata?.timestamp,
+            bookmark.id,
+            bookmark.metadata?.deviceInfo?.browserInstanceId
         );
     }
 

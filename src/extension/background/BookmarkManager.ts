@@ -58,14 +58,19 @@ export class BookmarkManager {
 
     private async handleBookmarkChanged(id: string, changeInfo: chrome.bookmarks.BookmarkChangeInfo): Promise<void> {
         try {
-            // Queue the update
+            // Get current bookmark to include all necessary data
+            const [bookmark] = await chrome.bookmarks.get(id);
+            
             await this.storageManager.queueChange({
                 type: 'UPDATE',
                 data: {
-                    type: 'bookmark', // Title/URL changes only apply to bookmarks
-                    browserId: id,
-                    userId: 'default',
-                    changes: changeInfo
+                    type: 'bookmark',
+                    id: id,
+                    title: changeInfo.title || bookmark.title,
+                    url: changeInfo.url || bookmark.url,
+                    parentId: bookmark.parentId,
+                    index: bookmark.index,
+                    dateAdded: bookmark.dateAdded
                 }
             });
             console.log('Bookmark updated:', { id, changes: changeInfo });

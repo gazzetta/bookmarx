@@ -54,41 +54,47 @@ export class SyncManager {
             console.log('Sync already in progress');
             return false;
         }
-    
+
         try {
             this.syncInProgress = true;
             console.log('Starting sync process in background...');
-    
+
+            // Check sync status first
+            const status = await this.getSyncStatus();
+            if (!status.success) {
+                throw new Error('Failed to get sync status');
+            }
+
+            if (status.data.needsInitialSync) {
+                console.log('Initial sync needed, performing initial sync...');
+                return await this.sendInitialSync();
+            }
+
             // Get all pending changes
             const changes = await this.storageManager.getQueuedChanges();
             console.log('Changes to be synced:', changes);
-    
-            // Send changes to server (even if empty - server needs to check for initial sync)
+
+            // Send changes to server
             const response = await this.sendChangesToServer(changes);
             console.log('Server response:', response);
-    
+
             if (response.success) {
-                if (response.data?.action === 'NEED_INITIAL_IMPORT') {
-                    console.log('Server requested initial import, gathering bookmark tree...');
-                    return await this.sendInitialSync();
-                }
-    
                 // Clear the synced changes only if we had any
                 if (changes.length > 0) {
                     await this.storageManager.clearQueuedChanges();
                     await this.storageManager.updateLastSync();
                 }
-    
+
                 // If server sent back changes, apply them
                 if (response.changes && response.changes.length > 0) {
                     await this.applyServerChanges(response.changes);
                 }
-    
+
                 return true;
             } else {
                 throw new Error(response.error || 'Sync failed');
             }
-    
+
         } catch (error) {
             console.error('Sync error:', error);
             throw error;
@@ -101,19 +107,54 @@ export class SyncManager {
         try {
             const deviceId = await this.storageManager.getDeviceId();
             const browserInstanceId = await this.storageManager.getBrowserInstanceId();
+            const userId = await this.storageManager.getUserId();
             
+            // Get device info for metadata
+            const deviceInfo = {
+                browser: 'Chrome',
+                browserVersion: navigator.userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || '',
+                browserInstanceId,
+                deviceId,
+                os: navigator.platform,
+                osVersion: navigator.userAgent
+            };
+
+            // Format changes with proper metadata
+            const formattedChanges = changes.map(change => ({
+                type: change.type,
+                data: {
+                    type: change.data.type,
+                    id: change.data.id,
+                    title: change.data.title,
+                    url: change.data.url,
+                    parentId: change.data.parentId,
+                    index: change.data.index,
+                    dateAdded: change.data.dateAdded
+                },
+                metadata: {
+                    deviceInfo,
+                    userAgent: navigator.userAgent,
+                    timestamp: Date.now()
+                },
+                timestamp: Date.now()
+            }));
+
             const response = await fetch(this.API_ENDPOINT, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Device-ID': deviceId,
-                    'X-Browser-Instance-ID': browserInstanceId
+                    'X-Browser-Instance-ID': browserInstanceId,
+                    'X-User-ID': userId
                 },
                 body: JSON.stringify({
-                    changes,
+                    changes: formattedChanges,
                     deviceId,
-                    browserInstanceId,
-                    timestamp: Date.now()
+                    metadata: {
+                        deviceInfo,
+                        userAgent: navigator.userAgent,
+                        timestamp: Date.now()
+                    }
                 })
             });
 
@@ -384,5 +425,25 @@ export class SyncManager {
             console.error('Error getting sync summary:', error);
             throw error;
         }
+    }
+
+    private async getSyncStatus(): Promise<any> {
+        const deviceId = await this.storageManager.getDeviceId();
+        const browserInstanceId = await this.storageManager.getBrowserInstanceId();
+        
+        const response = await fetch(`${this.API_ENDPOINT}/status`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-ID': deviceId,
+                'X-Browser-Instance-ID': browserInstanceId
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get sync status');
+        }
+
+        return await response.json();
     }
 }
