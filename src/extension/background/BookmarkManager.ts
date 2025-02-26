@@ -24,17 +24,24 @@ export class BookmarkManager {
         try {
             // Process new bookmark
             const processedBookmark = await this.processBookmark(bookmark);
+            const isFolder = !bookmark.url;
+            
             // Queue for sync
             await this.storageManager.queueChange({
                 type: 'CREATE',
                 data: {
-                    type: bookmark.url ? 'bookmark' : 'folder',
+                    type: isFolder ? 'folder' : 'bookmark',
                     browserId: id,
                     userId: '1',  // Fixed userId instead of 'default'
                     ...processedBookmark
                 }
             });
-            console.log('Bookmark created:', processedBookmark);
+            
+            if (isFolder) {
+                console.log('Folder created:', processedBookmark);
+            } else {
+                console.log('Bookmark created:', processedBookmark);
+            }
         } catch (error) {
             console.error('Error handling bookmark creation:', error);
         }
@@ -42,15 +49,17 @@ export class BookmarkManager {
     
     private async handleBookmarkRemoved(id: string, removeInfo: chrome.bookmarks.BookmarkRemoveInfo): Promise<void> {
         try {
+            // We don't know if it was a folder or bookmark at this point
+            // The server will handle both cases the same way
             await this.storageManager.queueChange({
                 type: 'DELETE',
                 data: {
-                    type: 'bookmark', // We don't know if it was a folder, but server handles both the same
+                    type: 'unknown', // Server will determine based on database lookup
                     browserId: id,
-                    userId: 'default'
+                    userId: '1'
                 }
             });
-            console.log('Bookmark deleted:', id);
+            console.log('Bookmark or Folder deleted:', id);
         } catch (error) {
             console.error('Error handling bookmark removal:', error);
         }
@@ -61,11 +70,14 @@ export class BookmarkManager {
             // Get current bookmark to include all necessary data
             const [bookmark] = await chrome.bookmarks.get(id);
             
+            // Determine if it's a folder or bookmark based on URL presence
+            const type = bookmark.url ? 'bookmark' : 'folder';
+            
             await this.storageManager.queueChange({
                 type: 'UPDATE',
                 data: {
-                    type: 'bookmark',
-                    id: id,
+                    type: type,
+                    browserId: id,
                     title: changeInfo.title || bookmark.title,
                     url: changeInfo.url || bookmark.url,
                     parentId: bookmark.parentId,
@@ -73,7 +85,12 @@ export class BookmarkManager {
                     dateAdded: bookmark.dateAdded
                 }
             });
-            console.log('Bookmark updated:', { id, changes: changeInfo });
+            
+            if (type === 'bookmark') {
+                console.log('Bookmark updated:', { id, type, changes: changeInfo });
+            } else {
+                console.log('Folder updated:', { id, type, changes: changeInfo });
+            }
         } catch (error) {
             console.error('Error handling bookmark change:', error);
         }
@@ -84,20 +101,27 @@ export class BookmarkManager {
             // Get the node to determine if it's a bookmark or folder
             const nodes = await chrome.bookmarks.get(id);
             const node = nodes[0];
-            const isBookmark = !!node.url;
+            const type = node.url ? 'bookmark' : 'folder';
 
             // Only queue if it's a real move (different parent folders)
             if (moveInfo.parentId !== moveInfo.oldParentId) {
                 await this.storageManager.queueChange({
                     type: 'MOVE',
                     data: {
-                        type: isBookmark ? 'bookmark' : 'folder',
+                        type: type,
                         browserId: id,
-                        userId: 'default',
+                        userId: '1',
+                        parentId: moveInfo.parentId,
+                        index: moveInfo.index,
                         moveInfo
                     }
                 });
-                console.log('Bookmark moved:', { id, moveInfo });
+                
+                if (type === 'bookmark') {
+                    console.log('Bookmark moved:', { id, moveInfo });
+                } else {
+                    console.log('Folder moved:', { id, moveInfo });
+                }
             }
         } catch (error) {
             console.error('Error handling bookmark move:', error);

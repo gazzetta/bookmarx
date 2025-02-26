@@ -41,7 +41,12 @@ export interface SyncChange {
 }
 
 export interface SyncRequest {
-    changes: SyncChange[];
+    changes: Array<{
+        type: 'CREATE' | 'UPDATE' | 'DELETE' | 'MOVE';
+        data: any;
+        metadata: any;
+        timestamp: number;
+    }>;
     deviceId: string;
     timestamp: number;
 }
@@ -52,3 +57,6 @@ export interface InitialSyncRequest {
     deviceId: string;
     metadata: SyncMetadata;
 }
+
+
+

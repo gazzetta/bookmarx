@@ -3,19 +3,10 @@ import express, { Request, Response, RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { db } from './db/database';
-import { InitialSyncRequest } from './types/sync';
+import { InitialSyncRequest, SyncRequest } from './types/sync';
 import { getBookmarkTree } from './api/bookmarks';
 
-interface SyncRequest {
-    changes: Array<{
-        type: 'CREATE' | 'UPDATE' | 'DELETE';
-        data: any;
-        metadata: any;
-        timestamp: number;
-    }>;
-    deviceId: string;
-    timestamp: number;
-}
+
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -40,18 +31,150 @@ const handleSync: RequestHandler = async (req, res) => {
                 switch (type) {
                     case 'CREATE':
                         if (data.type === 'bookmark') {
-                            results.push(await db.createBookmark({ 
-                                ...data,
-                                metadata 
-                            }));
+                            console.log('Creating bookmark:', data);
+                            try {
+                                results.push(await db.createBookmark({ 
+                                    ...data,
+                                    metadata 
+                                }));
+                            } catch (err) {
+                                console.error('Failed to create bookmark:', err);
+                                results.push({ 
+                                    error: 'BOOKMARK_CREATE_FAILED',
+                                    details: err instanceof Error ? err.message : 'Unknown error',
+                                    itemId: data.id 
+                                });
+                            }
+                        } else if (data.type === 'folder') {
+                            console.log('Creating folder:', data);
+                            try {
+                                results.push(await db.createFolder({ 
+                                    ...data,
+                                    metadata 
+                                }));
+                            } catch (err) {
+                                console.error('Failed to create folder:', err);
+                                results.push({ 
+                                    error: 'FOLDER_CREATE_FAILED',
+                                    details: err instanceof Error ? err.message : 'Unknown error',
+                                    itemId: data.id 
+                                });
+                            }
                         }
                         break;
+
+                    case 'MOVE':
+                        if (data.type === 'bookmark') {
+                            console.log('Moving bookmark:', data);
+                            try {
+                                results.push(await db.moveBookmark({
+                                    ...data,
+                                    metadata
+                                }));
+                            } catch (err) {
+                                console.error('Failed to move bookmark:', err);
+                                results.push({ 
+                                    error: 'BOOKMARK_MOVE_FAILED',
+                                    details: err instanceof Error ? err.message : 'Unknown error',
+                                    itemId: data.id 
+                                });
+                            }
+                        } else if (data.type === 'folder') {
+                            console.log('Moving folder:', data);
+                            try {
+                                results.push(await db.moveFolder({
+                                    ...data,
+                                    metadata
+                                }));
+                            } catch (err) {
+                                console.error('Failed to move folder:', err);
+                                results.push({ 
+                                    error: 'FOLDER_MOVE_FAILED',
+                                    details: err instanceof Error ? err.message : 'Unknown error',
+                                    itemId: data.id 
+                                });
+                            }
+                        }
+                        break;
+
+                    case 'DELETE':
+                        console.log('Processing DELETE operation:', data);
+                        
+                        // For DELETE operations, we need to determine if it's a bookmark or folder
+                        // First, try to find it in the bookmarks table
+                        try {
+                            const bookmarkExists = await db.checkBookmarkExists(data.browserId);
+                            if (bookmarkExists) {
+                                console.log('Deleting bookmark:', data.browserId);
+                                results.push(await db.deleteBookmark({
+                                    id: data.browserId,
+                                    metadata
+                                }));
+                            } else {
+                                // If not found in bookmarks, check folders
+                                const folderExists = await db.checkFolderExists(data.browserId);
+                                if (folderExists) {
+                                    console.log('Deleting folder:', data.browserId);
+                                    results.push(await db.deleteFolder({
+                                        id: data.browserId,
+                                        metadata,
+                                        recursive: true // Enable recursive deletion for non-empty folders
+                                    }));
+                                } else {
+                                    console.log('Item not found for deletion:', data.browserId);
+                                    results.push({ 
+                                        error: 'ITEM_NOT_FOUND',
+                                        details: `No bookmark or folder found with id=${data.browserId}`,
+                                        itemId: data.browserId 
+                                    });
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Failed to delete item:', err);
+                            results.push({ 
+                                error: 'DELETE_FAILED',
+                                details: err instanceof Error ? err.message : 'Unknown error',
+                                itemId: data.browserId 
+                            });
+                        }
+                        break;
+
                     case 'UPDATE':
                         if (data.type === 'bookmark') {
-                            results.push(await db.updateBookmark({
-                                ...data,
-                                metadata
-                            }));
+                            console.log('Updating bookmark:', data);
+                            try {
+                                results.push(await db.updateBookmark({
+                                    ...data,
+                                    metadata
+                                }));
+                            } catch (err) {
+                                console.error('Failed to update bookmark in database:', err);
+                                results.push({ 
+                                    error: 'BOOKMARK_UPDATE_FAILED',
+                                    details: err instanceof Error ? err.message : 'Unknown error',
+                                    itemId: data.id 
+                                });
+                            }
+                        } else if (data.type === 'folder') {
+                            console.log('Updating folder:', data);
+                            try {
+                                const result = await db.updateFolder({
+                                    ...data,
+                                    metadata
+                                });
+                                if (!result?.changes) {
+                                    throw new Error(`No folder was updated with id: ${data.id}`);
+                                }
+                                console.log('Folder update result:', result);
+                                results.push(result);
+                            } catch (err) {
+                                console.error('Failed to update folder in database:', err);
+                                results.push({ 
+                                    error: 'FOLDER_UPDATE_FAILED',
+                                    details: err instanceof Error ? err.message : 'Unknown error',
+                                    itemId: data.id 
+                                });
+                            }
                         }
                         break;
                     // ... other cases
