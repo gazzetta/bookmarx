@@ -29,8 +29,40 @@ class PopupManager {
     private attachEventListeners(): void {
         this.syncButton.addEventListener('click', () => this.handleSync());
         
-        document.getElementById('openOptions')?.addEventListener('click', () => {
-            chrome.runtime.openOptionsPage();
+        document.getElementById('overwriteFromMaster')?.addEventListener('click', async () => {
+            try {
+                // Get the master collection summary first
+                const response = await chrome.runtime.sendMessage({ action: 'getMasterCollectionSummary' });
+                if (!response.success) {
+                    throw new Error(response.error?.message || 'Failed to get master collection summary');
+                }
+                
+                // Show confirmation dialog
+                const summary = {
+                    isOverwrite: true,
+                    local: {
+                        deletes: await this.getTotalBookmarkCount()
+                    },
+                    remote: {
+                        adds: response.data.totalItems
+                    }
+                };
+                
+                const confirmed = await this.syncConfirmDialog.showConfirmation(summary);
+                if (!confirmed) return;
+                
+                // Trigger the overwrite
+                const result = await chrome.runtime.sendMessage({ action: 'overwriteFromMaster' });
+                if (result.success) {
+                    this.showSuccess('Bookmarks successfully overwritten from master collection');
+                    await this.updateUI();
+                } else {
+                    throw new Error(result.error?.message || 'Overwrite failed');
+                }
+            } catch (error) {
+                this.showError((error as Error).message);
+                console.error('Overwrite Error:', error);
+            }
         });
 
         document.getElementById('openManager')?.addEventListener('click', () => {

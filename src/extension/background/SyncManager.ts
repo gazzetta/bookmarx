@@ -446,4 +446,194 @@ export class SyncManager {
 
         return await response.json();
     }
+
+    public async getMasterCollectionSummary(): Promise<any> {
+        try {
+            const deviceId = await this.storageManager.getDeviceId();
+            const userId = await this.storageManager.getUserId();
+            
+            const response = await fetch(`${this.API_ENDPOINT}/master-summary`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-ID': deviceId,
+                    'X-User-ID': userId
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error getting master collection summary:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
+            };
+        }
+    }
+
+    public async overwriteFromMaster(): Promise<any> {
+        try {
+            console.log('Starting overwrite from master collection...');
+            
+            // Get the master collection from the server
+            const masterCollection = await this.fetchMasterCollection();
+            if (!masterCollection.success) {
+                throw new Error(masterCollection.error || 'Failed to fetch master collection');
+            }
+            
+            // Clear local bookmarks (except root folders)
+            await this.clearLocalBookmarks();
+            
+            // Restore bookmarks from master collection
+            await this.restoreFromMasterCollection(masterCollection.data);
+            
+            // Update last sync timestamp
+            await this.storageManager.updateLastSync();
+            
+            return { success: true };
+        } catch (error) {
+            console.error('Overwrite error:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
+            };
+        }
+    }
+    
+    private async fetchMasterCollection(): Promise<any> {
+        try {
+            const deviceId = await this.storageManager.getDeviceId();
+            const userId = await this.storageManager.getUserId();
+            
+            const response = await fetch(`${this.API_ENDPOINT}/master-collection`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-ID': deviceId,
+                    'X-User-ID': userId
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching master collection:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error occurred'
+            };
+        }
+    }
+    
+    private async clearLocalBookmarks(): Promise<void> {
+        console.log('Clearing local bookmarks...');
+        
+        // Get all bookmarks
+        const tree = await chrome.bookmarks.getTree();
+        
+        // Process each root folder
+        for (const rootNode of tree[0].children || []) {
+            // Skip the root node itself
+            if (rootNode.id === '0') continue;
+            
+            // Process each child of the root folders (Bookmarks Bar, Other Bookmarks, etc.)
+            for (const child of rootNode.children || []) {
+                try {
+                    // If it's a folder, remove it and all its contents
+                    if (!child.url) {
+                        await chrome.bookmarks.removeTree(child.id);
+                    } else {
+                        // If it's a bookmark, just remove it
+                        await chrome.bookmarks.remove(child.id);
+                    }
+                } catch (error) {
+                    console.error(`Error removing bookmark/folder ${child.id}:`, error);
+                    // Continue with other bookmarks even if one fails
+                }
+            }
+        }
+    }
+    
+    private async restoreFromMasterCollection(collection: any): Promise<void> {
+        console.log('Restoring from master collection...', collection);
+        
+        // Get the root folders
+        const tree = await chrome.bookmarks.getTree();
+        const rootFolders: Record<string, string> = {};
+        
+        // Map folder names to IDs
+        for (const rootNode of tree[0].children || []) {
+            rootFolders[rootNode.title] = rootNode.id;
+        }
+        
+        // Create a map to track new IDs for folders
+        const folderIdMap: Record<string, string> = {};
+        
+        // First, create all folders
+        for (const folder of collection.folders || []) {
+            try {
+                // Determine parent ID
+                let parentId: string;
+                
+                if (!folder.parentId || folder.parentId === '0' || folder.parentId === '1') {
+                    // Top-level folder, place in Bookmarks Bar by default
+                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
+                } else if (folderIdMap[folder.parentId]) {
+                    // Parent is a folder we've already created
+                    parentId = folderIdMap[folder.parentId];
+                } else {
+                    // Default to Bookmarks Bar if we can't find the parent
+                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
+                }
+                
+                // Create the folder
+                const newFolder = await chrome.bookmarks.create({
+                    parentId,
+                    title: folder.title,
+                    index: folder.position || undefined
+                });
+                
+                // Store the mapping from old ID to new ID
+                folderIdMap[folder.id] = newFolder.id;
+            } catch (error) {
+                console.error(`Error creating folder ${folder.title}:`, error);
+            }
+        }
+        
+        // Then create all bookmarks
+        for (const bookmark of collection.bookmarks || []) {
+            try {
+                // Determine parent ID
+                let parentId: string;
+                
+                if (!bookmark.parentId || bookmark.parentId === '0' || bookmark.parentId === '1') {
+                    // Top-level bookmark, place in Bookmarks Bar by default
+                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
+                } else if (folderIdMap[bookmark.parentId]) {
+                    // Parent is a folder we've already created
+                    parentId = folderIdMap[bookmark.parentId];
+                } else {
+                    // Default to Bookmarks Bar if we can't find the parent
+                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
+                }
+                
+                // Create the bookmark
+                await chrome.bookmarks.create({
+                    parentId,
+                    title: bookmark.title,
+                    url: bookmark.url,
+                    index: bookmark.position || undefined
+                });
+            } catch (error) {
+                console.error(`Error creating bookmark ${bookmark.title}:`, error);
+            }
+        }
+    }
 }

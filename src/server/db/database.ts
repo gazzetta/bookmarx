@@ -150,14 +150,6 @@ class DatabaseService {
         return result.lastInsertRowid;
     }
 
-    // Query helpers
-    public getBookmarksByUserId(userId: string) {
-        return this.db.prepare('SELECT * FROM bookmarks WHERE userId = ? AND status = ?').all(userId, 'active');
-    }
-
-    public getFoldersByUserId(userId: string) {
-        return this.db.prepare('SELECT * FROM folders WHERE userId = ? AND status = ?').all(userId, 'active');
-    }
 
     public getSyncHistoryByUserId(userId: string, limit = 10) {
         const stmt = this.db.prepare(`
@@ -527,6 +519,70 @@ class DatabaseService {
         
         const result = stmt.get(browserId) as { count: number };
         return result.count > 0;
+    }
+
+    public getBookmarkCountForUser(userId: string): number {
+        const stmt = this.db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM bookmarks 
+            WHERE userId = ? AND status = 'active'
+        `);
+        const result = stmt.get(userId) as { count: number };
+        return result.count;
+    }
+
+    public getFolderCountForUser(userId: string): number {
+        const stmt = this.db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM folders 
+            WHERE userId = ? AND status = 'active'
+        `);
+        const result = stmt.get(userId) as { count: number };
+        return result.count;
+    }
+
+    public getLastSyncForUser(userId: string): number | null {
+        const stmt = this.db.prepare(`
+            SELECT MAX(timestamp) as lastSync 
+            FROM sync_history 
+            WHERE userId = ? AND status = 'SUCCESS'
+        `);
+        const result = stmt.get(userId) as { lastSync: number | null };
+        return result.lastSync;
+    }
+
+    public getSyncCountForUser(userId: string): number {
+        const stmt = this.db.prepare(`
+            SELECT COUNT(*) as count 
+            FROM sync_history 
+            WHERE userId = ?
+        `);
+        const result = stmt.get(userId) as { count: number };
+        return result.count;
+    }
+
+    public getDeviceCountForUser(userId: string): number {
+        const stmt = this.db.prepare('SELECT COUNT(DISTINCT deviceId) as count FROM browsers WHERE userId = ?');
+        const result = stmt.get(userId) as { count: number };
+        return result.count;
+    }
+
+    public getFoldersByUserId(userId: string): any[] {
+        const stmt = this.db.prepare(`
+            SELECT * FROM folders 
+            WHERE userId = ? AND status = "active"
+            ORDER BY parentId, position
+        `);
+        return stmt.all(userId);
+    }
+
+    public getBookmarksByUserId(userId: string): any[] {
+        const stmt = this.db.prepare(`
+            SELECT * FROM bookmarks 
+            WHERE userId = ? AND status = "active"
+            ORDER BY parentId, position
+        `);
+        return stmt.all(userId);
     }
 }
 

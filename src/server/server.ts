@@ -412,6 +412,121 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
     });
 });
 
+// Get master collection summary
+app.get('/api/v1/sync/master-summary', async (req: Request, res: Response) => {
+    try {
+        console.log('\n=== Master Collection Summary Request ===');
+        const deviceId = req.headers['x-device-id'] as string;
+        const userId = req.headers['x-user-id'] as string;
+        
+        if (!userId || !deviceId) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: 'User ID and Device ID are required'
+                }
+            });
+        }
+        
+        console.log(`User ID: ${userId}, Device ID: ${deviceId}`);
+        
+        // Get counts from database
+        const bookmarkCount = db.getBookmarkCountForUser(userId);
+        const folderCount = db.getFolderCountForUser(userId);
+        const lastSyncTimestamp = db.getLastSyncForUser(userId);
+        
+        console.log(`Found ${bookmarkCount} bookmarks and ${folderCount} folders`);
+        
+        const response = {
+            success: true,
+            data: {
+                bookmarkCount,
+                folderCount,
+                lastSyncTimestamp,
+                deviceCount: db.getDeviceCountForUser(userId)
+            }
+        };
+        
+        console.log('Sending response:', response);
+        res.json(response);
+    } catch (err) {
+        const error = err as Error;
+        console.error('Error getting master collection summary:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to get master collection summary',
+                details: error.message
+            }
+        });
+    }
+});
+
+// Get master collection
+app.get('/api/v1/sync/master-collection', async (req: Request, res: Response) => {
+    try {
+        console.log('\n=== Master Collection Request ===');
+        const deviceId = req.headers['x-device-id'] as string;
+        const userId = req.headers['x-user-id'] as string;
+        
+        if (!userId || !deviceId) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: 'User ID and Device ID are required'
+                }
+            });
+        }
+        
+        console.log(`User ID: ${userId}, Device ID: ${deviceId}`);
+        
+        // Get all folders and bookmarks for this user
+        const folders = db.getFoldersByUserId(userId);
+        const bookmarks = db.getBookmarksByUserId(userId);
+        
+        console.log(`Found ${bookmarks.length} bookmarks and ${folders.length} folders`);
+        
+        // Create a record of this master collection fetch
+        db.createSyncHistory({
+            userId,
+            deviceId,
+            type: 'SYNC',
+            changesCount: bookmarks.length + folders.length,
+            status: 'SUCCESS',
+            details: {
+                bookmarksProcessed: bookmarks.length,
+                foldersProcessed: folders.length
+            },
+            metadata: {
+                timestamp: Date.now(),
+                action: 'MASTER_COLLECTION_FETCH'
+            }
+        });
+        
+        const response = {
+            success: true,
+            data: {
+                folders,
+                bookmarks,
+                timestamp: Date.now()
+            }
+        };
+        
+        console.log('Sending master collection response');
+        res.json(response);
+    } catch (err) {
+        const error = err as Error;
+        console.error('Error getting master collection:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to get master collection',
+                details: error.message
+            }
+        });
+    }
+});
+
 // Start server
 const startServer = () => {
     try {

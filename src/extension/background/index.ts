@@ -91,10 +91,49 @@ class BackgroundService {
                         sendResponse({ success: result });
                     })
                     .catch(error => {
-                        console.error('Sync failed:', error);
-                        sendResponse({ success: false, error: error.message });
+                        console.error('Sync error:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
                     });
-                return true;
+                return true; // Keep the message channel open for async response
+            }
+            
+            // Get master collection summary
+            if (message.action === 'getMasterCollectionSummary') {
+                console.log('Received request for master collection summary');
+                this.syncManager.getMasterCollectionSummary()
+                    .then(result => {
+                        console.log('Got master collection summary:', result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('Error getting master collection summary:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    });
+                return true; // Keep the message channel open for async response
+            }
+            
+            // Overwrite from master collection
+            if (message.action === 'overwriteFromMaster') {
+                console.log('Received request to overwrite from master collection');
+                this.syncManager.overwriteFromMaster()
+                    .then(result => {
+                        console.log('Overwrite completed with result:', result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('Overwrite error:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    });
+                return true; // Keep the message channel open for async response
             }
     
             // Sync status handler
