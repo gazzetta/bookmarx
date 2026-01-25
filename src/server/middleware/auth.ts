@@ -8,6 +8,17 @@ interface AuthPayload {
 }
 
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+    // Test bypass for local development - check for X-Test-User-Id header
+    const testUserId = req.headers['x-test-user-id'] as string;
+    if (process.env.NODE_ENV !== 'production' && testUserId && testUserId.startsWith('test_')) {
+        console.log(`[AUTH] Test bypass enabled for user: ${testUserId}`);
+        (req as Request & { user?: { id: string; email: string } }).user = {
+            id: testUserId,
+            email: `${testUserId}@test.local`
+        };
+        return next();
+    }
+
     const jwtSecret = process.env.JWT_SECRET || '';
 
     if (!jwtSecret) {

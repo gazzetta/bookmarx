@@ -191,6 +191,48 @@ class PopupManager {
                 }
             }
         });
+
+        document.getElementById('debugBookmarkData')?.addEventListener('click', async () => {
+            try {
+                // Get the full bookmark tree
+                chrome.bookmarks.getTree(async (tree) => {
+                    if (!tree || tree.length === 0) {
+                        this.showError('Could not get bookmark tree');
+                        return;
+                    }
+
+                    // Process the tree to extract folders and bookmarks
+                    const { folders, bookmarks, rawTree } = this.extractBookmarkData(tree[0]);
+                    
+                    // Get browser info
+                    const browserInfo = await this.sendMessage({ action: 'getBrowserInfo' });
+                    
+                    // Create a detailed debug page
+                    const debugData = {
+                        browser: browserInfo?.data || 'Unknown',
+                        timestamp: new Date().toISOString(),
+                        summary: {
+                            totalFolders: folders.length,
+                            totalBookmarks: bookmarks.length
+                        },
+                        folders: folders,
+                        bookmarks: bookmarks.slice(0, 50), // Limit bookmarks for readability
+                        rawTreeSample: rawTree
+                    };
+
+                    // Create HTML content
+                    const html = this.createDebugHtml(debugData);
+                    
+                    // Open in new tab using data URL
+                    const blob = new Blob([html], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    chrome.tabs.create({ url });
+                });
+            } catch (error) {
+                this.showError('Failed to get bookmark data');
+                console.error('Debug Bookmark Data Error:', error);
+            }
+        });
     }
 
     private async updateUI(): Promise<void> {
@@ -737,6 +779,207 @@ class PopupManager {
         if (hours < 24) return `${hours}h ago`;
         
         return date.toLocaleDateString();
+    }
+
+    private extractBookmarkData(node: chrome.bookmarks.BookmarkTreeNode): { 
+        folders: any[], 
+        bookmarks: any[], 
+        rawTree: any 
+    } {
+        const folders: any[] = [];
+        const bookmarks: any[] = [];
+
+        const processNode = (node: chrome.bookmarks.BookmarkTreeNode, depth: number = 0) => {
+            const nodeInfo = {
+                id: node.id,
+                title: node.title,
+                parentId: node.parentId,
+                index: node.index,
+                dateAdded: node.dateAdded,
+                depth: depth
+            };
+
+            if (node.id !== '0') {
+                if (node.url) {
+                    bookmarks.push({
+                        ...nodeInfo,
+                        url: node.url
+                    });
+                } else {
+                    folders.push(nodeInfo);
+                }
+            }
+
+            if (node.children) {
+                node.children.forEach(child => processNode(child, depth + 1));
+            }
+        };
+
+        processNode(node);
+
+        // Create a simplified raw tree for viewing structure
+        const simplifyTree = (node: chrome.bookmarks.BookmarkTreeNode): any => {
+            const simplified: any = {
+                id: node.id,
+                title: node.title || '(root)',
+                parentId: node.parentId
+            };
+            if (node.url) {
+                simplified.url = node.url;
+            }
+            if (node.children && node.children.length > 0) {
+                simplified.children = node.children.slice(0, 5).map(simplifyTree);
+                if (node.children.length > 5) {
+                    simplified.children.push({ '...': `${node.children.length - 5} more items` });
+                }
+            }
+            return simplified;
+        };
+
+        return { folders, bookmarks, rawTree: simplifyTree(node) };
+    }
+
+    private createDebugHtml(data: any): string {
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <title>BookMarx Debug - Bookmark Data</title>
+    <style>
+        body { 
+            font-family: 'Consolas', 'Monaco', monospace; 
+            padding: 20px; 
+            background: #1e1e1e; 
+            color: #d4d4d4;
+            line-height: 1.5;
+        }
+        h1, h2, h3 { color: #569cd6; margin-top: 30px; }
+        h1 { border-bottom: 2px solid #569cd6; padding-bottom: 10px; }
+        .summary { 
+            background: #2d2d2d; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 20px 0;
+            border-left: 4px solid #4ec9b0;
+        }
+        .summary-item { margin: 5px 0; }
+        .summary-label { color: #9cdcfe; }
+        .summary-value { color: #ce9178; font-weight: bold; }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin: 15px 0;
+            background: #252526;
+        }
+        th, td { 
+            border: 1px solid #3c3c3c; 
+            padding: 10px; 
+            text-align: left; 
+        }
+        th { 
+            background: #333333; 
+            color: #4ec9b0;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover { background: #2a2d2e; }
+        .id { color: #b5cea8; }
+        .title { color: #ce9178; }
+        .parent { color: #dcdcaa; }
+        .url { color: #569cd6; font-size: 0.9em; max-width: 400px; overflow: hidden; text-overflow: ellipsis; }
+        pre { 
+            background: #252526; 
+            padding: 15px; 
+            border-radius: 8px; 
+            overflow-x: auto;
+            border: 1px solid #3c3c3c;
+        }
+        .highlight { background: #4a4a00; }
+        .depth-0 { font-weight: bold; color: #4ec9b0; }
+        .depth-1 { padding-left: 20px; }
+        .depth-2 { padding-left: 40px; }
+        .copy-btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .copy-btn:hover { background: #1177bb; }
+        .note { 
+            background: #3c2a00; 
+            border-left: 4px solid #cca700; 
+            padding: 10px 15px; 
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>BookMarx Debug - Bookmark Data Structure</h1>
+    
+    <div class="summary">
+        <div class="summary-item"><span class="summary-label">Browser:</span> <span class="summary-value">${JSON.stringify(data.browser)}</span></div>
+        <div class="summary-item"><span class="summary-label">Timestamp:</span> <span class="summary-value">${data.timestamp}</span></div>
+        <div class="summary-item"><span class="summary-label">Total Folders:</span> <span class="summary-value">${data.summary.totalFolders}</span></div>
+        <div class="summary-item"><span class="summary-label">Total Bookmarks:</span> <span class="summary-value">${data.summary.totalBookmarks}</span></div>
+    </div>
+
+    <div class="note">
+        <strong>Key IDs to look for:</strong><br>
+        <strong>Chrome:</strong> "0" (root), "1" (Bookmarks Bar), "2" (Other Bookmarks)<br>
+        <strong>Firefox:</strong> "root________", "toolbar_____" (Bookmarks Toolbar), "menu________" (Bookmarks Menu), "unfiled_____" (Other Bookmarks)
+    </div>
+
+    <h2>Folders (${data.folders.length} total)</h2>
+    <p>These are the folders that would be sent to the server during sync/merge:</p>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Parent ID</th>
+            <th>Index</th>
+            <th>Depth</th>
+        </tr>
+        ${data.folders.map((f: any) => `
+        <tr class="${f.depth <= 1 ? 'highlight' : ''}">
+            <td class="id">${f.id}</td>
+            <td class="title depth-${Math.min(f.depth, 2)}">${f.title || '(unnamed)'}</td>
+            <td class="parent">${f.parentId || '(none)'}</td>
+            <td>${f.index ?? '-'}</td>
+            <td>${f.depth}</td>
+        </tr>
+        `).join('')}
+    </table>
+
+    <h2>Sample Bookmarks (first 50 of ${data.summary.totalBookmarks})</h2>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Parent ID</th>
+            <th>URL</th>
+        </tr>
+        ${data.bookmarks.map((b: any) => `
+        <tr>
+            <td class="id">${b.id}</td>
+            <td class="title">${b.title || '(unnamed)'}</td>
+            <td class="parent">${b.parentId || '(none)'}</td>
+            <td class="url">${b.url}</td>
+        </tr>
+        `).join('')}
+    </table>
+
+    <h2>Raw Tree Structure (truncated)</h2>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('rawJson').textContent)">Copy JSON</button>
+    <pre id="rawJson">${JSON.stringify(data.rawTree, null, 2)}</pre>
+
+    <h2>Full Folder Data (for copying)</h2>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('foldersJson').textContent)">Copy Folders JSON</button>
+    <pre id="foldersJson">${JSON.stringify(data.folders, null, 2)}</pre>
+
+</body>
+</html>`;
     }
 }
 

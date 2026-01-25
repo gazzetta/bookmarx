@@ -61,7 +61,7 @@ class MasterCollectionView {
             const userId = auth.user.id;
             const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             this.userInfo.textContent = `Signed in: ${auth.user.email} • Times shown in: ${timeZone}`;
-            
+
             console.log('Fetching master collection for user:', userId);
             const tree = await this.fetchMasterCollection(userId, auth.token);
             console.log('Received tree data:', tree);
@@ -93,7 +93,7 @@ class MasterCollectionView {
         try {
             const apiUrl = `http://localhost:3005/api/v1/bookmarks/tree/${userId}`;
             console.log('Fetching from:', apiUrl);
-            
+
             const response = await fetch(apiUrl, {
                 method: 'GET',
                 headers: {
@@ -105,7 +105,7 @@ class MasterCollectionView {
             });
 
             console.log('Response status:', response.status);
-            
+
             // Log headers in a TypeScript-friendly way
             const headers: { [key: string]: string } = {};
             response.headers.forEach((value, key) => {
@@ -150,7 +150,7 @@ class MasterCollectionView {
 
     private async renderTree(nodes: BookmarkNode[], parentElement: HTMLElement = this.treeContainer): Promise<void> {
         console.log('Rendering tree with nodes:', nodes);
-        
+
         if (!Array.isArray(nodes) || nodes.length === 0) {
             const auth = await this.getAuth();
             const userId = auth?.user.id || 'unknown';
@@ -183,11 +183,11 @@ class MasterCollectionView {
                 // Render bookmark
                 const bookmarkDiv = document.createElement('div');
                 bookmarkDiv.className = 'bookmark';
-                
+
                 const link = document.createElement('a');
                 link.href = node.url;
                 link.className = 'bookmark-link';
-                link.innerHTML = `- <span class="bookmark-title">${node.title}</span> (${node.id})`;
+                link.innerHTML = `- <span class="bookmark-title">${node.title}</span> <span class="bookmark-url" style="color: #888; font-size: 0.9em; margin-left: 8px;">[${node.url}]</span>`;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
 
@@ -204,7 +204,7 @@ class MasterCollectionView {
                     metaHtml += ` <br /> Edited: <span class="date-edited">${dbEdited}</span>`;
                 }
                 meta.innerHTML = metaHtml;
-                
+
                 bookmarkDiv.appendChild(link);
                 bookmarkDiv.appendChild(meta);
                 parentElement.appendChild(bookmarkDiv);
@@ -212,14 +212,14 @@ class MasterCollectionView {
                 // Render folder
                 const folderDiv = document.createElement('div');
                 folderDiv.className = 'folder';
-                
+
                 const folderName = document.createElement('div');
                 folderName.className = 'folder-name';
                 folderName.innerHTML = `<span class="folder-icon">📂</span> <span class="folder-title">${node.title}</span>`;
-                
+
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'folder-children';
-                
+
                 folderDiv.appendChild(folderName);
                 folderDiv.appendChild(childrenDiv);
                 parentElement.appendChild(folderDiv);

@@ -621,7 +621,40 @@ app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res
     }
 });
 
+// URL normalization for better deduplication
+function normalizeUrl(url: string): string {
+    try {
+        const parsed = new URL(url);
+        // Normalize to lowercase host
+        let normalized = parsed.protocol + '//' + parsed.host.toLowerCase();
+        // Normalize path (remove trailing slash for non-root paths)
+        let pathname = parsed.pathname;
+        if (pathname.length > 1 && pathname.endsWith('/')) {
+            pathname = pathname.slice(0, -1);
+        }
+        normalized += pathname;
+        // Sort and include query string if present
+        if (parsed.search) {
+            const params = new URLSearchParams(parsed.search);
+            const sortedParams = new URLSearchParams([...params.entries()].sort());
+            const searchStr = sortedParams.toString();
+            if (searchStr) {
+                normalized += '?' + searchStr;
+            }
+        }
+        // Include hash if present
+        if (parsed.hash) {
+            normalized += parsed.hash;
+        }
+        return normalized.toLowerCase();
+    } catch {
+        // If URL parsing fails, just lowercase and trim
+        return url.toLowerCase().trim();
+    }
+}
+
 // Root folder alias mapping for cross-browser compatibility
+// These map to canonical names that should be treated as equivalent
 const ROOT_FOLDER_ALIASES: Record<string, string[]> = {
     'bookmarks bar': ['bookmarks toolbar', 'toolbar'],
     'other bookmarks': ['unfiled bookmarks', 'other'],
@@ -636,6 +669,26 @@ const FIREFOX_ROOT_IDS = new Set([
     'toolbar_____',
     'unfiled_____',
     'mobile______'
+]);
+
+// Map browser-specific root IDs to canonical folder names
+// These are the folders that should be treated as TOP-LEVEL roots
+const ROOT_ID_TO_CANONICAL: Record<string, string> = {
+    'toolbar_____': 'bookmarks bar',      // Firefox Bookmarks Toolbar -> bookmarks bar
+    'unfiled_____': 'other bookmarks',    // Firefox Other Bookmarks
+    'mobile______': 'mobile bookmarks',   // Firefox Mobile
+    '1': 'bookmarks bar',                 // Chrome Bookmarks Bar
+    '2': 'other bookmarks',               // Chrome Other Bookmarks  
+    '3': 'mobile bookmarks'               // Chrome Mobile Bookmarks
+};
+
+// These IDs should be SKIPPED when building paths (they are containers, not real folders)
+// Firefox's menu________ contains toolbar_____, unfiled_____, etc. but we don't want 
+// "bookmarks menu" to appear in paths for items under toolbar_____
+const SKIP_IN_PATH_IDS = new Set([
+    'root________',   // Firefox super-root
+    'menu________',   // Firefox Bookmarks Menu (container for toolbar, etc.)
+    '0'               // Chrome root
 ]);
 
 // Check if a folder ID indicates a root or special Firefox folder
@@ -661,15 +714,43 @@ function isRootFolderTitle(title: string): boolean {
     return Object.keys(ROOT_FOLDER_ALIASES).includes(normalized);
 }
 
-function buildFolderPath(folderId: string, folderMap: Map<string, { title: string; parentId: string | null; masterParentId: string | null }>): string {
+function buildFolderPath(folderId: string, folderMap: Map<string, { title: string; parentId: string | null; masterParentId: string | null; browserId?: string | null }>): string {
     const parts: string[] = [];
     let currentId: string | null = folderId;
     const visited = new Set<string>();
 
     while (currentId && !visited.has(currentId)) {
         visited.add(currentId);
+
+        // First, check if this ID is a known root ID (browser-specific)
+        if (ROOT_ID_TO_CANONICAL[currentId]) {
+            parts.unshift(ROOT_ID_TO_CANONICAL[currentId]);
+            break;
+        }
+
         const folder = folderMap.get(currentId);
-        if (!folder) break;
+        if (!folder) {
+            // If we can't find the folder, check if the ID might be a browser-specific root
+            // (This handles cases where parentId is '1' but map is keyed by masterId)
+            break;
+        }
+
+        // Check if the folder's browserId is a known root ID
+        if (folder.browserId && ROOT_ID_TO_CANONICAL[folder.browserId]) {
+            parts.unshift(ROOT_ID_TO_CANONICAL[folder.browserId]);
+            break;
+        }
+
+        // Check if the folder's browser parentId is a known root ID (folder is direct child of root)
+        if (folder.parentId && ROOT_ID_TO_CANONICAL[folder.parentId]) {
+            // Add this folder's title first, then the root
+            const normalizedTitle = normalizeRootFolderName(folder.title);
+            if (normalizedTitle && normalizedTitle.trim() !== '') {
+                parts.unshift(normalizedTitle);
+            }
+            parts.unshift(ROOT_ID_TO_CANONICAL[folder.parentId]);
+            break;
+        }
 
         // Stop at root-level folders (Bookmarks bar, Other bookmarks, etc.) 
         // and include them in the path to distinguish between roots
@@ -684,7 +765,24 @@ function buildFolderPath(folderId: string, folderMap: Map<string, { title: strin
             parts.unshift(normalizedTitle);
         }
 
-        currentId = folder.masterParentId || folder.parentId;
+        // Move to parent using masterParentId (the universal parent reference)
+        // Only fall back to parentId if masterParentId is not set
+        const nextId = folder.masterParentId;
+        if (!nextId) {
+            // No masterParentId - this folder might be at root level
+            // Check if parentId is a browser-specific root
+            if (folder.parentId && ROOT_ID_TO_CANONICAL[folder.parentId]) {
+                parts.unshift(ROOT_ID_TO_CANONICAL[folder.parentId]);
+            }
+            break;
+        }
+        
+        // Check if the parent is a root ID before trying map lookup
+        if (ROOT_ID_TO_CANONICAL[nextId]) {
+            parts.unshift(ROOT_ID_TO_CANONICAL[nextId]);
+            break;
+        }
+        currentId = nextId;
     }
 
     return parts.join('/').toLowerCase();
@@ -725,14 +823,22 @@ app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response)
         console.log(`Existing master: ${existingFolders.length} folders, ${existingBookmarks.length} bookmarks`);
 
         // Build folder path map for existing folders
-        const existingFolderMap = new Map<string, { title: string; parentId: string | null; masterParentId: string | null; masterId: string }>();
+        // NOTE: We need to track BOTH masterId AND browserId for lookups
+        // The map is keyed by masterId, but we also need a reverse lookup for path building
+        const existingFolderMap = new Map<string, { title: string; parentId: string | null; masterParentId: string | null; masterId: string; browserId: string | null }>();
+        const masterIdByBrowserId = new Map<string, string>(); // browserId -> masterId for existing folders
+        
         for (const f of existingFolders) {
             existingFolderMap.set(f.masterId, {
                 title: f.title,
-                parentId: f.browserId,
-                masterParentId: f.masterParentId,
-                masterId: f.masterId
+                parentId: f.parentId,  // This is the browser's parentId, used for root detection
+                masterParentId: f.masterParentId,  // This is what we use to traverse up the tree
+                masterId: f.masterId,
+                browserId: f.browserId
             });
+            if (f.browserId) {
+                masterIdByBrowserId.set(f.browserId, f.masterId);
+            }
         }
 
         // Build path -> masterId lookup for existing folders
@@ -742,11 +848,18 @@ app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response)
             existingFolderPathMap.set(path, f.masterId);
         }
 
-        // Build existing bookmark dedupe set: lowercase(folderPath + '|' + url)
+        // Debug: Log all existing folder paths
+        console.log('=== Existing folder paths ===');
+        existingFolderPathMap.forEach((masterId, path) => {
+            console.log(`  ${path} -> ${masterId}`);
+        });
+
+        // Build existing bookmark dedupe set: folderPath + '|' + normalizedUrl
         const existingBookmarkKeys = new Set<string>();
         for (const b of existingBookmarks) {
             const folderPath = b.masterParentId ? buildFolderPath(b.masterParentId, existingFolderMap) : '';
-            const key = (folderPath + '|' + b.url).toLowerCase();
+            const normalizedBookmarkUrl = normalizeUrl(b.url);
+            const key = (folderPath + '|' + normalizedBookmarkUrl).toLowerCase();
             existingBookmarkKeys.add(key);
         }
 
@@ -785,14 +898,52 @@ app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response)
         // Process folders in order (parents first)
         const processedFolders = new Set<string>();
         // Filter out the Firefox super-root (empty titled folder with root________ id)
+        const IGNORED_TITLES = new Set(['Most Visited', 'Recent Tags', 'Recently Bookmarked']);
+        
+        // Root-level folders that should be mapped, not created as new folders
+        // These exist in every browser and should be treated as the same
+        const ROOT_FOLDER_TITLES = new Set([
+            'bookmarks bar', 'bookmarks toolbar',
+            'other bookmarks', 'unfiled bookmarks', 
+            'mobile bookmarks',
+            'bookmarks menu'  // Firefox container - skip entirely
+        ]);
+        
         const filteredFolders = folders.filter((f: any) => {
+            const folderId = String(f.id);
+            
             // Skip empty-titled folders (Firefox root)
             if (!f.title || f.title.trim() === '') {
-                console.log(`Skipping empty-titled folder: ${f.id}`);
-                // Mark it as processed so children can proceed
-                processedFolders.add(f.id);
+                console.log(`Skipping empty-titled folder: ${folderId}`);
+                processedFolders.add(folderId);
                 return false;
             }
+            
+            // Skip ignored titles (Firefox special folders)
+            if (IGNORED_TITLES.has(f.title)) {
+                console.log(`Skipping ignored folder: ${f.title}`);
+                processedFolders.add(folderId);
+                return false;
+            }
+            
+            // Skip Firefox/Chrome root IDs - these are handled specially
+            if (SKIP_IN_PATH_IDS.has(folderId) || ROOT_ID_TO_CANONICAL[folderId]) {
+                console.log(`Skipping browser root folder: ${f.title} (${folderId})`);
+                processedFolders.add(folderId);
+                // Map root folders so children can find them
+                // Don't add to browserIdToMasterId here - they'll be matched by path
+                return false;
+            }
+            
+            // Skip root-level folder titles (Bookmarks Bar, Bookmarks Toolbar, etc.)
+            // These should not be created as new folders - they're matched by path
+            const normalizedTitle = f.title.toLowerCase().trim();
+            if (ROOT_FOLDER_TITLES.has(normalizedTitle)) {
+                console.log(`Skipping root folder by title: ${f.title} (${folderId})`);
+                processedFolders.add(folderId);
+                return false;
+            }
+            
             return true;
         });
         const folderQueue = [...filteredFolders];
@@ -823,23 +974,66 @@ app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response)
                 // Debug log for folder path construction
                 const pathLog: string[] = [];
 
-                while (currentId && !isRootFolderId(currentId) && !visited.has(currentId)) {
+                while (currentId && !visited.has(currentId)) {
                     visited.add(currentId);
+
+                    // Skip IDs that shouldn't appear in paths (Firefox root containers)
+                    if (SKIP_IN_PATH_IDS.has(currentId)) {
+                        pathLog.push(`[Skip] Container ID: "${currentId}"`);
+                        break;
+                    }
+
+                    // Check for Root IDs via explicit map FIRST
+                    // This handles toolbar_____, unfiled_____, etc.
+                    if (ROOT_ID_TO_CANONICAL[currentId]) {
+                        const normalized = ROOT_ID_TO_CANONICAL[currentId];
+                        parts.unshift(normalized);
+                        pathLog.push(`[Stop] Root ID matched: "${currentId}" -> "${normalized}"`);
+                        break;
+                    }
+
                     const f = incomingFolderMap.get(currentId);
                     if (!f) {
                         pathLog.push(`[Break] No folder found for id ${currentId}`);
                         break;
                     }
 
-                    // Stop at root-level folders (Bookmarks bar, Other bookmarks, etc.)
-                    if (isRootFolderTitle(f.title)) {
-                        const normalized = normalizeRootFolderName(f.title);
+                    // Check if this folder's browserId is a known root
+                    if (f.browserId && ROOT_ID_TO_CANONICAL[f.browserId]) {
+                        const normalized = ROOT_ID_TO_CANONICAL[f.browserId];
                         parts.unshift(normalized);
-                        pathLog.push(`[Stop] Root title encountered: "${f.title}" -> "${normalized}"`);
+                        pathLog.push(`[Stop] Folder browserId is root: "${f.browserId}" -> "${normalized}"`);
                         break;
                     }
 
-                    // Skip empty-titled folders (Firefox super root)
+                    // Check if parent is a skip ID (Firefox container like menu________)
+                    // In this case, we should check if the CURRENT folder is a root by title
+                    if (f.parentId && SKIP_IN_PATH_IDS.has(f.parentId)) {
+                        // This folder's parent is a container - treat this folder as root level
+                        if (isRootFolderTitle(f.title)) {
+                            const normalized = normalizeRootFolderName(f.title);
+                            parts.unshift(normalized);
+                            pathLog.push(`[Stop] Root title under container: "${f.title}" -> "${normalized}"`);
+                        } else {
+                            // Non-root folder directly under container - add it and stop
+                            const normalized = normalizeRootFolderName(f.title);
+                            if (normalized && normalized.trim() !== '') {
+                                parts.unshift(normalized);
+                                pathLog.push(`[Add+Stop] Folder under container: "${f.title}" -> "${normalized}"`);
+                            }
+                        }
+                        break;
+                    }
+
+                    // Stop at root-level folders (Bookmarks bar, Other bookmarks, etc.) by Title
+                    if (isRootFolderTitle(f.title)) {
+                        const normalized = normalizeRootFolderName(f.title);
+                        parts.unshift(normalized);
+                        pathLog.push(`[Stop] Root title: "${f.title}" -> "${normalized}"`);
+                        break;
+                    }
+
+                    // Regular folder - add to path and continue up
                     if (f.title && f.title.trim() !== '') {
                         const normalized = normalizeRootFolderName(f.title);
                         parts.unshift(normalized);
@@ -847,14 +1041,20 @@ app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response)
                     } else {
                         pathLog.push(`[Skip] Empty title for id ${currentId}`);
                     }
+                    
+                    // Move to parent, but check if parent should be skipped
+                    if (f.parentId && SKIP_IN_PATH_IDS.has(f.parentId)) {
+                        pathLog.push(`[Stop] Parent is skip container: "${f.parentId}"`);
+                        break;
+                    }
+                    
                     currentId = f.parentId;
                 }
+                
                 const result = parts.join('/').toLowerCase();
-                // Only log if interesting (e.g. Design2)
-                if (result.includes('design2') || result.includes('design')) {
-                    console.log(`Path build for ${folderId}: ${result}`);
-                    console.log(`  Trace: ${pathLog.join(' <- ')}`);
-                }
+                // Log path building for debugging
+                console.log(`Path build for ${folderId}: ${result}`);
+                console.log(`  Trace: ${pathLog.join(' <- ')}`);
                 return result;
             };
 
@@ -886,9 +1086,10 @@ app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response)
                     existingFolderPathMap.set(incomingPath, result.masterId);
                     existingFolderMap.set(result.masterId, {
                         title: folder.title,
-                        parentId: folder.id,
+                        parentId: folder.parentId || null,  // Browser's parentId for root detection
                         masterParentId,
-                        masterId: result.masterId
+                        masterId: result.masterId,
+                        browserId: folder.id  // The incoming folder's browser ID
                     });
                     foldersCreated++;
                     console.log(`Created folder: ${incomingPath} -> ${result.masterId}`);
@@ -899,16 +1100,23 @@ app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response)
         }
 
         // Process bookmarks with dedupe
-        for (const bookmark of bookmarks) {
+        const filteredBookmarks = bookmarks.filter((b: any) =>
+            b.url &&
+            b.url.trim() !== '' &&
+            !b.url.startsWith('place:')
+        );
+
+        for (const bookmark of filteredBookmarks) {
             // Get master parent ID
             let masterParentId: string | null = null;
             if (bookmark.parentId && bookmark.parentId !== '0') {
                 masterParentId = browserIdToMasterId.get(bookmark.parentId) || null;
             }
 
-            // Build folder path for dedupe key
+            // Build folder path for dedupe key using normalized URL
             const folderPath = masterParentId ? buildFolderPath(masterParentId, existingFolderMap) : '';
-            const dedupeKey = (folderPath + '|' + bookmark.url).toLowerCase();
+            const normalizedBookmarkUrl = normalizeUrl(bookmark.url);
+            const dedupeKey = (folderPath + '|' + normalizedBookmarkUrl).toLowerCase();
 
             if (existingBookmarkKeys.has(dedupeKey)) {
                 bookmarksSkipped++;

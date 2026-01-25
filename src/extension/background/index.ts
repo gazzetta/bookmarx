@@ -1,6 +1,7 @@
 import { BookmarkManager } from './BookmarkManager';
 import { SyncManager } from './SyncManager';
 import { StorageManager } from './StorageManager';
+import { detectBrowser } from './utils/browserDetect';
 
 class BackgroundService {
     private bookmarkManager: BookmarkManager;
@@ -186,6 +187,22 @@ class BackgroundService {
                     }
                 })();
                 return true; // Keep the message channel open for async response
+            }
+
+            if (message.action === 'getBrowserInfo') {
+                (async () => {
+                    try {
+                        const browserInfo = await detectBrowser();
+                        sendResponse({ success: true, data: browserInfo });
+                    } catch (error) {
+                        console.error('Get Browser Info Error:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true;
             }
 
             // Existing sync handler
