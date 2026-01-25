@@ -1,35 +1,182 @@
-# BookMarx Implementation Progress
+# BookMarx Stage 2 Progress
 
-## Documentation Files
-1. Overview & Architecture
-- [x] 1-0-overview.md - Complete
-- [x] 1-1-technical-stack.md - Complete
-- [ ] 2-0-architecture-core.md - In Progress (80%)
+## Overview
+**Started:** January 23, 2026  
+**Goal:** Multi-platform support (Chrome/Brave/Edge/Firefox + iOS/Android mobile app)
 
-2. Data & API
-- [x] 2-1-data-structures.md - Complete
-- [x] 2-2-api-design.md - Complete
-- [x] 2-3-security.md - Complete
+---
 
-3. Extension Implementation
-- [x] 3-0-extension-core.md - Complete
-- [x] 3-1-browser-api.md - Complete
-- [x] 3-2-sync-protocol.md - In Progress (50%)
-- [x] 3-3-offline.md - Complete
+## Phase Status
 
-4. Database & Queries
-- [x] 4-0-database.md - Complete
-- [ ] 4-1-queries.md - Not Started
+| Phase | Description | Status | Notes |
+|-------|-------------|--------|-------|
+| 1 | Archive Stage 1 & Setup | ✅ Complete | Docs moved to `stage-1/` |
+| 2 | Backend Refactor | ✅ Complete | masterId system |
+| 3 | Browser Detection | ✅ Complete | Edge/Brave/Firefox detection |
+| 4 | Firefox Port | ✅ Complete | Manifest v2 + polyfill |
+| 5 | Mobile App | 🟡 In Progress | React Native + Expo |
+| 6 | iOS Share Extension | ✅ Complete | Swift |
+| 7 | Android Share Intent | ✅ Complete | Kotlin |
+| 8 | Production Deploy | ✅ Complete | Server + stores |
+| 9 | Testing | ⬜ Not Started | All platforms |
 
-5. Error Handling
-- [x] 5-0-error-handling.md - Complete
+---
 
-## Current Focus
-- Implementing sync confirmation dialog
-- Handling initial sync with MongoDB
-- Testing sync functionality
+## Detailed Progress
 
-## Next Steps
-1. Complete sync protocol implementation
-2. Implement database queries
-3. Plan user authentication system
+### Phase 1: Archive & Setup ✅
+- [x] Create `stage-1/` folder
+- [x] Move `docs/` → `stage-1/docs/`
+- [x] Move `README.md` → `stage-1/README.md`
+- [x] Move `PROGRESS.md` → `stage-1/PROGRESS.md`
+- [x] Create new `docs/` folder
+- [x] Create `docs/STAGE-2-BUILD-PLAN.md`
+- [x] Create new `README.md`
+- [x] Create new `PROGRESS.md` (this file)
+
+### Phase 2: Backend Refactor ✅
+- [x] Add `masterId` column to `bookmarks` table
+- [x] Add `masterId` column to `folders` table
+- [x] Add `masterParentId` columns for parent references
+- [x] Create migration script (`db/migrations/001-add-master-ids.ts`)
+- [x] Run migration on existing data
+- [x] Update `createBookmark()` to generate masterId
+- [x] Update `createFolder()` to generate masterId
+- [x] Refactor `updateBookmark()` to use masterId (with legacy fallback)
+- [x] Refactor `updateFolder()` to use masterId (with legacy fallback)
+- [x] Refactor `moveBookmark()` to use masterId (with legacy fallback)
+- [x] Refactor `moveFolder()` to use masterId (with legacy fallback)
+- [x] Refactor `deleteBookmark()` to use masterId (with legacy fallback)
+- [x] Refactor `deleteFolder()` to use masterId (with legacy fallback)
+- [x] Update `handleSync` to return masterId on CREATE
+- [x] Update `/sync/master-collection` to include masterId
+- [x] Create `POST /api/v1/capture` endpoint for mobile share
+- [ ] Test backward compatibility with existing extension
+
+### Phase 3: Browser Detection ✅
+- [x] Create `src/extension/background/utils/browserDetect.ts`
+- [x] Update `StorageManager.ts` to use detectBrowser()
+- [x] Update `SyncManager.ts` to use detectBrowser()
+- [x] Extension builds successfully
+- [ ] Test on Chrome (manual)
+- [ ] Test on Brave (manual)
+- [ ] Test on Edge (manual)
+
+### Phase 4: Firefox Port ✅
+- [x] Install `webextension-polyfill`
+- [x] Install `@types/webextension-polyfill`
+- [x] Create `src/extension/background/utils/extensionApi.ts`
+- [x] Create `manifest.firefox.json` (Manifest V2 for Firefox)
+- [x] Update `webpack.config.js` for multi-browser builds
+- [x] Add build scripts (`build:chrome`, `build:firefox`, `build:all`)
+- [x] Firefox build compiles successfully
+- [ ] Test Firefox extension manually
+
+### Phase 5: Mobile App 🟡
+- [x] Create `src/mobile/` project structure
+- [x] Create `package.json` with Expo dependencies
+- [x] Create `tsconfig.json`
+- [x] Create types (`types/index.ts`, `types/global.d.ts`)
+- [x] Create API client (`services/api.ts`)
+- [x] Create auth service (`services/auth.ts`)
+- [x] Create hooks (`useAuth.ts`, `useBookmarks.ts`)
+- [x] Create app layout (`app/_layout.tsx`)
+- [x] Create HomeScreen (`app/index.tsx`)
+- [x] Create LoginScreen (`app/login.tsx`)
+- [x] Create RegisterScreen (`app/register.tsx`)
+- [x] Create FolderScreen (`app/folder/[id].tsx`)
+- [ ] Run `npm install` in mobile directory
+- [ ] Test on iOS simulator
+- [ ] Test on Android emulator
+- [ ] Implement SearchScreen
+- [ ] Implement AddBookmarkScreen
+- [ ] Implement EditBookmarkScreen
+- [ ] Implement SettingsScreen
+- [ ] Implement offline queue
+- [ ] Test on iOS simulator
+- [ ] Test on Android emulator
+
+### Phase 6: iOS Share Extension ✅
+- [x] Create `ios/ShareExtension/` directory
+- [x] Create `ShareViewController.swift` with URL capture logic
+- [x] Create `Info.plist` with activation rules
+- [x] Create `MainInterface.storyboard`
+- [x] Implement keychain access for auth token
+- [x] Implement API call to `/api/v1/capture`
+- [ ] Add to Xcode project (requires macOS)
+- [ ] Configure App Group
+- [ ] Implement ShareViewController.swift
+- [ ] Implement App Group token sharing
+- [ ] Test share from Safari
+- [ ] Test share from Chrome iOS
+- [ ] Test share from other apps
+
+### Phase 7: Android Share Intent ✅
+- [x] Create `android/app/src/main/java/com/bookmarx/share/` directory
+- [x] Create `ShareReceiverActivity.kt` with share intent handling
+- [x] Create `AndroidManifest.share.xml` with intent filter config
+- [x] Implement URL extraction from shared text
+- [x] Implement API call to `/api/v1/capture`
+- [x] Implement SharedPreferences token access
+- [ ] Integrate with Expo prebuild (requires running `expo prebuild`)
+- [ ] Implement deep link handling in React Native
+- [ ] Test share from Chrome Android
+- [ ] Test share from other apps
+
+### Phase 8: Production Deploy ✅
+- [x] Create `deploy/` directory
+- [x] Create `ecosystem.config.js` (PM2 cluster config)
+- [x] Create `nginx.conf` (reverse proxy + SSL + rate limiting)
+- [x] Create `deploy.sh` (automated deployment script)
+- [x] Create `setup-server.sh` (initial VPS setup)
+- [x] Create `.env.production.template`
+- [ ] Provision VPS and run setup-server.sh
+- [ ] Configure DNS and SSL certificate
+- [ ] Run deploy.sh
+- [ ] Configure production environment variables
+- [ ] Submit to Chrome Web Store
+- [ ] Submit to Edge Add-ons
+- [ ] Submit to Firefox Add-ons
+- [ ] Submit to iOS App Store
+- [ ] Submit to Google Play Store
+
+### Phase 9: Testing ⬜
+- [ ] Backend unit tests
+- [ ] Extension tests on Chrome
+- [ ] Extension tests on Brave
+- [ ] Extension tests on Edge
+- [ ] Extension tests on Firefox
+- [ ] Cross-browser sync test
+- [ ] Mobile tests on iOS
+- [ ] Mobile tests on Android
+- [ ] Share extension tests
+- [ ] Offline mode tests
+- [ ] Cross-platform sync test
+
+---
+
+## Session Log
+
+### 2026-01-23
+- ✅ Archived Stage 1 documentation to `stage-1/`
+- ✅ Created Stage 2 planning structure
+- ✅ Created ultra-detailed build plan in `docs/STAGE-2-BUILD-PLAN.md`
+- ✅ Created new `README.md` for Stage 2
+- ✅ Created new `PROGRESS.md` (this file)
+- ⏳ Next: Begin Phase 2 (Backend Refactor)
+
+---
+
+## Notes
+
+### Key Decisions
+- **Mobile stack:** React Native (one codebase for iOS + Android)
+- **Safari:** Dropped (no bookmark API support)
+- **ID strategy:** Add `masterId` (server UUID) to enable cross-device editing
+
+### Blockers
+- None currently
+
+### Open Questions
+- Production domain: `api.bookmarx.app`?
+- App bundle ID: `com.bookmarx.app`?

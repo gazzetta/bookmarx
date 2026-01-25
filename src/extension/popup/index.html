@@ -15,27 +15,83 @@
             </div>
         </header>
 
+        <div id="authContainer" class="auth-container">
+            <div id="authLoggedOut" class="auth-panel">
+                <button id="googleLogin" class="auth-google-button">
+                    Continue with Google
+                </button>
+                <div class="auth-separator">or</div>
+                <div class="auth-fields">
+                    <input id="emailInput" type="email" placeholder="Email" />
+                    <input id="passwordInput" type="password" placeholder="Password" />
+                </div>
+                <div class="auth-actions">
+                    <button id="emailLogin" class="auth-button">Login</button>
+                    <button id="emailRegister" class="auth-button secondary">Create Account</button>
+                </div>
+            </div>
+            <div id="authLoggedIn" class="auth-panel hidden">
+                <div class="auth-user">
+                    <div class="auth-user-label">Signed in as</div>
+                    <div id="authUserEmail" class="auth-user-email"></div>
+                </div>
+                <button id="logout" class="auth-button secondary">Log out</button>
+            </div>
+        </div>
+
         <div class="sync-info">
             <div id="lastSync" class="last-sync">
                 Last synced: Never
             </div>
-            <button id="syncNow" class="sync-button">
-                Sync Now
-            </button>
-        </div>
-
-        <div class="stats-container">
-            <div class="stat-item">
-                <span class="stat-label">Pending Changes</span>
-                <span id="pendingCount" class="stat-value">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Total Bookmarks</span>
-                <span id="totalCount" class="stat-value">0</span>
+            <div class="sync-buttons">
+                <button id="syncUp" class="sync-button sync-up" disabled>
+                    ⬆️ Sync Up
+                </button>
+                <button id="syncDown" class="sync-button sync-down" disabled>
+                    ⬇️ Sync Down
+                </button>
             </div>
         </div>
 
-        <div class="actions-container">
+        <div id="initialSyncNotice" class="initial-sync hidden">
+            <div class="initial-sync-title">Initial sync required</div>
+            <div class="initial-sync-message">
+                Your master collection is empty. Run the initial sync to upload your local bookmarks before using other sync actions.
+            </div>
+        </div>
+
+        <div id="statsContainer" class="stats-container">
+            <div class="stat-item">
+                <span class="stat-label">Local Changes to be Synced Up</span>
+                <span class="stat-value">
+                    <span id="pendingBookmarksCount">0</span> bookmarks + 
+                    <span id="pendingFoldersCount">0</span> folders
+                </span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Local Collection</span>
+                <span class="stat-value">
+                    <span id="localBookmarksCount">0</span> bookmarks + 
+                    <span id="localFoldersCount">0</span> folders
+                </span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Remote Changes to be Synced Down</span>
+                <span class="stat-value">
+                    <span id="remoteChangeBookmarksCount">0</span> bookmarks + 
+                    <span id="remoteChangeFoldersCount">0</span> folders
+                </span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Remote Collection (Master)</span>
+                <span class="stat-value">
+                    <span id="remoteBookmarksCount">0</span> bookmarks + 
+                    <span id="remoteFoldersCount">0</span> folders
+                </span>
+            </div>
+        </div>
+
+        <div id="actionsContainer" class="actions-container">
             <button id="overwriteFromMaster" class="action-button warning">
                 Overwrite from Master Collection
             </button>
@@ -53,6 +109,12 @@
             </button>
             <button id="clearStorage" class="action-button warning" style="margin-top: 10px;">
                 Clear Storage
+            </button>
+            <button id="testNotification" class="action-button" style="margin-top: 10px;">
+                Test Notification
+            </button>
+            <button id="resetNotificationState" class="action-button" style="margin-top: 10px;">
+                Reset Notification State
             </button>
         </div>
 

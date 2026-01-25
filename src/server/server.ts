@@ -2,11 +2,16 @@
 import express, { Request, Response, RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import dotenv from 'dotenv';
 import { db } from './db/database';
 import { InitialSyncRequest, SyncRequest } from './types/sync';
 import { getBookmarkTree } from './api/bookmarks';
+import { registerWithEmail, loginWithEmail, loginWithGoogle, getMe } from './api/auth';
+import { authenticate } from './middleware/auth';
 
 
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -19,6 +24,14 @@ app.use(express.json());
 const handleSync: RequestHandler = async (req, res) => {
     try {
         console.log('\n=== Sync Request ===');
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Unauthorized' }
+            });
+        }
+        const userId = authUser.id;
         const { changes, deviceId } = req.body as SyncRequest;
 
         // Process changes directly - remove the initial sync check
@@ -26,38 +39,66 @@ const handleSync: RequestHandler = async (req, res) => {
         for (const change of changes) {
             const { type, data, metadata } = change;
             console.log('Processing change:', { type, data });
-            
+
             try {
                 switch (type) {
                     case 'CREATE':
                         if (data.type === 'bookmark') {
                             console.log('Creating bookmark:', data);
                             try {
-                                results.push(await db.createBookmark({ 
+                                // Resolve masterParentId from parentId if not provided
+                                let masterParentId = data.masterParentId;
+                                if (!masterParentId && data.parentId) {
+                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
+                                }
+
+                                const createResult = db.createBookmark({
                                     ...data,
-                                    metadata 
-                                }));
+                                    masterParentId,
+                                    userId,
+                                    metadata
+                                });
+                                results.push({
+                                    success: true,
+                                    type: 'bookmark',
+                                    browserId: data.browserId,
+                                    masterId: createResult.masterId
+                                });
                             } catch (err) {
                                 console.error('Failed to create bookmark:', err);
-                                results.push({ 
+                                results.push({
                                     error: 'BOOKMARK_CREATE_FAILED',
                                     details: err instanceof Error ? err.message : 'Unknown error',
-                                    itemId: data.id 
+                                    itemId: data.id
                                 });
                             }
                         } else if (data.type === 'folder') {
                             console.log('Creating folder:', data);
                             try {
-                                results.push(await db.createFolder({ 
+                                // Resolve masterParentId from parentId if not provided
+                                let masterParentId = data.masterParentId;
+                                if (!masterParentId && data.parentId) {
+                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
+                                }
+
+                                const createResult = db.createFolder({
                                     ...data,
-                                    metadata 
-                                }));
+                                    masterParentId,
+                                    userId,
+                                    metadata
+                                });
+                                results.push({
+                                    success: true,
+                                    type: 'folder',
+                                    browserId: data.browserId,
+                                    masterId: createResult.masterId
+                                });
                             } catch (err) {
                                 console.error('Failed to create folder:', err);
-                                results.push({ 
+                                results.push({
                                     error: 'FOLDER_CREATE_FAILED',
                                     details: err instanceof Error ? err.message : 'Unknown error',
-                                    itemId: data.id 
+                                    itemId: data.id
                                 });
                             }
                         }
@@ -73,10 +114,10 @@ const handleSync: RequestHandler = async (req, res) => {
                                 }));
                             } catch (err) {
                                 console.error('Failed to move bookmark:', err);
-                                results.push({ 
+                                results.push({
                                     error: 'BOOKMARK_MOVE_FAILED',
                                     details: err instanceof Error ? err.message : 'Unknown error',
-                                    itemId: data.id 
+                                    itemId: data.id
                                 });
                             }
                         } else if (data.type === 'folder') {
@@ -88,10 +129,10 @@ const handleSync: RequestHandler = async (req, res) => {
                                 }));
                             } catch (err) {
                                 console.error('Failed to move folder:', err);
-                                results.push({ 
+                                results.push({
                                     error: 'FOLDER_MOVE_FAILED',
                                     details: err instanceof Error ? err.message : 'Unknown error',
-                                    itemId: data.id 
+                                    itemId: data.id
                                 });
                             }
                         }
@@ -99,7 +140,7 @@ const handleSync: RequestHandler = async (req, res) => {
 
                     case 'DELETE':
                         console.log('Processing DELETE operation:', data);
-                        
+
                         // For DELETE operations, we need to determine if it's a bookmark or folder
                         // First, try to find it in the bookmarks table
                         try {
@@ -122,19 +163,19 @@ const handleSync: RequestHandler = async (req, res) => {
                                     }));
                                 } else {
                                     console.log('Item not found for deletion:', data.browserId);
-                                    results.push({ 
+                                    results.push({
                                         error: 'ITEM_NOT_FOUND',
                                         details: `No bookmark or folder found with id=${data.browserId}`,
-                                        itemId: data.browserId 
+                                        itemId: data.browserId
                                     });
                                 }
                             }
                         } catch (err) {
                             console.error('Failed to delete item:', err);
-                            results.push({ 
+                            results.push({
                                 error: 'DELETE_FAILED',
                                 details: err instanceof Error ? err.message : 'Unknown error',
-                                itemId: data.browserId 
+                                itemId: data.browserId
                             });
                         }
                         break;
@@ -143,23 +184,39 @@ const handleSync: RequestHandler = async (req, res) => {
                         if (data.type === 'bookmark') {
                             console.log('Updating bookmark:', data);
                             try {
-                                results.push(await db.updateBookmark({
+                                // Resolve masterParentId if parentId changed
+                                let masterParentId = data.masterParentId;
+                                if (!masterParentId && data.parentId) {
+                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
+                                }
+
+                                results.push(db.updateBookmark({
                                     ...data,
+                                    masterParentId,
+                                    userId,
                                     metadata
                                 }));
                             } catch (err) {
                                 console.error('Failed to update bookmark in database:', err);
-                                results.push({ 
+                                results.push({
                                     error: 'BOOKMARK_UPDATE_FAILED',
                                     details: err instanceof Error ? err.message : 'Unknown error',
-                                    itemId: data.id 
+                                    itemId: data.id
                                 });
                             }
                         } else if (data.type === 'folder') {
                             console.log('Updating folder:', data);
                             try {
-                                const result = await db.updateFolder({
+                                // Resolve masterParentId if parentId changed
+                                let masterParentId = data.masterParentId;
+                                if (!masterParentId && data.parentId) {
+                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
+                                }
+
+                                const result = db.updateFolder({
                                     ...data,
+                                    masterParentId,
+                                    userId,
                                     metadata
                                 });
                                 if (!result?.changes) {
@@ -169,10 +226,10 @@ const handleSync: RequestHandler = async (req, res) => {
                                 results.push(result);
                             } catch (err) {
                                 console.error('Failed to update folder in database:', err);
-                                results.push({ 
+                                results.push({
                                     error: 'FOLDER_UPDATE_FAILED',
                                     details: err instanceof Error ? err.message : 'Unknown error',
-                                    itemId: data.id 
+                                    itemId: data.id
                                 });
                             }
                         }
@@ -187,7 +244,7 @@ const handleSync: RequestHandler = async (req, res) => {
 
         // Create sync history entry
         await db.createSyncHistory({
-            userId: deviceId,
+            userId,
             deviceId,
             type: 'SYNC',
             changesCount: changes.length,
@@ -223,6 +280,14 @@ const handleSync: RequestHandler = async (req, res) => {
 export const handleInitialSync: RequestHandler = async (req, res) => {
     try {
         console.log('\n=== Initial Sync Request ===');
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Unauthorized' }
+            });
+        }
+        const userId = authUser.id;
         const { bookmarks, folders, deviceId, metadata } = req.body as InitialSyncRequest;
         console.log(`Device ID: ${deviceId}`);
         console.log(`Received ${bookmarks.length} bookmarks and ${folders.length} folders`);
@@ -233,7 +298,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
         const deviceInfo = metadata.deviceInfo;
         db.registerBrowser({
             browserInstanceId: deviceInfo.browserInstanceId,
-            userId: req.body.userId,  // Use userId from request instead of deviceId
+            userId,
             deviceId: deviceInfo.deviceId,
             browser: deviceInfo.browser,
             browserVersion: deviceInfo.browserVersion,
@@ -254,7 +319,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
                 folderResults.push(
                     db.createFolder({
                         ...folder,
-                        userId: req.body.userId,  // Use userId from request
+                        userId,
                         metadata
                     })
                 );
@@ -267,7 +332,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
                 bookmarkResults.push(
                     db.createBookmark({
                         ...bookmark,
-                        userId: req.body.userId,  // Use userId from request
+                        userId,
                         metadata
                     })
                 );
@@ -276,7 +341,7 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
             // Create sync history entry
             console.log('\nCreating sync history entry...');
             db.createSyncHistory({
-                userId: req.body.userId,  // Use userId from request
+                userId,
                 deviceId,
                 type: 'INITIAL_IMPORT',
                 changesCount: bookmarks.length + folders.length,
@@ -320,13 +385,19 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
     }
 };
 
+// Auth routes
+app.post('/api/v1/auth/register', registerWithEmail);
+app.post('/api/v1/auth/login', loginWithEmail);
+app.post('/api/v1/auth/google', loginWithGoogle);
+app.get('/api/v1/auth/me', authenticate, getMe);
+
 // Mount routes
-app.post('/api/v1/sync', handleSync);
-app.post('/api/v1/sync/initial', handleInitialSync);
-app.get('/api/v1/bookmarks/tree/:userId', getBookmarkTree);
+app.post('/api/v1/sync', authenticate, handleSync);
+app.post('/api/v1/sync/initial', authenticate, handleInitialSync);
+app.get('/api/v1/bookmarks/tree/:userId', authenticate, getBookmarkTree);
 
 // Get sync status
-app.get('/api/v1/sync/status', async (req: Request, res: Response) => {
+app.get('/api/v1/sync/status', authenticate, async (req: Request, res: Response) => {
     try {
         console.log('\n=== Sync Status Request ===');
         const browserInstanceId = req.headers['x-browser-instance-id'] as string;
@@ -342,22 +413,43 @@ app.get('/api/v1/sync/status', async (req: Request, res: Response) => {
             });
         }
 
-        // Check if initial sync is needed
-        const bookmarkCount = db.getBookmarkCountForBrowser(browserInstanceId);
-        const needsInitialSync = bookmarkCount === 0;
-        console.log(`Bookmark count for browser ${browserInstanceId}: ${bookmarkCount}`);
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        const userId = authUser?.id;
+        if (!userId) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Unauthorized' }
+            });
+        }
+
+        // Check if initial sync is needed based on master collection
+        const bookmarkCount = db.getBookmarkCountForUser(userId);
+        const folderCount = db.getFolderCountForUser(userId);
+        const needsInitialSync = bookmarkCount + folderCount === 0;
+        console.log(`Master counts for user ${userId}:`, { bookmarkCount, folderCount });
         console.log(`Needs initial sync? ${needsInitialSync}`);
+
+        let pendingChanges = {
+            adds: 0,
+            addsFolders: 0,
+            updates: 0,
+            updatesFolders: 0,
+            moves: 0,
+            deletes: 0,
+            deletesFolders: 0
+        };
+
+        if (!needsInitialSync) {
+            const lastSyncMs = db.getLastSyncForBrowser(userId, browserInstanceId);
+            const lastSyncSeconds = lastSyncMs ? Math.floor(lastSyncMs / 1000) : 0;
+            pendingChanges = db.getPendingChangesForBrowser(userId, browserInstanceId, lastSyncSeconds);
+        }
 
         const response = {
             success: true,
             data: {
                 needsInitialSync,
-                pendingChanges: {
-                    adds: 0,
-                    updates: 0,
-                    moves: 0,
-                    deletes: 0
-                }
+                pendingChanges
             }
         };
         console.log('Sending response:', response);
@@ -413,30 +505,31 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Get master collection summary
-app.get('/api/v1/sync/master-summary', async (req: Request, res: Response) => {
+app.get('/api/v1/sync/master-summary', authenticate, async (req: Request, res: Response) => {
     try {
         console.log('\n=== Master Collection Summary Request ===');
         const deviceId = req.headers['x-device-id'] as string;
-        const userId = req.headers['x-user-id'] as string;
-        
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        const userId = authUser?.id;
+
         if (!userId || !deviceId) {
             return res.status(400).json({
                 success: false,
                 error: {
-                    message: 'User ID and Device ID are required'
+                    message: 'Device ID is required'
                 }
             });
         }
-        
+
         console.log(`User ID: ${userId}, Device ID: ${deviceId}`);
-        
+
         // Get counts from database
         const bookmarkCount = db.getBookmarkCountForUser(userId);
         const folderCount = db.getFolderCountForUser(userId);
         const lastSyncTimestamp = db.getLastSyncForUser(userId);
-        
+
         console.log(`Found ${bookmarkCount} bookmarks and ${folderCount} folders`);
-        
+
         const response = {
             success: true,
             data: {
@@ -446,7 +539,7 @@ app.get('/api/v1/sync/master-summary', async (req: Request, res: Response) => {
                 deviceCount: db.getDeviceCountForUser(userId)
             }
         };
-        
+
         console.log('Sending response:', response);
         res.json(response);
     } catch (err) {
@@ -463,29 +556,30 @@ app.get('/api/v1/sync/master-summary', async (req: Request, res: Response) => {
 });
 
 // Get master collection
-app.get('/api/v1/sync/master-collection', async (req: Request, res: Response) => {
+app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res: Response) => {
     try {
         console.log('\n=== Master Collection Request ===');
         const deviceId = req.headers['x-device-id'] as string;
-        const userId = req.headers['x-user-id'] as string;
-        
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        const userId = authUser?.id;
+
         if (!userId || !deviceId) {
             return res.status(400).json({
                 success: false,
                 error: {
-                    message: 'User ID and Device ID are required'
+                    message: 'Device ID is required'
                 }
             });
         }
-        
+
         console.log(`User ID: ${userId}, Device ID: ${deviceId}`);
-        
+
         // Get all folders and bookmarks for this user
         const folders = db.getFoldersByUserId(userId);
         const bookmarks = db.getBookmarksByUserId(userId);
-        
+
         console.log(`Found ${bookmarks.length} bookmarks and ${folders.length} folders`);
-        
+
         // Create a record of this master collection fetch
         db.createSyncHistory({
             userId,
@@ -502,7 +596,7 @@ app.get('/api/v1/sync/master-collection', async (req: Request, res: Response) =>
                 action: 'MASTER_COLLECTION_FETCH'
             }
         });
-        
+
         const response = {
             success: true,
             data: {
@@ -511,7 +605,7 @@ app.get('/api/v1/sync/master-collection', async (req: Request, res: Response) =>
                 timestamp: Date.now()
             }
         };
-        
+
         console.log('Sending master collection response');
         res.json(response);
     } catch (err) {
@@ -521,6 +615,438 @@ app.get('/api/v1/sync/master-collection', async (req: Request, res: Response) =>
             success: false,
             error: {
                 message: 'Failed to get master collection',
+                details: error.message
+            }
+        });
+    }
+});
+
+// Root folder alias mapping for cross-browser compatibility
+const ROOT_FOLDER_ALIASES: Record<string, string[]> = {
+    'bookmarks bar': ['bookmarks toolbar', 'toolbar'],
+    'other bookmarks': ['unfiled bookmarks', 'other'],
+    'mobile bookmarks': ['mobile'],
+    'bookmarks menu': ['menu']
+};
+
+// Firefox special folder IDs that should be treated as root-level indicators
+const FIREFOX_ROOT_IDS = new Set([
+    'root________',
+    'menu________',
+    'toolbar_____',
+    'unfiled_____',
+    'mobile______'
+]);
+
+// Check if a folder ID indicates a root or special Firefox folder
+function isRootFolderId(id: string | null): boolean {
+    if (!id) return true;
+    if (id === '0') return true;
+    return FIREFOX_ROOT_IDS.has(id);
+}
+
+function normalizeRootFolderName(name: string): string {
+    const lower = name.toLowerCase().trim();
+    for (const [canonical, aliases] of Object.entries(ROOT_FOLDER_ALIASES)) {
+        if (lower === canonical || aliases.includes(lower)) {
+            return canonical;
+        }
+    }
+    return lower;
+}
+
+// Check if a folder title is a root-level folder (Bookmarks bar, Other bookmarks, etc.)
+function isRootFolderTitle(title: string): boolean {
+    const normalized = normalizeRootFolderName(title);
+    return Object.keys(ROOT_FOLDER_ALIASES).includes(normalized);
+}
+
+function buildFolderPath(folderId: string, folderMap: Map<string, { title: string; parentId: string | null; masterParentId: string | null }>): string {
+    const parts: string[] = [];
+    let currentId: string | null = folderId;
+    const visited = new Set<string>();
+
+    while (currentId && !visited.has(currentId)) {
+        visited.add(currentId);
+        const folder = folderMap.get(currentId);
+        if (!folder) break;
+
+        // Stop at root-level folders (Bookmarks bar, Other bookmarks, etc.) 
+        // and include them in the path to distinguish between roots
+        if (isRootFolderTitle(folder.title)) {
+            parts.unshift(normalizeRootFolderName(folder.title));
+            break;
+        }
+
+        const normalizedTitle = normalizeRootFolderName(folder.title);
+        // Skip empty-titled folders
+        if (normalizedTitle && normalizedTitle.trim() !== '') {
+            parts.unshift(normalizedTitle);
+        }
+
+        currentId = folder.masterParentId || folder.parentId;
+    }
+
+    return parts.join('/').toLowerCase();
+}
+
+// Merge local bookmarks into master collection with dedupe
+app.post('/api/v1/sync/merge', authenticate, async (req: Request, res: Response) => {
+    try {
+        console.log('\n=== Merge Sync Request ===');
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Unauthorized' }
+            });
+        }
+        const userId = authUser.id;
+        const { bookmarks, folders, deviceId, metadata } = req.body as InitialSyncRequest;
+        console.log(`Device ID: ${deviceId}`);
+        console.log(`Received ${bookmarks.length} bookmarks and ${folders.length} folders for merge`);
+
+        // Register browser
+        const deviceInfo = metadata.deviceInfo;
+        db.registerBrowser({
+            browserInstanceId: deviceInfo.browserInstanceId,
+            userId,
+            deviceId: deviceInfo.deviceId,
+            browser: deviceInfo.browser,
+            browserVersion: deviceInfo.browserVersion,
+            os: deviceInfo.os,
+            osVersion: deviceInfo.osVersion,
+            userAgent: metadata.userAgent
+        });
+
+        // Get existing master collection
+        const existingFolders = db.getFoldersByUserId(userId);
+        const existingBookmarks = db.getBookmarksByUserId(userId);
+        console.log(`Existing master: ${existingFolders.length} folders, ${existingBookmarks.length} bookmarks`);
+
+        // Build folder path map for existing folders
+        const existingFolderMap = new Map<string, { title: string; parentId: string | null; masterParentId: string | null; masterId: string }>();
+        for (const f of existingFolders) {
+            existingFolderMap.set(f.masterId, {
+                title: f.title,
+                parentId: f.browserId,
+                masterParentId: f.masterParentId,
+                masterId: f.masterId
+            });
+        }
+
+        // Build path -> masterId lookup for existing folders
+        const existingFolderPathMap = new Map<string, string>();
+        for (const f of existingFolders) {
+            const path = buildFolderPath(f.masterId, existingFolderMap);
+            existingFolderPathMap.set(path, f.masterId);
+        }
+
+        // Build existing bookmark dedupe set: lowercase(folderPath + '|' + url)
+        const existingBookmarkKeys = new Set<string>();
+        for (const b of existingBookmarks) {
+            const folderPath = b.masterParentId ? buildFolderPath(b.masterParentId, existingFolderMap) : '';
+            const key = (folderPath + '|' + b.url).toLowerCase();
+            existingBookmarkKeys.add(key);
+        }
+
+        // Process incoming folders - build their path map first
+        const incomingFolderMap = new Map<string, { title: string; parentId: string | null; browserId: string }>();
+        for (const f of folders) {
+            // Ensure IDs are strings
+            const id = String(f.id);
+            const parentId = f.parentId ? String(f.parentId) : null;
+
+            incomingFolderMap.set(id, {
+                title: f.title,
+                parentId: parentId,
+                browserId: id
+            });
+            // Update the original object too to match types
+            f.id = id;
+            if (f.parentId) f.parentId = parentId || undefined;
+        }
+
+        // Map incoming browserId -> masterParentId for folders we create
+        const browserIdToMasterId = new Map<string, string>();
+
+        // Copy existing folder mappings (for root folders that map by title)
+        for (const f of existingFolders) {
+            if (f.browserId) {
+                browserIdToMasterId.set(f.browserId, f.masterId);
+            }
+        }
+
+        let foldersCreated = 0;
+        let foldersSkipped = 0;
+        let bookmarksCreated = 0;
+        let bookmarksSkipped = 0;
+
+        // Process folders in order (parents first)
+        const processedFolders = new Set<string>();
+        // Filter out the Firefox super-root (empty titled folder with root________ id)
+        const filteredFolders = folders.filter((f: any) => {
+            // Skip empty-titled folders (Firefox root)
+            if (!f.title || f.title.trim() === '') {
+                console.log(`Skipping empty-titled folder: ${f.id}`);
+                // Mark it as processed so children can proceed
+                processedFolders.add(f.id);
+                return false;
+            }
+            return true;
+        });
+        const folderQueue = [...filteredFolders];
+        let maxIterations = filteredFolders.length * 2;
+
+        while (folderQueue.length > 0 && maxIterations-- > 0) {
+            const folder = folderQueue.shift()!;
+
+            // Check if parent is processed or is a root (including Firefox special IDs)
+            const parentProcessed = !folder.parentId ||
+                isRootFolderId(folder.parentId) ||
+                processedFolders.has(folder.parentId) ||
+                browserIdToMasterId.has(folder.parentId);
+
+            if (!parentProcessed) {
+                folderQueue.push(folder);
+                continue;
+            }
+
+            processedFolders.add(folder.id);
+
+            // Build path for this incoming folder
+            const buildIncomingPath = (folderId: string): string => {
+                const parts: string[] = [];
+                let currentId: string | null = folderId;
+                const visited = new Set<string>();
+
+                // Debug log for folder path construction
+                const pathLog: string[] = [];
+
+                while (currentId && !isRootFolderId(currentId) && !visited.has(currentId)) {
+                    visited.add(currentId);
+                    const f = incomingFolderMap.get(currentId);
+                    if (!f) {
+                        pathLog.push(`[Break] No folder found for id ${currentId}`);
+                        break;
+                    }
+
+                    // Stop at root-level folders (Bookmarks bar, Other bookmarks, etc.)
+                    if (isRootFolderTitle(f.title)) {
+                        const normalized = normalizeRootFolderName(f.title);
+                        parts.unshift(normalized);
+                        pathLog.push(`[Stop] Root title encountered: "${f.title}" -> "${normalized}"`);
+                        break;
+                    }
+
+                    // Skip empty-titled folders (Firefox super root)
+                    if (f.title && f.title.trim() !== '') {
+                        const normalized = normalizeRootFolderName(f.title);
+                        parts.unshift(normalized);
+                        pathLog.push(`[Add] "${f.title}" -> "${normalized}"`);
+                    } else {
+                        pathLog.push(`[Skip] Empty title for id ${currentId}`);
+                    }
+                    currentId = f.parentId;
+                }
+                const result = parts.join('/').toLowerCase();
+                // Only log if interesting (e.g. Design2)
+                if (result.includes('design2') || result.includes('design')) {
+                    console.log(`Path build for ${folderId}: ${result}`);
+                    console.log(`  Trace: ${pathLog.join(' <- ')}`);
+                }
+                return result;
+            };
+
+            const incomingPath = buildIncomingPath(folder.id);
+
+            // Check if folder path already exists
+            if (existingFolderPathMap.has(incomingPath)) {
+                const existingMasterId = existingFolderPathMap.get(incomingPath)!;
+                browserIdToMasterId.set(folder.id, existingMasterId);
+                foldersSkipped++;
+                console.log(`Folder exists: ${incomingPath} -> ${existingMasterId}`);
+            } else {
+                // Create new folder
+                let masterParentId: string | null = null;
+                if (folder.parentId && folder.parentId !== '0' && !isRootFolderId(folder.parentId)) {
+                    masterParentId = browserIdToMasterId.get(folder.parentId) || null;
+                    console.log(`  Parent lookup: folder.parentId=${folder.parentId}, masterParentId=${masterParentId}`);
+                    console.log(`  browserIdToMasterId keys: ${[...browserIdToMasterId.keys()].join(', ')}`);
+                }
+
+                try {
+                    const result = db.createFolder({
+                        ...folder,
+                        masterParentId,
+                        userId,
+                        metadata
+                    });
+                    browserIdToMasterId.set(folder.id, result.masterId);
+                    existingFolderPathMap.set(incomingPath, result.masterId);
+                    existingFolderMap.set(result.masterId, {
+                        title: folder.title,
+                        parentId: folder.id,
+                        masterParentId,
+                        masterId: result.masterId
+                    });
+                    foldersCreated++;
+                    console.log(`Created folder: ${incomingPath} -> ${result.masterId}`);
+                } catch (err) {
+                    console.error(`Failed to create folder ${folder.title}:`, err);
+                }
+            }
+        }
+
+        // Process bookmarks with dedupe
+        for (const bookmark of bookmarks) {
+            // Get master parent ID
+            let masterParentId: string | null = null;
+            if (bookmark.parentId && bookmark.parentId !== '0') {
+                masterParentId = browserIdToMasterId.get(bookmark.parentId) || null;
+            }
+
+            // Build folder path for dedupe key
+            const folderPath = masterParentId ? buildFolderPath(masterParentId, existingFolderMap) : '';
+            const dedupeKey = (folderPath + '|' + bookmark.url).toLowerCase();
+
+            if (existingBookmarkKeys.has(dedupeKey)) {
+                bookmarksSkipped++;
+                console.log(`Bookmark exists: ${bookmark.url} in ${folderPath}`);
+            } else {
+                try {
+                    db.createBookmark({
+                        ...bookmark,
+                        masterParentId,
+                        userId,
+                        metadata
+                    });
+                    existingBookmarkKeys.add(dedupeKey);
+                    bookmarksCreated++;
+                    console.log(`Created bookmark: ${bookmark.title} - ${bookmark.url}`);
+                } catch (err) {
+                    console.error(`Failed to create bookmark ${bookmark.url}:`, err);
+                }
+            }
+        }
+
+        // Create sync history entry
+        db.createSyncHistory({
+            userId,
+            deviceId,
+            type: 'MERGE_IMPORT',
+            changesCount: foldersCreated + bookmarksCreated,
+            status: 'SUCCESS',
+            details: {
+                foldersCreated,
+                foldersSkipped,
+                bookmarksCreated,
+                bookmarksSkipped
+            },
+            metadata
+        });
+
+        const response = {
+            success: true,
+            data: {
+                action: 'MERGE_COMPLETE',
+                foldersCreated,
+                foldersSkipped,
+                bookmarksCreated,
+                bookmarksSkipped,
+                totalMasterFolders: existingFolders.length + foldersCreated,
+                totalMasterBookmarks: existingBookmarks.length + bookmarksCreated
+            }
+        };
+        console.log('Merge completed:', response);
+        res.json(response);
+    } catch (err) {
+        const error = err as Error;
+        console.error('Merge error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to merge bookmarks',
+                details: error.message
+            }
+        });
+    }
+});
+
+// Quick capture endpoint for mobile share sheets
+app.post('/api/v1/capture', authenticate, async (req: Request, res: Response) => {
+    try {
+        console.log('\n=== Capture Request (Mobile Share) ===');
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        if (!authUser) {
+            return res.status(401).json({
+                success: false,
+                error: { message: 'Unauthorized' }
+            });
+        }
+        const userId = authUser.id;
+
+        const { url, title, parentId, masterParentId } = req.body;
+
+        if (!url) {
+            return res.status(400).json({
+                success: false,
+                error: { message: 'URL is required' }
+            });
+        }
+
+        console.log(`Capturing URL: ${url}, Title: ${title || 'Untitled'}`);
+
+        // Resolve masterParentId if parentId provided
+        let resolvedMasterParentId = masterParentId;
+        if (!resolvedMasterParentId && parentId) {
+            resolvedMasterParentId = db.getFolderMasterIdByBrowserId(parentId, userId);
+        }
+
+        // Create the bookmark
+        const result = db.createBookmark({
+            browserId: `mobile-${Date.now()}`, // Generate a unique browserId for mobile captures
+            url,
+            title: title || url,
+            parentId: parentId || '1', // Default to Bookmarks Bar if not specified
+            masterParentId: resolvedMasterParentId,
+            position: 0,
+            dateAdded: Date.now(),
+            userId,
+            metadata: {
+                timestamp: Date.now(),
+                deviceInfo: {
+                    browserInstanceId: 'mobile-app',
+                    deviceId: req.headers['x-device-id'] as string || 'mobile',
+                    browser: 'BookMarx Mobile',
+                    browserVersion: '1.0.0',
+                    os: req.headers['x-os'] as string || 'mobile',
+                    osVersion: req.headers['x-os-version'] as string || 'unknown'
+                },
+                userAgent: req.headers['user-agent'] || 'BookMarx Mobile App'
+            }
+        });
+
+        console.log(`Bookmark captured with masterId: ${result.masterId}`);
+
+        res.json({
+            success: true,
+            data: {
+                masterId: result.masterId,
+                url,
+                title: title || url,
+                parentId: parentId || '1',
+                masterParentId: resolvedMasterParentId,
+                createdAt: Date.now()
+            }
+        });
+    } catch (err) {
+        const error = err as Error;
+        console.error('Capture error:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to capture bookmark',
                 details: error.message
             }
         });

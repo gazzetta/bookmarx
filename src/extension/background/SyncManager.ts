@@ -1,4 +1,5 @@
 import { StorageManager } from './StorageManager';
+import { detectBrowser } from './utils/browserDetect';
 
 interface SyncResponse {
     success: boolean;
@@ -28,6 +29,14 @@ interface SyncSummary {
     };
 }
 
+// Custom error for auth failures that should trigger logout
+export class AuthError extends Error {
+    constructor(message: string, public code?: string) {
+        super(message);
+        this.name = 'AuthError';
+    }
+}
+
 export class SyncManager {
     private syncInProgress: boolean = false;
     private readonly SYNC_RETRY_DELAY = 5000; // 5 seconds
@@ -36,6 +45,49 @@ export class SyncManager {
     private readonly API_ENDPOINT = 'http://localhost:3005/api/v1/sync'; // We'll update this later
 
     constructor(private storageManager: StorageManager) {}
+
+    // Safe wrapper for chrome.bookmarks.getTree() that works in both Chrome and Firefox
+    private async getBookmarkTree(): Promise<chrome.bookmarks.BookmarkTreeNode[]> {
+        return new Promise((resolve, reject) => {
+            try {
+                chrome.bookmarks.getTree((tree) => {
+                    const error = chrome.runtime.lastError;
+                    if (error) {
+                        console.error('[SyncManager] getTree error:', error.message);
+                        reject(new Error(error.message));
+                        return;
+                    }
+                    if (!tree || tree.length === 0) {
+                        console.error('[SyncManager] getTree returned empty/undefined');
+                        reject(new Error('Bookmark tree is empty or undefined'));
+                        return;
+                    }
+                    console.log('[SyncManager] getTree successful, root has', tree[0]?.children?.length || 0, 'children');
+                    resolve(tree);
+                });
+            } catch (err) {
+                console.error('[SyncManager] getTree exception:', err);
+                reject(err);
+            }
+        });
+    }
+
+    // Check response for auth errors and handle accordingly
+    private async handleAuthError(response: Response): Promise<void> {
+        if (response.status === 401) {
+            const data = await response.json().catch(() => ({}));
+            const code = data?.error?.code;
+            
+            // If user not found, clear local auth
+            if (code === 'USER_NOT_FOUND') {
+                console.warn('[SyncManager] User not found in database, clearing local auth');
+                await this.storageManager.clearAuth();
+                throw new AuthError('Your session has expired. Please log in again.', code);
+            }
+            
+            throw new AuthError(data?.error?.message || 'Authentication failed');
+        }
+    }
 
     public async initialize(): Promise<void> {
         // We'll only set up the schedule if autoSync gets enabled later
@@ -58,6 +110,11 @@ export class SyncManager {
         try {
             this.syncInProgress = true;
             console.log('Starting sync process in background...');
+
+            const authToken = await this.storageManager.getAuthToken();
+            if (!authToken) {
+                throw new Error('Not authenticated. Please log in first.');
+            }
 
             // Check sync status first
             const status = await this.getSyncStatus();
@@ -105,18 +162,23 @@ export class SyncManager {
 
     private async sendChangesToServer(changes: any[]): Promise<SyncResponse> {
         try {
+            const authToken = await this.storageManager.getAuthToken();
+            if (!authToken) {
+                throw new Error('Not authenticated');
+            }
             const deviceId = await this.storageManager.getDeviceId();
             const browserInstanceId = await this.storageManager.getBrowserInstanceId();
             const userId = await this.storageManager.getUserId();
             
             // Get device info for metadata
+            const browserInfo = await detectBrowser();
             const deviceInfo = {
-                browser: 'Chrome',
-                browserVersion: navigator.userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || '',
+                browser: browserInfo.browser,
+                browserVersion: browserInfo.browserVersion,
                 browserInstanceId,
                 deviceId,
-                os: navigator.platform,
-                osVersion: navigator.userAgent
+                os: browserInfo.os,
+                osVersion: browserInfo.osVersion
             };
 
             // Format changes with proper metadata
@@ -124,7 +186,8 @@ export class SyncManager {
                 type: change.type,
                 data: {
                     type: change.data.type,
-                    id: change.data.id,
+                    id: change.data.id || change.data.browserId,
+                    browserId: change.data.browserId || change.data.id,
                     title: change.data.title,
                     url: change.data.url,
                     parentId: change.data.parentId,
@@ -143,6 +206,7 @@ export class SyncManager {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
                     'X-Device-ID': deviceId,
                     'X-Browser-Instance-ID': browserInstanceId,
                     'X-User-ID': userId
@@ -175,21 +239,27 @@ export class SyncManager {
     private async sendInitialSync(): Promise<boolean> {
         try {
             console.log('\n=== Starting Initial Sync ===');
+
+            const authToken = await this.storageManager.getAuthToken();
+            if (!authToken) {
+                throw new Error('Not authenticated');
+            }
             
-            // Get all bookmarks
-            const tree = await chrome.bookmarks.getTree();
+            // Get all bookmarks using safe wrapper
+            const tree = await this.getBookmarkTree();
             const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
             
             console.log(`Preparing to sync ${bookmarks.length} bookmarks and ${folders.length} folders`);
             
             // Get device info
+            const browserInfo = await detectBrowser();
             const deviceInfo = {
-                browser: 'Chrome',
-                browserVersion: navigator.userAgent.match(/Chrome\/([0-9.]+)/)?.[1] || '',
+                browser: browserInfo.browser,
+                browserVersion: browserInfo.browserVersion,
                 browserInstanceId: await this.storageManager.getBrowserInstanceId() || crypto.randomUUID(),
                 deviceId: await this.storageManager.getDeviceId(),
-                os: navigator.platform,
-                osVersion: navigator.userAgent
+                os: browserInfo.os,
+                osVersion: browserInfo.osVersion
             };
 
             // Save the browserInstanceId if it was just generated
@@ -214,6 +284,7 @@ export class SyncManager {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
                     'X-Device-ID': deviceId,
                     'X-User-ID': userId
                 },
@@ -252,6 +323,105 @@ export class SyncManager {
         }
     }
 
+    public async mergeIntoMaster(): Promise<{ success: boolean; data?: any; error?: string }> {
+        try {
+            console.log('\n=== Starting Merge Into Master ===');
+
+            const authToken = await this.storageManager.getAuthToken();
+            if (!authToken) {
+                throw new Error('Not authenticated');
+            }
+            
+            // Get all bookmarks using safe wrapper
+            const tree = await this.getBookmarkTree();
+            const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
+            
+            console.log(`Preparing to merge ${bookmarks.length} bookmarks and ${folders.length} folders`);
+            
+            // Get device info
+            const browserInfo = await detectBrowser();
+            const deviceInfo = {
+                browser: browserInfo.browser,
+                browserVersion: browserInfo.browserVersion,
+                browserInstanceId: await this.storageManager.getBrowserInstanceId() || crypto.randomUUID(),
+                deviceId: await this.storageManager.getDeviceId(),
+                os: browserInfo.os,
+                osVersion: browserInfo.osVersion
+            };
+
+            // Save the browserInstanceId if it was just generated
+            if (!await this.storageManager.getBrowserInstanceId()) {
+                await this.storageManager.setBrowserInstanceId(deviceInfo.browserInstanceId);
+            }
+
+            console.log('Device Info:', deviceInfo);
+            
+            // Prepare sync metadata
+            const metadata = {
+                deviceInfo,
+                userAgent: navigator.userAgent,
+                timestamp: Date.now()
+            };
+            
+            // Send to server merge endpoint
+            console.log('\nSending merge request to server...');
+            const userId = await this.storageManager.getUserId();
+            const deviceId = await this.storageManager.getDeviceId();
+            const response = await fetch(`${this.API_ENDPOINT}/merge`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Device-ID': deviceId,
+                    'X-User-ID': userId
+                },
+                body: JSON.stringify({
+                    bookmarks,
+                    folders,
+                    userId,
+                    deviceId,
+                    metadata
+                })
+            });
+
+            // Check for auth errors first
+            if (response.status === 401) {
+                await this.handleAuthError(response);
+            }
+
+            if (!response.ok) {
+                console.error('Server response not OK:', response.status);
+                throw new Error('Failed to merge bookmarks');
+            }
+
+            const result = await response.json();
+            console.log('\nMerge response:', result);
+
+            if (result.success) {
+                console.log('Merge completed successfully');
+                await this.storageManager.updateLastSync();
+                await this.storageManager.clearQueuedChanges();
+                return {
+                    success: true,
+                    data: result.data
+                };
+            } else {
+                console.error('Merge failed:', result.error);
+                throw new Error(result.error?.message || 'Merge failed');
+            }
+
+        } catch (error) {
+            console.error('Error during merge:', error);
+            if (error instanceof Error) {
+                console.error('Stack trace:', error.stack);
+            }
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            };
+        }
+    }
+
     private processBookmarkTree(node: chrome.bookmarks.BookmarkTreeNode): { bookmarks: any[], folders: any[] } {
         const bookmarks: any[] = [];
         const folders: any[] = [];
@@ -261,6 +431,7 @@ export class SyncManager {
             if (node.id !== '0') {
                 if (node.url) {
                     bookmarks.push({
+                        id: node.id,           // Server expects 'id' for mapping
                         browserId: node.id,
                         userId: 'default',  
                         title: node.title,
@@ -271,6 +442,7 @@ export class SyncManager {
                     });
                 } else {
                     folders.push({
+                        id: node.id,           // Server expects 'id' for mapping
                         browserId: node.id,
                         userId: 'default',  
                         title: node.title,
@@ -291,25 +463,36 @@ export class SyncManager {
     }
 
     private async applyServerChanges(changes: any[]): Promise<void> {
-        for (const change of changes) {
-            try {
-                switch (change.type) {
-                    case 'CREATE':
-                        await this.applyCreateChange(change);
-                        break;
-                    case 'UPDATE':
-                        await this.applyUpdateChange(change);
-                        break;
-                    case 'DELETE':
-                        await this.applyDeleteChange(change);
-                        break;
-                    case 'MOVE':
-                        await this.applyMoveChange(change);
-                        break;
+        const wasSuppressed = await this.storageManager.isQueueingSuppressed();
+        await this.storageManager.setQueueingSuppressed(true);
+
+        try {
+            for (const change of changes) {
+                try {
+                    switch (change.type) {
+                        case 'CREATE':
+                            await this.applyCreateChange(change);
+                            break;
+                        case 'UPDATE':
+                            await this.applyUpdateChange(change);
+                            break;
+                        case 'DELETE':
+                            await this.applyDeleteChange(change);
+                            break;
+                        case 'MOVE':
+                            await this.applyMoveChange(change);
+                            break;
+                    }
+                } catch (error) {
+                    console.error('Error applying change:', change, error);
+                    // Continue with next change even if one fails
                 }
+            }
+        } finally {
+            try {
+                await this.storageManager.setQueueingSuppressed(wasSuppressed);
             } catch (error) {
-                console.error('Error applying change:', change, error);
-                // Continue with next change even if one fails
+                console.error('Failed to restore queueing state after applyServerChanges:', error);
             }
         }
     }
@@ -368,6 +551,10 @@ export class SyncManager {
     }
 
     public async getSyncSummary(): Promise<SyncSummary> {
+        const authToken = await this.storageManager.getAuthToken();
+        if (!authToken) {
+            throw new Error('Not authenticated');
+        }
         const changes = await this.storageManager.getQueuedChanges();
         const deviceId = await this.storageManager.getDeviceId();
 
@@ -377,6 +564,7 @@ export class SyncManager {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
                     'X-Device-ID': deviceId
                 }
             });
@@ -397,7 +585,7 @@ export class SyncManager {
             };
 
             if (isInitialSync) {
-                const tree = await chrome.bookmarks.getTree();
+                const tree = await this.getBookmarkTree();
                 const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
                 return {
                     isInitialSync: true,
@@ -430,11 +618,16 @@ export class SyncManager {
     private async getSyncStatus(): Promise<any> {
         const deviceId = await this.storageManager.getDeviceId();
         const browserInstanceId = await this.storageManager.getBrowserInstanceId();
+        const authToken = await this.storageManager.getAuthToken();
+        if (!authToken) {
+            throw new Error('Not authenticated');
+        }
         
         const response = await fetch(`${this.API_ENDPOINT}/status`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
                 'X-Device-ID': deviceId,
                 'X-Browser-Instance-ID': browserInstanceId
             }
@@ -449,6 +642,10 @@ export class SyncManager {
 
     public async getMasterCollectionSummary(): Promise<any> {
         try {
+            const authToken = await this.storageManager.getAuthToken();
+            if (!authToken) {
+                throw new Error('Not authenticated');
+            }
             const deviceId = await this.storageManager.getDeviceId();
             const userId = await this.storageManager.getUserId();
             
@@ -456,6 +653,7 @@ export class SyncManager {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
                     'X-Device-ID': deviceId,
                     'X-User-ID': userId
                 }
@@ -476,8 +674,13 @@ export class SyncManager {
     }
 
     public async overwriteFromMaster(): Promise<any> {
+        const wasSuppressed = await this.storageManager.isQueueingSuppressed();
+        await this.storageManager.setQueueingSuppressed(true);
+
         try {
             console.log('Starting overwrite from master collection...');
+
+            await this.storageManager.clearQueuedChanges();
             
             // Get the master collection from the server
             const masterCollection = await this.fetchMasterCollection();
@@ -501,11 +704,21 @@ export class SyncManager {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
+        } finally {
+            try {
+                await this.storageManager.setQueueingSuppressed(wasSuppressed);
+            } catch (error) {
+                console.error('Failed to restore queueing state after overwrite:', error);
+            }
         }
     }
     
     private async fetchMasterCollection(): Promise<any> {
         try {
+            const authToken = await this.storageManager.getAuthToken();
+            if (!authToken) {
+                throw new Error('Not authenticated');
+            }
             const deviceId = await this.storageManager.getDeviceId();
             const userId = await this.storageManager.getUserId();
             
@@ -513,6 +726,7 @@ export class SyncManager {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
                     'X-Device-ID': deviceId,
                     'X-User-ID': userId
                 }
@@ -535,8 +749,8 @@ export class SyncManager {
     private async clearLocalBookmarks(): Promise<void> {
         console.log('Clearing local bookmarks...');
         
-        // Get all bookmarks
-        const tree = await chrome.bookmarks.getTree();
+        // Get all bookmarks using safe wrapper
+        const tree = await this.getBookmarkTree();
         
         // Process each root folder
         for (const rootNode of tree[0].children || []) {
@@ -564,72 +778,278 @@ export class SyncManager {
     private async restoreFromMasterCollection(collection: any): Promise<void> {
         console.log('Restoring from master collection...', collection);
         
-        // Get the root folders
-        const tree = await chrome.bookmarks.getTree();
+        // Get the root folders using safe wrapper
+        const tree = await this.getBookmarkTree();
         const rootFolders: Record<string, string> = {};
+        const normalizeTitle = (value: string) => value.trim().toLowerCase();
+        const getFolderSourceId = (folder: any): string => String(folder?.browserId ?? folder?.id ?? '');
+        const getFolderParentId = (folder: any): string => String(folder?.parentId ?? '');
         
         // Map folder names to IDs
         for (const rootNode of tree[0].children || []) {
-            rootFolders[rootNode.title] = rootNode.id;
+            rootFolders[normalizeTitle(rootNode.title)] = rootNode.id;
         }
+
+        const bookmarksBarId = rootFolders['bookmarks bar'] || rootFolders['bookmarks toolbar'] || '1';
+        const otherBookmarksId = rootFolders['other bookmarks'] || rootFolders['unfiled bookmarks'] || '2';
+        const bookmarksMenuId = rootFolders['bookmarks menu'];
+        const mobileBookmarksId = rootFolders['mobile bookmarks'] || '3';
         
         // Create a map to track new IDs for folders
         const folderIdMap: Record<string, string> = {};
-        
-        // First, create all folders
-        for (const folder of collection.folders || []) {
-            try {
-                // Determine parent ID
-                let parentId: string;
-                
-                if (!folder.parentId || folder.parentId === '0' || folder.parentId === '1') {
-                    // Top-level folder, place in Bookmarks Bar by default
-                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
-                } else if (folderIdMap[folder.parentId]) {
-                    // Parent is a folder we've already created
-                    parentId = folderIdMap[folder.parentId];
-                } else {
-                    // Default to Bookmarks Bar if we can't find the parent
-                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
+
+        const resolveRootIdBySourceId = (sourceId: string): string | undefined => {
+            const normalizedSourceId = sourceId.trim().toLowerCase();
+            if (sourceId === '1') {
+                return bookmarksBarId;
+            }
+            if (sourceId === '2') {
+                return otherBookmarksId;
+            }
+            if (sourceId === '3') {
+                return mobileBookmarksId;
+            }
+            if (normalizedSourceId.startsWith('toolbar')) {
+                return bookmarksBarId;
+            }
+            if (normalizedSourceId.startsWith('menu')) {
+                return bookmarksMenuId || otherBookmarksId;
+            }
+            if (normalizedSourceId.startsWith('unfiled')) {
+                return otherBookmarksId;
+            }
+            if (normalizedSourceId.startsWith('mobile')) {
+                return mobileBookmarksId;
+            }
+            return undefined;
+        };
+
+        const isRootSystemFolder = (folder: any): boolean => {
+            const parentId = getFolderParentId(folder);
+            const sourceId = getFolderSourceId(folder);
+            const normalizedSourceId = sourceId.trim().toLowerCase();
+            if (sourceId === '1' || sourceId === '2' || sourceId === '3') {
+                return true;
+            }
+            if (normalizedSourceId.startsWith('toolbar')
+                || normalizedSourceId.startsWith('menu')
+                || normalizedSourceId.startsWith('unfiled')
+                || normalizedSourceId.startsWith('mobile')) {
+                return true;
+            }
+            const normalizedParentId = parentId.trim().toLowerCase();
+            if (parentId && parentId !== '0' && !normalizedParentId.startsWith('root')) {
+                return false;
+            }
+            const normalizedTitle = normalizeTitle(String(folder?.title || ''));
+            return normalizedTitle === 'bookmarks bar'
+                || normalizedTitle === 'bookmarks toolbar'
+                || normalizedTitle === 'bookmarks menu'
+                || normalizedTitle === 'other bookmarks'
+                || normalizedTitle === 'unfiled bookmarks'
+                || normalizedTitle === 'mobile bookmarks';
+        };
+
+        const resolveRootIdByTitle = (title: string): string | undefined => {
+            const normalizedTitle = normalizeTitle(title);
+            if (normalizedTitle === 'bookmarks bar') {
+                return bookmarksBarId;
+            }
+            if (normalizedTitle === 'bookmarks toolbar') {
+                return bookmarksBarId;
+            }
+            if (normalizedTitle === 'other bookmarks') {
+                return otherBookmarksId;
+            }
+            if (normalizedTitle === 'unfiled bookmarks') {
+                return otherBookmarksId;
+            }
+            if (normalizedTitle === 'bookmarks menu') {
+                return bookmarksMenuId || otherBookmarksId;
+            }
+            if (normalizedTitle === 'mobile bookmarks') {
+                return mobileBookmarksId;
+            }
+            return undefined;
+        };
+
+        const resolveParentId = (rawParentId?: unknown): string | undefined => {
+            const parentId = rawParentId === undefined || rawParentId === null ? '' : String(rawParentId);
+            const normalizedParentId = parentId.trim().toLowerCase();
+            if (!parentId || parentId === '0') {
+                return bookmarksBarId;
+            }
+            if (folderIdMap[parentId]) {
+                return folderIdMap[parentId];
+            }
+            if (parentId === '1') {
+                return bookmarksBarId;
+            }
+            if (parentId === '2') {
+                return otherBookmarksId || bookmarksBarId;
+            }
+            if (parentId === '3') {
+                return mobileBookmarksId || bookmarksBarId;
+            }
+            if (normalizedParentId.startsWith('toolbar')) {
+                return bookmarksBarId;
+            }
+            if (normalizedParentId.startsWith('menu')) {
+                return otherBookmarksId || bookmarksBarId;
+            }
+            if (normalizedParentId.startsWith('unfiled')) {
+                return otherBookmarksId || bookmarksBarId;
+            }
+            if (normalizedParentId.startsWith('mobile')) {
+                return mobileBookmarksId || bookmarksBarId;
+            }
+            if (normalizedParentId.startsWith('root')) {
+                return bookmarksBarId;
+            }
+            return undefined;
+        };
+
+        const getSafeIndex = async (parentId: string, position?: number): Promise<number | undefined> => {
+            if (typeof position !== 'number' || Number.isNaN(position) || position < 0) {
+                return undefined;
+            }
+            const children = await chrome.bookmarks.getChildren(parentId);
+            return Math.min(position, children.length);
+        };
+
+        const allFolders = Array.isArray(collection.folders) ? collection.folders : [];
+        const menuFolderIds = new Set<string>();
+
+        if (!bookmarksMenuId) {
+            const menuRoots = allFolders.filter((folder: any) => {
+                if (!folder) return false;
+                const sourceId = getFolderSourceId(folder);
+                const normalizedTitle = normalizeTitle(String(folder?.title || ''));
+                return normalizedTitle === 'bookmarks menu' || sourceId.trim().toLowerCase().startsWith('menu');
+            });
+
+            if (menuRoots.length) {
+                const menuRoot = menuRoots[0];
+                try {
+                    const created = await chrome.bookmarks.create({
+                        parentId: otherBookmarksId || bookmarksBarId,
+                        title: menuRoot.title
+                    });
+                    folderIdMap[getFolderSourceId(menuRoot)] = created.id;
+                    menuFolderIds.add(getFolderSourceId(menuRoot));
+                } catch (error) {
+                    console.error('Error creating Bookmarks Menu container:', error);
                 }
-                
-                // Create the folder
-                const newFolder = await chrome.bookmarks.create({
-                    parentId,
-                    title: folder.title,
-                    index: folder.position || undefined
-                });
-                
-                // Store the mapping from old ID to new ID
-                folderIdMap[folder.id] = newFolder.id;
-            } catch (error) {
-                console.error(`Error creating folder ${folder.title}:`, error);
+
+                for (let i = 1; i < menuRoots.length; i += 1) {
+                    const duplicate = menuRoots[i];
+                    folderIdMap[getFolderSourceId(duplicate)] = folderIdMap[getFolderSourceId(menuRoot)];
+                    menuFolderIds.add(getFolderSourceId(duplicate));
+                }
+            }
+        }
+
+        const pendingFolders = allFolders
+            .filter((folder: any) => {
+                if (!folder) {
+                    return false;
+                }
+                if (menuFolderIds.has(getFolderSourceId(folder))) {
+                    return false;
+                }
+                if (isRootSystemFolder(folder)) {
+                    const sourceId = getFolderSourceId(folder);
+                    const mappedRootId = resolveRootIdBySourceId(sourceId) ?? resolveRootIdByTitle(folder.title);
+                    if (mappedRootId) {
+                        folderIdMap[sourceId] = mappedRootId;
+                    }
+                    return false;
+                }
+                return true;
+            })
+            .sort((a: any, b: any) => {
+                const parentCompare = String(a.parentId ?? '').localeCompare(String(b.parentId ?? ''));
+                if (parentCompare !== 0) {
+                    return parentCompare;
+                }
+                const posA = typeof a.position === 'number' ? a.position : 0;
+                const posB = typeof b.position === 'number' ? b.position : 0;
+                return posA - posB;
+            });
+
+        const remainingFolders = [...pendingFolders];
+        let madeProgress = true;
+
+        while (remainingFolders.length && madeProgress) {
+            madeProgress = false;
+            for (let i = 0; i < remainingFolders.length;) {
+                const folder = remainingFolders[i];
+                const parentId = resolveParentId(folder.parentId);
+
+                if (!parentId) {
+                    i += 1;
+                    continue;
+                }
+
+                try {
+                    const index = await getSafeIndex(parentId, folder.position);
+                    const newFolder = await chrome.bookmarks.create({
+                        parentId,
+                        title: folder.title,
+                        ...(typeof index === 'number' ? { index } : {})
+                    });
+                    folderIdMap[getFolderSourceId(folder)] = newFolder.id;
+                    remainingFolders.splice(i, 1);
+                    madeProgress = true;
+                } catch (error) {
+                    console.error(`Error creating folder ${folder.title}:`, error);
+                    remainingFolders.splice(i, 1);
+                }
+            }
+        }
+
+        if (remainingFolders.length) {
+            console.warn('Some folders could not resolve parents. Placing under Bookmarks Bar.', remainingFolders.map((folder: any) => folder.title));
+            for (const folder of remainingFolders) {
+                try {
+                    const parentId = bookmarksBarId;
+                    const index = await getSafeIndex(parentId, folder.position);
+                    const newFolder = await chrome.bookmarks.create({
+                        parentId,
+                        title: folder.title,
+                        ...(typeof index === 'number' ? { index } : {})
+                    });
+                    folderIdMap[getFolderSourceId(folder)] = newFolder.id;
+                } catch (error) {
+                    console.error(`Error creating folder ${folder.title}:`, error);
+                }
             }
         }
         
         // Then create all bookmarks
-        for (const bookmark of collection.bookmarks || []) {
+        const bookmarks = (Array.isArray(collection.bookmarks) ? collection.bookmarks : [])
+            .sort((a: any, b: any) => {
+                const parentCompare = String(a.parentId ?? '').localeCompare(String(b.parentId ?? ''));
+                if (parentCompare !== 0) {
+                    return parentCompare;
+                }
+                const posA = typeof a.position === 'number' ? a.position : 0;
+                const posB = typeof b.position === 'number' ? b.position : 0;
+                return posA - posB;
+            });
+
+        for (const bookmark of bookmarks) {
             try {
                 // Determine parent ID
-                let parentId: string;
-                
-                if (!bookmark.parentId || bookmark.parentId === '0' || bookmark.parentId === '1') {
-                    // Top-level bookmark, place in Bookmarks Bar by default
-                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
-                } else if (folderIdMap[bookmark.parentId]) {
-                    // Parent is a folder we've already created
-                    parentId = folderIdMap[bookmark.parentId];
-                } else {
-                    // Default to Bookmarks Bar if we can't find the parent
-                    parentId = rootFolders['Bookmarks Bar'] || rootFolders['Bookmarks bar'] || '1';
-                }
+                const parentId = resolveParentId(bookmark.parentId) || bookmarksBarId;
+                const index = await getSafeIndex(parentId, bookmark.position);
                 
                 // Create the bookmark
                 await chrome.bookmarks.create({
                     parentId,
                     title: bookmark.title,
                     url: bookmark.url,
-                    index: bookmark.position || undefined
+                    ...(typeof index === 'number' ? { index } : {})
                 });
             } catch (error) {
                 console.error(`Error creating bookmark ${bookmark.title}:`, error);

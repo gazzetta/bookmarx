@@ -1,4 +1,5 @@
 import { QueuedChange, ChangeMetadata } from './types';
+import { detectBrowser, BrowserInfo } from './utils/browserDetect';
 
 interface StorageData {
     changes: QueuedChange[];
@@ -7,7 +8,16 @@ interface StorageData {
         syncInterval: number;
         autoSync: boolean;
     };
+    suppressQueue?: boolean;
     userId: string;
+    auth?: {
+        token: string;
+        user: {
+            id: string;
+            email: string;
+            displayName: string | null;
+        };
+    } | null;
     deviceId?: string;
     browserInstanceId?: string;
 }
@@ -20,10 +30,51 @@ export class StorageManager {
             syncInterval: 5 * 60 * 1000,
             autoSync: false
         },
-        userId: '1',
+        suppressQueue: false,
+        userId: '',
+        auth: null,
         deviceId: '',
         browserInstanceId: ''
     };
+
+    private async localGet(keys: string | string[] | null): Promise<Record<string, any>> {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.get(keys as any, (items) => {
+                const error = chrome.runtime.lastError;
+                if (error) {
+                    reject(new Error(error.message));
+                    return;
+                }
+                resolve(items as Record<string, any>);
+            });
+        });
+    }
+
+    private async localSet(items: Record<string, any>): Promise<void> {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.set(items, () => {
+                const error = chrome.runtime.lastError;
+                if (error) {
+                    reject(new Error(error.message));
+                    return;
+                }
+                resolve();
+            });
+        });
+    }
+
+    private async localClear(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            chrome.storage.local.clear(() => {
+                const error = chrome.runtime.lastError;
+                if (error) {
+                    reject(new Error(error.message));
+                    return;
+                }
+                resolve();
+            });
+        });
+    }
 
     public async initialize(): Promise<void> {
         const data = await this.getData();
@@ -40,17 +91,17 @@ export class StorageManager {
             deviceId,
             browserInstanceId
         };
-        await chrome.storage.local.set(defaultsWithIds);
+        await this.localSet(defaultsWithIds);
         console.log('Set defaults with deviceId and browserInstanceId:', { deviceId, browserInstanceId });
     }
 
     public async getData(): Promise<StorageData | null> {
-        const data = await chrome.storage.local.get(null);
+        const data = await this.localGet(null);
         return Object.keys(data).length ? data as StorageData : null;
     }
 
     public async setData(data: StorageData): Promise<void> {
-        await chrome.storage.local.set(data);
+        await this.localSet(data as unknown as Record<string, any>);
     }
 
     public async queueChange(change: { type: string; data: any }): Promise<void> {
@@ -58,17 +109,17 @@ export class StorageManager {
         const userId = await this.getUserId();
         const deviceId = await this.getDeviceId();
         const browserInstanceId = await this.getBrowserInstanceId();
-        const { name: browser, version: browserVersion } = this.getBrowserInfo();
+        const browserInfo = await detectBrowser();
 
         const metadata: ChangeMetadata = {
             timestamp: Date.now(),
             deviceInfo: {
-                browser,
-                browserVersion,
+                browser: browserInfo.browser,
+                browserVersion: browserInfo.browserVersion,
                 deviceId,
                 browserInstanceId,
-                os: navigator.platform,
-                osVersion: navigator.userAgent
+                os: browserInfo.os,
+                osVersion: browserInfo.osVersion
             },
             userAgent: navigator.userAgent
         };
@@ -84,6 +135,17 @@ export class StorageManager {
         await this.setData(data);
     }
 
+    public async isQueueingSuppressed(): Promise<boolean> {
+        const data = await this.getData();
+        return Boolean(data?.suppressQueue);
+    }
+
+    public async setQueueingSuppressed(suppressed: boolean): Promise<void> {
+        const data = await this.getData() || this.defaults;
+        data.suppressQueue = suppressed;
+        await this.setData(data);
+    }
+
     private async getPlatformInfo(): Promise<{os: string; osVersion: string}> {
         const platformInfo = await chrome.runtime.getPlatformInfo();
         const osVersion = navigator.platform;
@@ -94,21 +156,8 @@ export class StorageManager {
         };
     }
     
-    private getBrowserInfo(): {name: string; version: string} {
-        const userAgent = navigator.userAgent;
-        const browserData = {
-            name: 'unknown',
-            version: 'unknown'
-        };
-    
-        if (userAgent.includes('Chrome')) {
-            browserData.name = 'Chrome';
-            const match = userAgent.match(/Chrome\/(\d+\.\d+\.\d+\.\d+)/);
-            if (match) browserData.version = match[1];
-        }
-        // Add other browser detections as needed
-    
-        return browserData;
+    private async getBrowserInfo(): Promise<BrowserInfo> {
+        return detectBrowser();
     }
     
     private async getOrCreateDeviceId(): Promise<string> {
@@ -118,7 +167,7 @@ export class StorageManager {
         }
         
         const deviceId = crypto.randomUUID();
-        await chrome.storage.local.set({ deviceId });
+        await this.localSet({ deviceId });
         return deviceId;
     }    
 
@@ -127,11 +176,16 @@ export class StorageManager {
         return data?.changes || [];
     }
 
+    public async getQueuedChangesCount(): Promise<number> {
+        const data = await this.getData();
+        return data?.changes?.length || 0;
+    }
+
     public async clearQueuedChanges(): Promise<void> {
         const data = await this.getData();
         if (data) {
             data.changes = [];
-            await chrome.storage.local.set(data);
+            await this.setData(data);
         }
     }
 
@@ -139,7 +193,7 @@ export class StorageManager {
         const data = await this.getData();
         if (data) {
             data.lastSync = Date.now();
-            await chrome.storage.local.set(data);
+            await this.setData(data);
         }
     }
 
@@ -154,6 +208,7 @@ export class StorageManager {
         }
 
         console.log('User ID:', data.userId);
+        console.log('Auth User:', data.auth?.user || null);
         console.log('Device ID:', data.deviceId);
         console.log('Browser Instance ID:', data.browserInstanceId);
         console.log('Last Sync:', data.lastSync ? new Date(data.lastSync).toISOString() : 'Never');
@@ -183,10 +238,10 @@ export class StorageManager {
         }
         // If no deviceId exists, create one
         const deviceId = crypto.randomUUID();
-        await chrome.storage.local.set({ 
-            ...data || this.defaults,
-            deviceId 
-        });
+        await this.localSet({
+            ...(data || this.defaults),
+            deviceId
+        } as unknown as Record<string, any>);
         console.log('Generated new deviceId:', deviceId);  // Debug log
         return deviceId;
     }
@@ -209,11 +264,39 @@ export class StorageManager {
 
     public async getUserId(): Promise<string> {
         const data = await this.getData();
-        return data?.userId || '1';
+        return data?.auth?.user?.id || data?.userId || '';
+    }
+
+    public async getAuth(): Promise<{ token: string; user: { id: string; email: string; displayName: string | null } } | null> {
+        const data = await this.getData();
+        return data?.auth || null;
+    }
+
+    public async getAuthToken(): Promise<string> {
+        const auth = await this.getAuth();
+        return auth?.token || '';
+    }
+
+    public async setAuth(auth: { token: string; user: { id: string; email: string; displayName: string | null } }): Promise<void> {
+        const data = await this.getData() || this.defaults;
+        await this.setData({
+            ...data,
+            auth,
+            userId: auth.user.id
+        });
+    }
+
+    public async clearAuth(): Promise<void> {
+        const data = await this.getData() || this.defaults;
+        await this.setData({
+            ...data,
+            auth: null,
+            userId: ''
+        });
     }
 
     public async clearAllStorage(): Promise<void> {
-        await chrome.storage.local.clear();
+        await this.localClear();
         console.log('Storage cleared');
         // Reinitialize with defaults
         await this.setDefaults();
@@ -221,6 +304,15 @@ export class StorageManager {
 }
 
 export async function debugStorage() {
-    const storage = await chrome.storage.local.get(null);
+    const storage = await new Promise<Record<string, any>>((resolve, reject) => {
+        chrome.storage.local.get(null, (items) => {
+            const error = chrome.runtime.lastError;
+            if (error) {
+                reject(new Error(error.message));
+                return;
+            }
+            resolve(items as Record<string, any>);
+        });
+    });
     console.log('Current Storage State:', JSON.stringify(storage, null, 2));
 }

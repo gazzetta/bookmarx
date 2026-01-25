@@ -8,22 +8,31 @@ interface BookmarkNode {
     children?: BookmarkNode[];
     parentId?: string;
     dateAdded?: number;
+    createdAt?: number;
+    updatedAt?: number;
 }
 
 export const getBookmarkTree = async (req: Request, res: Response) => {
     try {
-        const userId = req.params.userId;
-        console.log('Fetching bookmarks for userId:', userId);
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        const paramUserId = req.params.userId;
 
-        if (!userId) {
-            return res.status(400).json({
+        if (!authUser) {
+            return res.status(401).json({
                 success: false,
                 error: {
-                    code: 'MISSING_USER_ID',
-                    message: 'User ID is required'
+                    code: 'UNAUTHORIZED',
+                    message: 'Unauthorized'
                 }
             });
         }
+
+        const userId = authUser.id;
+        if (paramUserId && paramUserId !== userId) {
+            console.warn(`User ID mismatch. Using token userId=${userId} instead of param=${paramUserId}`);
+        }
+
+        console.log('Fetching bookmarks for userId:', userId);
 
         // Get all bookmarks and folders for the user
         const bookmarks = await db.getAllBookmarks(userId);
@@ -57,37 +66,88 @@ function buildBookmarkTree(folders: any[], bookmarks: any[]): BookmarkNode[] {
     console.log('Building tree from:', { folders, bookmarks });
     
     // Create a map for quick folder lookup
+    // Map by BOTH masterId and browserId to support mixed linkage
     const folderMap = new Map();
+    
     folders.forEach(folder => {
-        folderMap.set(folder.id, {
-            id: folder.id,
+        const node = {
+            id: folder.id, // Keep browserId as primary ID for display/legacy
+            masterId: folder.masterId,
             title: folder.title,
             parentId: folder.parentId,
+            masterParentId: folder.masterParentId,
+            dateAdded: folder.dateAdded,
+            createdAt: folder.createdAt,
+            updatedAt: folder.updatedAt,
             children: []
-        });
+        };
+        
+        // Index by browserId (legacy)
+        if (folder.id) {
+            folderMap.set(folder.id, node);
+        }
+        // Index by masterId (new)
+        if (folder.masterId) {
+            folderMap.set(folder.masterId, node);
+        }
     });
 
     // Add bookmarks to their parent folders
     bookmarks.forEach(bookmark => {
         const node = {
             id: bookmark.id,
+            masterId: bookmark.masterId,
             title: bookmark.title,
-            url: bookmark.url
+            url: bookmark.url,
+            dateAdded: bookmark.dateAdded,
+            createdAt: bookmark.createdAt,
+            updatedAt: bookmark.updatedAt
         };
 
-        if (bookmark.folderId && folderMap.has(bookmark.folderId)) {
+        // Try linking by masterParentId first (reliable for merged items)
+        if (bookmark.masterParentId && folderMap.has(bookmark.masterParentId)) {
+            folderMap.get(bookmark.masterParentId).children.push(node);
+        }
+        // Fallback to linking by browserId (folderId)
+        else if (bookmark.folderId && folderMap.has(bookmark.folderId)) {
             folderMap.get(bookmark.folderId).children.push(node);
         }
+        // If neither found, it will be orphaned (filtered out or added to root if handled)
     });
 
-    // Build the tree structure
+    // Build the tree structure (link folders to parents)
     const rootNodes: BookmarkNode[] = [];
+    
+    // We iterate the unique nodes, not the map keys (which has duplicates)
+    // Use a Set to track processed nodes since map has double entries
+    const processedNodes = new Set<any>();
+    
     folderMap.forEach(folder => {
-        if (!folder.parentId || !folderMap.has(folder.parentId)) {
-            rootNodes.push(folder);
-        } else {
+        if (processedNodes.has(folder)) return;
+        processedNodes.add(folder);
+
+        let parentFound = false;
+        
+        // Try linking by masterParentId first
+        if (folder.masterParentId && folderMap.has(folder.masterParentId)) {
+            const parent = folderMap.get(folder.masterParentId);
+            // Avoid circular reference or self-reference (though shouldn't happen)
+            if (parent !== folder) {
+                parent.children.push(folder);
+                parentFound = true;
+            }
+        }
+        // Fallback to linking by parentId (browserId)
+        else if (folder.parentId && folder.parentId !== '0' && folderMap.has(folder.parentId)) {
             const parent = folderMap.get(folder.parentId);
-            parent.children.push(folder);
+            if (parent !== folder) {
+                parent.children.push(folder);
+                parentFound = true;
+            }
+        }
+
+        if (!parentFound) {
+            rootNodes.push(folder);
         }
     });
 

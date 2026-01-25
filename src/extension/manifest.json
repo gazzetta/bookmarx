@@ -7,8 +7,16 @@
         "bookmarks",
         "storage",
         "identity",
-        "alarms"
+        "alarms",
+        "notifications"
     ],
+    "oauth2": {
+        "client_id": "669480413219-orsc4922bls6jir2thbslsssi6p0tkjg.apps.googleusercontent.com",
+        "scopes": [
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile"
+        ]
+    },
     "background": {
         "service_worker": "background/index.js",
         "type": "module"

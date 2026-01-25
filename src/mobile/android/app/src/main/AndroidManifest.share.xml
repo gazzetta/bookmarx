@@ -1,0 +1,30 @@
+<!--
+    Add this activity declaration inside the <application> tag of your AndroidManifest.xml
+    This enables the share intent receiver for BookMarx
+-->
+<activity
+    android:name="com.bookmarx.share.ShareReceiverActivity"
+    android:label="Save to BookMarx"
+    android:theme="@style/Theme.AppCompat.Light.Dialog"
+    android:exported="true"
+    android:noHistory="true"
+    android:excludeFromRecents="true">
+    
+    <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/plain" />
+    </intent-filter>
+    
+    <intent-filter>
+        <action android:name="android.intent.action.SEND" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <data android:mimeType="text/*" />
+    </intent-filter>
+    
+</activity>
+
+<!--
+    Also add these permissions at the top level of AndroidManifest.xml:
+    <uses-permission android:name="android.permission.INTERNET" />
+-->

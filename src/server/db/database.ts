@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 
 interface Browser {
     browserInstanceId: string;
@@ -57,6 +58,45 @@ class DatabaseService {
     private initializeDatabase() {
         const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
         this.db.exec(schema);
+        
+        // Run migrations
+        this.runMigrations();
+    }
+
+    private runMigrations() {
+        // Check if sync_history table has MERGE_IMPORT type support
+        try {
+            const tableInfo = this.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sync_history'").get() as { sql: string } | undefined;
+            if (tableInfo && !tableInfo.sql.includes('MERGE_IMPORT')) {
+                console.log('Running migration: Adding MERGE_IMPORT to sync_history type constraint');
+                this.db.exec(`
+                    CREATE TABLE IF NOT EXISTS sync_history_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        userId TEXT NOT NULL,
+                        browserInstanceId TEXT,
+                        type TEXT CHECK(type IN ('INITIAL_IMPORT', 'SYNC', 'MERGE_IMPORT')) NOT NULL,
+                        changesCount INTEGER NOT NULL,
+                        status TEXT CHECK(status IN ('SUCCESS', 'FAILED', 'PARTIAL')) NOT NULL,
+                        bookmarksProcessed INTEGER DEFAULT 0,
+                        foldersProcessed INTEGER DEFAULT 0,
+                        timestamp INTEGER,
+                        createdAt INTEGER DEFAULT (strftime('%s', 'now')),
+                        updatedAt INTEGER DEFAULT (strftime('%s', 'now')),
+                        FOREIGN KEY (browserInstanceId) REFERENCES browsers(browserInstanceId)
+                    );
+                    
+                    INSERT INTO sync_history_new SELECT * FROM sync_history;
+                    DROP TABLE sync_history;
+                    ALTER TABLE sync_history_new RENAME TO sync_history;
+                    
+                    CREATE INDEX IF NOT EXISTS idx_sync_history_userid ON sync_history(userId);
+                    CREATE INDEX IF NOT EXISTS idx_sync_history_browserinstanceid ON sync_history(browserInstanceId);
+                `);
+                console.log('Migration completed: sync_history now supports MERGE_IMPORT');
+            }
+        } catch (error) {
+            console.error('Migration check error:', error);
+        }
     }
 
     // Register or update a browser instance
@@ -81,50 +121,60 @@ class DatabaseService {
     }
 
     // Folder operations
-    public createFolder(folder: any) {
+    public createFolder(folder: any): { lastInsertRowid: number | bigint; changes: number; masterId: string } {
+        const masterId = crypto.randomUUID();
         const stmt = this.db.prepare(`
             INSERT INTO folders (
-                browserId, browserInstanceId, userId, title, parentId, 
-                position, dateAdded, status, syncVersion, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                masterId, browserId, browserInstanceId, userId, title, parentId, 
+                masterParentId, position, dateAdded, status, syncVersion, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
-        return stmt.run(
+        const result = stmt.run(
+            masterId,
             folder.browserId,
             folder.metadata?.deviceInfo?.browserInstanceId,
-            folder.userId,  // This will now be '1'
+            folder.userId,
             folder.title,
             folder.parentId,
+            folder.masterParentId || null,
             folder.position,
             folder.dateAdded,
             folder.status || 'active',
             folder.syncVersion || 1,
             folder.metadata?.timestamp
         );
+        
+        return { ...result, masterId };
     }
 
     // Bookmark operations
-    public createBookmark(bookmark: any) {
+    public createBookmark(bookmark: any): { lastInsertRowid: number | bigint; changes: number; masterId: string } {
+        const masterId = crypto.randomUUID();
         const stmt = this.db.prepare(`
             INSERT INTO bookmarks (
-                browserId, browserInstanceId, userId, url, title, 
-                parentId, position, dateAdded, status, syncVersion, timestamp
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                masterId, browserId, browserInstanceId, userId, url, title, 
+                parentId, masterParentId, position, dateAdded, status, syncVersion, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
-        return stmt.run(
+        const result = stmt.run(
+            masterId,
             bookmark.browserId,
             bookmark.metadata?.deviceInfo?.browserInstanceId,
-            bookmark.userId,  // This will now be '1'
+            bookmark.userId,
             bookmark.url,
             bookmark.title,
             bookmark.parentId,
+            bookmark.masterParentId || null,
             bookmark.position,
             bookmark.dateAdded,
             bookmark.status || 'active',
             bookmark.syncVersion || 1,
             bookmark.metadata?.timestamp
         );
+        
+        return { ...result, masterId };
     }
 
     // Sync History operations
@@ -183,6 +233,87 @@ class DatabaseService {
         return result.count;
     }
 
+    public getLastSyncForBrowser(userId: string, browserInstanceId: string): number | null {
+        // Only count sync types where the browser RECEIVED data from master
+        // MERGE_IMPORT only sends data up, so it shouldn't count as having synced down
+        const stmt = this.db.prepare(`
+            SELECT MAX(timestamp) as lastSync 
+            FROM sync_history 
+            WHERE userId = ? AND browserInstanceId = ? AND status = 'SUCCESS'
+              AND type IN ('INITIAL_IMPORT', 'SYNC')
+        `);
+        const result = stmt.get(userId, browserInstanceId) as { lastSync: number | null };
+        return result.lastSync;
+    }
+
+    public getPendingChangesForBrowser(userId: string, browserInstanceId: string, lastSyncSeconds: number) {
+        const bookmarkAdds = this.db.prepare(`
+            SELECT COUNT(*) as count
+            FROM bookmarks
+            WHERE userId = ?
+              AND browserInstanceId != ?
+              AND status = 'active'
+              AND createdAt > ?
+        `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
+
+        const folderAdds = this.db.prepare(`
+            SELECT COUNT(*) as count
+            FROM folders
+            WHERE userId = ?
+              AND browserInstanceId != ?
+              AND status = 'active'
+              AND createdAt > ?
+        `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
+
+        const bookmarkUpdates = this.db.prepare(`
+            SELECT COUNT(*) as count
+            FROM bookmarks
+            WHERE userId = ?
+              AND browserInstanceId != ?
+              AND status = 'active'
+              AND updatedAt > ?
+              AND createdAt <= ?
+        `).get(userId, browserInstanceId, lastSyncSeconds, lastSyncSeconds) as { count: number };
+
+        const folderUpdates = this.db.prepare(`
+            SELECT COUNT(*) as count
+            FROM folders
+            WHERE userId = ?
+              AND browserInstanceId != ?
+              AND status = 'active'
+              AND updatedAt > ?
+              AND createdAt <= ?
+        `).get(userId, browserInstanceId, lastSyncSeconds, lastSyncSeconds) as { count: number };
+
+        const bookmarkDeletes = this.db.prepare(`
+            SELECT COUNT(*) as count
+            FROM bookmarks
+            WHERE userId = ?
+              AND browserInstanceId != ?
+              AND status = 'deleted'
+              AND updatedAt > ?
+        `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
+
+        const folderDeletes = this.db.prepare(`
+            SELECT COUNT(*) as count
+            FROM folders
+            WHERE userId = ?
+              AND browserInstanceId != ?
+              AND status = 'deleted'
+              AND updatedAt > ?
+        `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
+
+        return {
+            adds: bookmarkAdds.count,
+            addsFolders: folderAdds.count,
+            updates: bookmarkUpdates.count,
+            updatesFolders: folderUpdates.count,
+            moves: 0,
+            deletes: bookmarkDeletes.count,
+            deletesFolders: folderDeletes.count
+        };
+    }
+
     public getBookmarkCount(userId: string): number {
         const stmt = this.db.prepare(`
             SELECT COUNT(*) as count 
@@ -193,190 +324,363 @@ class DatabaseService {
         return result.count;
     }
 
-    // Update operations
-    public updateBookmark(bookmark: BookmarkUpdate) {
-        const stmt = this.db.prepare(`
-            UPDATE bookmarks 
-            SET title = ?,
-                url = ?,
-                parentId = ?,
-                position = ?,
-                status = ?,
-                syncVersion = syncVersion + 1,
-                timestamp = ?,
-                updatedAt = strftime('%s', 'now')
-            WHERE browserId = ? AND browserInstanceId = ?
-        `);
-        
-        return stmt.run(
-            bookmark.title,
-            bookmark.url,
-            bookmark.parentId,
-            bookmark.index,
-            'active',
-            bookmark.metadata?.timestamp,
-            bookmark.id,
-            bookmark.metadata?.deviceInfo?.browserInstanceId
-        );
+    // Update operations - now uses masterId for cross-device editing
+    public updateBookmark(bookmark: any) {
+        // If masterId is provided, use it (mobile/cross-device edit)
+        // Otherwise fall back to browserId + browserInstanceId (legacy extension edit)
+        if (bookmark.masterId) {
+            const stmt = this.db.prepare(`
+                UPDATE bookmarks 
+                SET title = ?,
+                    url = ?,
+                    parentId = COALESCE(?, parentId),
+                    masterParentId = COALESCE(?, masterParentId),
+                    position = COALESCE(?, position),
+                    status = ?,
+                    syncVersion = syncVersion + 1,
+                    timestamp = ?,
+                    updatedAt = strftime('%s', 'now')
+                WHERE masterId = ? AND userId = ?
+            `);
+            
+            return stmt.run(
+                bookmark.title,
+                bookmark.url,
+                bookmark.parentId,
+                bookmark.masterParentId,
+                bookmark.index,
+                'active',
+                bookmark.metadata?.timestamp || Date.now(),
+                bookmark.masterId,
+                bookmark.userId
+            );
+        } else {
+            // Legacy: use browserId + browserInstanceId
+            const stmt = this.db.prepare(`
+                UPDATE bookmarks 
+                SET title = ?,
+                    url = ?,
+                    parentId = ?,
+                    position = ?,
+                    status = ?,
+                    syncVersion = syncVersion + 1,
+                    timestamp = ?,
+                    updatedAt = strftime('%s', 'now')
+                WHERE browserId = ? AND browserInstanceId = ?
+            `);
+            
+            return stmt.run(
+                bookmark.title,
+                bookmark.url,
+                bookmark.parentId,
+                bookmark.index,
+                'active',
+                bookmark.metadata?.timestamp,
+                bookmark.id,
+                bookmark.metadata?.deviceInfo?.browserInstanceId
+            );
+        }
     }
 
     public updateFolder(folder: any) {
-        if (!folder.id || !folder.metadata?.deviceInfo?.browserInstanceId) {
-            throw new Error(`Invalid folder update data: Missing required fields. 
-                Received: ${JSON.stringify(folder, null, 2)}`);
-        }
-
-        console.log('Updating folder with data:', folder);
-
-        const stmt = this.db.prepare(`
-            UPDATE folders 
-            SET title = ?, 
-                parentId = ?, 
-                position = ?,
-                status = ?, 
-                syncVersion = syncVersion + 1,
-                updatedAt = strftime('%s', 'now')
-            WHERE browserId = ? AND browserInstanceId = ?
-        `);
-        
-        try {
+        // If masterId is provided, use it (mobile/cross-device edit)
+        if (folder.masterId) {
+            console.log('Updating folder via masterId:', folder.masterId);
+            
+            const stmt = this.db.prepare(`
+                UPDATE folders 
+                SET title = ?, 
+                    parentId = COALESCE(?, parentId), 
+                    masterParentId = COALESCE(?, masterParentId),
+                    position = COALESCE(?, position),
+                    status = ?, 
+                    syncVersion = syncVersion + 1,
+                    updatedAt = strftime('%s', 'now')
+                WHERE masterId = ? AND userId = ?
+            `);
+            
             const result = stmt.run(
                 folder.title,
                 folder.parentId,
+                folder.masterParentId,
                 folder.index,
                 'active',
-                folder.id,
-                folder.metadata?.deviceInfo?.browserInstanceId
+                folder.masterId,
+                folder.userId
             );
 
-            console.log('Folder update database result:', result);
-            
             if (!result.changes) {
-                throw new Error(`No folder found with browserId=${folder.id} and browserInstanceId=${folder.metadata?.deviceInfo?.browserInstanceId}`);
+                throw new Error(`No folder found with masterId=${folder.masterId}`);
             }
 
             return result;
-        } catch (err) {
-            console.error('Database error in updateFolder:', err);
-            throw err;
+        } else {
+            // Legacy: use browserId + browserInstanceId
+            if (!folder.id || !folder.metadata?.deviceInfo?.browserInstanceId) {
+                throw new Error(`Invalid folder update data: Missing required fields. 
+                    Received: ${JSON.stringify(folder, null, 2)}`);
+            }
+
+            console.log('Updating folder with data:', folder);
+
+            const stmt = this.db.prepare(`
+                UPDATE folders 
+                SET title = ?, 
+                    parentId = ?, 
+                    position = ?,
+                    status = ?, 
+                    syncVersion = syncVersion + 1,
+                    updatedAt = strftime('%s', 'now')
+                WHERE browserId = ? AND browserInstanceId = ?
+            `);
+            
+            try {
+                const result = stmt.run(
+                    folder.title,
+                    folder.parentId,
+                    folder.index,
+                    'active',
+                    folder.id,
+                    folder.metadata?.deviceInfo?.browserInstanceId
+                );
+
+                console.log('Folder update database result:', result);
+                
+                if (!result.changes) {
+                    throw new Error(`No folder found with browserId=${folder.id} and browserInstanceId=${folder.metadata?.deviceInfo?.browserInstanceId}`);
+                }
+
+                return result;
+            } catch (err) {
+                console.error('Database error in updateFolder:', err);
+                throw err;
+            }
         }
     }
 
     public moveBookmark(bookmark: any) {
-        const stmt = this.db.prepare(`
-            UPDATE bookmarks 
-            SET parentId = ?, 
-                position = ?,
-                syncVersion = syncVersion + 1,
-                updatedAt = strftime('%s', 'now')
-            WHERE browserId = ? AND browserInstanceId = ?
-        `);
-        
-        const result = stmt.run(
-            bookmark.parentId,
-            bookmark.index,
-            bookmark.id,
-            bookmark.metadata?.deviceInfo?.browserInstanceId
-        );
+        if (bookmark.masterId) {
+            const stmt = this.db.prepare(`
+                UPDATE bookmarks 
+                SET parentId = COALESCE(?, parentId), 
+                    masterParentId = COALESCE(?, masterParentId),
+                    position = ?,
+                    syncVersion = syncVersion + 1,
+                    updatedAt = strftime('%s', 'now')
+                WHERE masterId = ? AND userId = ?
+            `);
+            
+            const result = stmt.run(
+                bookmark.parentId,
+                bookmark.masterParentId,
+                bookmark.index,
+                bookmark.masterId,
+                bookmark.userId
+            );
 
-        if (!result.changes) {
-            throw new Error(`No bookmark found with id=${bookmark.id}`);
+            if (!result.changes) {
+                throw new Error(`No bookmark found with masterId=${bookmark.masterId}`);
+            }
+            return result;
+        } else {
+            const stmt = this.db.prepare(`
+                UPDATE bookmarks 
+                SET parentId = ?, 
+                    position = ?,
+                    syncVersion = syncVersion + 1,
+                    updatedAt = strftime('%s', 'now')
+                WHERE browserId = ? AND browserInstanceId = ?
+            `);
+            
+            const result = stmt.run(
+                bookmark.parentId,
+                bookmark.index,
+                bookmark.id,
+                bookmark.metadata?.deviceInfo?.browserInstanceId
+            );
+
+            if (!result.changes) {
+                throw new Error(`No bookmark found with id=${bookmark.id}`);
+            }
+            return result;
         }
-        return result;
     }
 
     public moveFolder(folder: any) {
-        const stmt = this.db.prepare(`
-            UPDATE folders 
-            SET parentId = ?, 
-                position = ?,
-                syncVersion = syncVersion + 1,
-                updatedAt = strftime('%s', 'now')
-            WHERE browserId = ? AND browserInstanceId = ?
-        `);
-        
-        const result = stmt.run(
-            folder.parentId,
-            folder.index,
-            folder.id,
-            folder.metadata?.deviceInfo?.browserInstanceId
-        );
+        if (folder.masterId) {
+            const stmt = this.db.prepare(`
+                UPDATE folders 
+                SET parentId = COALESCE(?, parentId), 
+                    masterParentId = COALESCE(?, masterParentId),
+                    position = ?,
+                    syncVersion = syncVersion + 1,
+                    updatedAt = strftime('%s', 'now')
+                WHERE masterId = ? AND userId = ?
+            `);
+            
+            const result = stmt.run(
+                folder.parentId,
+                folder.masterParentId,
+                folder.index,
+                folder.masterId,
+                folder.userId
+            );
 
-        if (!result.changes) {
-            throw new Error(`No folder found with id=${folder.id}`);
+            if (!result.changes) {
+                throw new Error(`No folder found with masterId=${folder.masterId}`);
+            }
+            return result;
+        } else {
+            const stmt = this.db.prepare(`
+                UPDATE folders 
+                SET parentId = ?, 
+                    position = ?,
+                    syncVersion = syncVersion + 1,
+                    updatedAt = strftime('%s', 'now')
+                WHERE browserId = ? AND browserInstanceId = ?
+            `);
+            
+            const result = stmt.run(
+                folder.parentId,
+                folder.index,
+                folder.id,
+                folder.metadata?.deviceInfo?.browserInstanceId
+            );
+
+            if (!result.changes) {
+                throw new Error(`No folder found with id=${folder.id}`);
+            }
+            return result;
         }
-        return result;
     }
 
     public deleteBookmark(bookmark: any) {
-        const stmt = this.db.prepare(`
-            UPDATE bookmarks 
-            SET status = 'deleted',
-                syncVersion = syncVersion + 1,
-                updatedAt = strftime('%s', 'now')
-            WHERE browserId = ? AND browserInstanceId = ?
-        `);
-        
-        const result = stmt.run(
-            bookmark.id,
-            bookmark.metadata?.deviceInfo?.browserInstanceId
-        );
+        if (bookmark.masterId) {
+            const stmt = this.db.prepare(`
+                UPDATE bookmarks 
+                SET status = 'deleted',
+                    syncVersion = syncVersion + 1,
+                    updatedAt = strftime('%s', 'now')
+                WHERE masterId = ? AND userId = ?
+            `);
+            
+            const result = stmt.run(
+                bookmark.masterId,
+                bookmark.userId
+            );
 
-        if (!result.changes) {
-            throw new Error(`No bookmark found with id=${bookmark.id}`);
-        }
-        return result;
-    }
-
-    public deleteFolder(folder: any) {
-        const db = this.db;
-        
-        // Start a transaction
-        db.transaction(() => {
-            // First mark the folder as deleted
-            const folderStmt = db.prepare(`
-                UPDATE folders 
+            if (!result.changes) {
+                throw new Error(`No bookmark found with masterId=${bookmark.masterId}`);
+            }
+            return result;
+        } else {
+            const stmt = this.db.prepare(`
+                UPDATE bookmarks 
                 SET status = 'deleted',
                     syncVersion = syncVersion + 1,
                     updatedAt = strftime('%s', 'now')
                 WHERE browserId = ? AND browserInstanceId = ?
             `);
             
-            const folderResult = folderStmt.run(
-                folder.id,
-                folder.metadata?.deviceInfo?.browserInstanceId
+            const result = stmt.run(
+                bookmark.id,
+                bookmark.metadata?.deviceInfo?.browserInstanceId
             );
 
-            if (!folderResult.changes) {
-                throw new Error(`No folder found with id=${folder.id}`);
+            if (!result.changes) {
+                throw new Error(`No bookmark found with id=${bookmark.id}`);
             }
+            return result;
+        }
+    }
 
-            if (folder.recursive) {
-                // Mark all bookmarks in this folder as deleted
-                const bookmarksStmt = db.prepare(`
-                    UPDATE bookmarks 
-                    SET status = 'deleted',
-                        syncVersion = syncVersion + 1,
-                        updatedAt = strftime('%s', 'now')
-                    WHERE parentId = ? AND browserInstanceId = ?
-                `);
-                
-                bookmarksStmt.run(folder.id, folder.metadata?.deviceInfo?.browserInstanceId);
-
-                // Mark all subfolders as deleted
-                const subfoldersStmt = db.prepare(`
+    public deleteFolder(folder: any) {
+        const db = this.db;
+        
+        if (folder.masterId) {
+            // Cross-device delete via masterId
+            db.transaction(() => {
+                const folderStmt = db.prepare(`
                     UPDATE folders 
                     SET status = 'deleted',
                         syncVersion = syncVersion + 1,
                         updatedAt = strftime('%s', 'now')
-                    WHERE parentId = ? AND browserInstanceId = ?
+                    WHERE masterId = ? AND userId = ?
                 `);
                 
-                subfoldersStmt.run(folder.id, folder.metadata?.deviceInfo?.browserInstanceId);
-            }
+                const folderResult = folderStmt.run(folder.masterId, folder.userId);
 
-            return folderResult;
-        })();
+                if (!folderResult.changes) {
+                    throw new Error(`No folder found with masterId=${folder.masterId}`);
+                }
+
+                if (folder.recursive) {
+                    // Mark all bookmarks in this folder as deleted (by masterParentId)
+                    db.prepare(`
+                        UPDATE bookmarks 
+                        SET status = 'deleted',
+                            syncVersion = syncVersion + 1,
+                            updatedAt = strftime('%s', 'now')
+                        WHERE masterParentId = ? AND userId = ?
+                    `).run(folder.masterId, folder.userId);
+
+                    // Mark all subfolders as deleted (by masterParentId)
+                    db.prepare(`
+                        UPDATE folders 
+                        SET status = 'deleted',
+                            syncVersion = syncVersion + 1,
+                            updatedAt = strftime('%s', 'now')
+                        WHERE masterParentId = ? AND userId = ?
+                    `).run(folder.masterId, folder.userId);
+                }
+
+                return folderResult;
+            })();
+        } else {
+            // Legacy delete via browserId + browserInstanceId
+            db.transaction(() => {
+                const folderStmt = db.prepare(`
+                    UPDATE folders 
+                    SET status = 'deleted',
+                        syncVersion = syncVersion + 1,
+                        updatedAt = strftime('%s', 'now')
+                    WHERE browserId = ? AND browserInstanceId = ?
+                `);
+                
+                const folderResult = folderStmt.run(
+                    folder.id,
+                    folder.metadata?.deviceInfo?.browserInstanceId
+                );
+
+                if (!folderResult.changes) {
+                    throw new Error(`No folder found with id=${folder.id}`);
+                }
+
+                if (folder.recursive) {
+                    const bookmarksStmt = db.prepare(`
+                        UPDATE bookmarks 
+                        SET status = 'deleted',
+                            syncVersion = syncVersion + 1,
+                            updatedAt = strftime('%s', 'now')
+                        WHERE parentId = ? AND browserInstanceId = ?
+                    `);
+                    
+                    bookmarksStmt.run(folder.id, folder.metadata?.deviceInfo?.browserInstanceId);
+
+                    const subfoldersStmt = db.prepare(`
+                        UPDATE folders 
+                        SET status = 'deleted',
+                            syncVersion = syncVersion + 1,
+                            updatedAt = strftime('%s', 'now')
+                        WHERE parentId = ? AND browserInstanceId = ?
+                    `);
+                    
+                    subfoldersStmt.run(folder.id, folder.metadata?.deviceInfo?.browserInstanceId);
+                }
+
+                return folderResult;
+            })();
+        }
     }
 
     // Debug functions
@@ -466,12 +770,16 @@ class DatabaseService {
         console.log('Getting all bookmarks for userId:', userId);
         const stmt = this.db.prepare(`
             SELECT 
+                masterId,
                 browserId as id,
                 title,
                 url,
                 parentId as folderId,
+                masterParentId,
                 dateAdded,
-                position
+                position,
+                createdAt,
+                updatedAt
             FROM bookmarks 
             WHERE userId = ? 
             AND status = 'active'
@@ -487,11 +795,15 @@ class DatabaseService {
         console.log('Getting all folders for userId:', userId);
         const stmt = this.db.prepare(`
             SELECT 
+                masterId,
                 browserId as id,
                 title,
                 parentId,
+                masterParentId,
                 dateAdded,
-                position
+                position,
+                createdAt,
+                updatedAt
             FROM folders 
             WHERE userId = ? 
             AND status = 'active'
@@ -501,6 +813,55 @@ class DatabaseService {
         const results = stmt.all(userId);
         console.log(`Found ${results.length} folders`);
         return results;
+    }
+
+    // Auth helpers
+    public createUser(user: { id: string; email: string; passwordHash: string | null; displayName: string | null }) {
+        const stmt = this.db.prepare(`
+            INSERT INTO users (id, email, passwordHash, displayName)
+            VALUES (?, ?, ?, ?)
+        `);
+
+        stmt.run(user.id, user.email, user.passwordHash, user.displayName);
+    }
+
+    public getUserByEmail(email: string) {
+        const stmt = this.db.prepare(`
+            SELECT id, email, passwordHash, displayName
+            FROM users
+            WHERE email = ?
+        `);
+
+        return stmt.get(email) as { id: string; email: string; passwordHash: string | null; displayName: string | null } | undefined;
+    }
+
+    public getUserById(userId: string) {
+        const stmt = this.db.prepare(`
+            SELECT id, email, passwordHash, displayName
+            FROM users
+            WHERE id = ?
+        `);
+
+        return stmt.get(userId) as { id: string; email: string; passwordHash: string | null; displayName: string | null } | undefined;
+    }
+
+    public createIdentity(identity: { userId: string; provider: string; providerUserId: string; email?: string }) {
+        const stmt = this.db.prepare(`
+            INSERT OR IGNORE INTO user_identities (userId, provider, providerUserId, email)
+            VALUES (?, ?, ?, ?)
+        `);
+
+        stmt.run(identity.userId, identity.provider, identity.providerUserId, identity.email || null);
+    }
+
+    public getIdentity(provider: string, providerUserId: string) {
+        const stmt = this.db.prepare(`
+            SELECT id, userId, provider, providerUserId, email
+            FROM user_identities
+            WHERE provider = ? AND providerUserId = ?
+        `);
+
+        return stmt.get(provider, providerUserId) as { id: number; userId: string; provider: string; providerUserId: string; email: string | null } | undefined;
     }
 
     public checkBookmarkExists(browserId: string): boolean {
@@ -569,8 +930,24 @@ class DatabaseService {
 
     public getFoldersByUserId(userId: string): any[] {
         const stmt = this.db.prepare(`
-            SELECT * FROM folders 
-            WHERE userId = ? AND status = "active"
+            SELECT 
+                id,
+                masterId,
+                browserId,
+                browserInstanceId,
+                userId,
+                title,
+                parentId,
+                masterParentId,
+                position,
+                dateAdded,
+                status,
+                syncVersion,
+                timestamp,
+                createdAt,
+                updatedAt
+            FROM folders 
+            WHERE userId = ? AND status = 'active'
             ORDER BY parentId, position
         `);
         return stmt.all(userId);
@@ -578,11 +955,56 @@ class DatabaseService {
 
     public getBookmarksByUserId(userId: string): any[] {
         const stmt = this.db.prepare(`
-            SELECT * FROM bookmarks 
-            WHERE userId = ? AND status = "active"
+            SELECT 
+                id,
+                masterId,
+                browserId,
+                browserInstanceId,
+                userId,
+                url,
+                title,
+                parentId,
+                masterParentId,
+                position,
+                dateAdded,
+                status,
+                syncVersion,
+                timestamp,
+                createdAt,
+                updatedAt
+            FROM bookmarks 
+            WHERE userId = ? AND status = 'active'
             ORDER BY parentId, position
         `);
         return stmt.all(userId);
+    }
+
+    // Get bookmark by masterId
+    public getBookmarkByMasterId(masterId: string, userId: string) {
+        const stmt = this.db.prepare(`
+            SELECT * FROM bookmarks 
+            WHERE masterId = ? AND userId = ? AND status = 'active'
+        `);
+        return stmt.get(masterId, userId);
+    }
+
+    // Get folder by masterId
+    public getFolderByMasterId(masterId: string, userId: string) {
+        const stmt = this.db.prepare(`
+            SELECT * FROM folders 
+            WHERE masterId = ? AND userId = ? AND status = 'active'
+        `);
+        return stmt.get(masterId, userId);
+    }
+
+    // Get folder masterId by browserId (for resolving parentId references)
+    public getFolderMasterIdByBrowserId(browserId: string, userId: string): string | null {
+        const stmt = this.db.prepare(`
+            SELECT masterId FROM folders 
+            WHERE browserId = ? AND userId = ? AND status = 'active'
+        `);
+        const result = stmt.get(browserId, userId) as { masterId: string } | undefined;
+        return result?.masterId || null;
     }
 }
 

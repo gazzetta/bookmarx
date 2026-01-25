@@ -5,6 +5,8 @@ interface BookmarkNode {
     children?: BookmarkNode[];
     parentId?: string;
     dateAdded?: number;
+    createdAt?: number;
+    updatedAt?: number;
 }
 
 interface ApiResponse {
@@ -12,6 +14,15 @@ interface ApiResponse {
     data: BookmarkNode[];
     error?: {
         message: string;
+    };
+}
+
+interface AuthState {
+    token: string;
+    user: {
+        id: string;
+        email: string;
+        displayName: string | null;
     };
 }
 
@@ -25,13 +36,34 @@ class MasterCollectionView {
         this.initialize();
     }
 
+    private formatDate(value?: number): string {
+        if (value === undefined || value === null) {
+            return 'N/A';
+        }
+
+        const normalized = value < 1_000_000_000_000 ? value * 1000 : value;
+        const date = new Date(normalized);
+        if (Number.isNaN(date.getTime())) {
+            return 'Invalid date';
+        }
+
+        return date.toLocaleString(undefined, { timeZoneName: 'short' });
+    }
+
     private async initialize(): Promise<void> {
         try {
-            const userId = await this.getUserId();
-            this.userInfo.textContent = `User ID: ${userId}`;
+            const auth = await this.getAuth();
+            if (!auth) {
+                this.showError('Please sign in from the extension popup first.');
+                return;
+            }
+
+            const userId = auth.user.id;
+            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            this.userInfo.textContent = `Signed in: ${auth.user.email} • Times shown in: ${timeZone}`;
             
             console.log('Fetching master collection for user:', userId);
-            const tree = await this.fetchMasterCollection(userId);
+            const tree = await this.fetchMasterCollection(userId, auth.token);
             console.log('Received tree data:', tree);
             this.renderTree(tree);
         } catch (error) {
@@ -41,20 +73,23 @@ class MasterCollectionView {
         }
     }
 
-    private async getUserId(): Promise<string> {
-        try {
-            const storage = await chrome.storage.local.get('userId');
-            console.log('Retrieved userId from storage:', storage.userId);
-            return storage.userId || '1';
-        } catch (error) {
-            console.error('Error getting userId:', error);
-            const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-            console.error('Error getting userId:', errorMessage);
-            return '1';
-        }
+    private async getAuth(): Promise<AuthState | null> {
+        // Always use message-based approach for cross-browser compatibility
+        // Extension pages in Firefox may not have direct storage access
+        return new Promise((resolve) => {
+            chrome.runtime.sendMessage({ action: 'getAuthState' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Error getting auth via message:', chrome.runtime.lastError);
+                    resolve(null);
+                    return;
+                }
+                console.log('Got auth response:', response);
+                resolve(response?.auth || null);
+            });
+        });
     }
 
-    private async fetchMasterCollection(userId: string): Promise<BookmarkNode[]> {
+    private async fetchMasterCollection(userId: string, token: string): Promise<BookmarkNode[]> {
         try {
             const apiUrl = `http://localhost:3005/api/v1/bookmarks/tree/${userId}`;
             console.log('Fetching from:', apiUrl);
@@ -63,7 +98,8 @@ class MasterCollectionView {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 credentials: 'include'
             });
@@ -116,7 +152,8 @@ class MasterCollectionView {
         console.log('Rendering tree with nodes:', nodes);
         
         if (!Array.isArray(nodes) || nodes.length === 0) {
-            const userId = await this.getUserId();
+            const auth = await this.getAuth();
+            const userId = auth?.user.id || 'unknown';
             parentElement.innerHTML = `
                 <div class="empty-state" style="text-align: center; padding: 20px;">
                     <h2 style="margin-bottom: 16px;">No Bookmarks Found</h2>
@@ -149,11 +186,27 @@ class MasterCollectionView {
                 
                 const link = document.createElement('a');
                 link.href = node.url;
-                link.textContent = '- ' + node.title + ' (' + node.id + ')';
+                link.className = 'bookmark-link';
+                link.innerHTML = `- <span class="bookmark-title">${node.title}</span> (${node.id})`;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
+
+                const meta = document.createElement('div');
+                meta.className = 'bookmark-meta';
+                const chromeAdded = this.formatDate(node.dateAdded);
+                const dbAdded = this.formatDate(node.createdAt);
+                const showEdited = typeof node.updatedAt === 'number'
+                    && typeof node.createdAt === 'number'
+                    && node.updatedAt > node.createdAt;
+                const dbEdited = this.formatDate(node.updatedAt);
+                let metaHtml = `Chrome added: <span class="date-chrome">${chromeAdded}</span> <br /> DB added: <span class="date-db">${dbAdded}</span>`;
+                if (showEdited) {
+                    metaHtml += ` <br /> Edited: <span class="date-edited">${dbEdited}</span>`;
+                }
+                meta.innerHTML = metaHtml;
                 
                 bookmarkDiv.appendChild(link);
+                bookmarkDiv.appendChild(meta);
                 parentElement.appendChild(bookmarkDiv);
             } else {
                 // Render folder
@@ -162,7 +215,7 @@ class MasterCollectionView {
                 
                 const folderName = document.createElement('div');
                 folderName.className = 'folder-name';
-                folderName.innerHTML = `<span class="folder-icon">📂</span> ${node.title}`;
+                folderName.innerHTML = `<span class="folder-icon">📂</span> <span class="folder-title">${node.title}</span>`;
                 
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'folder-children';
