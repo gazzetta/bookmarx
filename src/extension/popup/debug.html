@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>BookMarx Debug - Bookmark Data</title>
+    <style>
+        body { 
+            font-family: 'Consolas', 'Monaco', monospace; 
+            padding: 20px; 
+            background: #1e1e1e; 
+            color: #d4d4d4;
+            line-height: 1.5;
+        }
+        h1, h2, h3 { color: #569cd6; margin-top: 30px; }
+        h1 { border-bottom: 2px solid #569cd6; padding-bottom: 10px; }
+        .summary { 
+            background: #2d2d2d; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 20px 0;
+            border-left: 4px solid #4ec9b0;
+        }
+        .summary-item { margin: 5px 0; }
+        .summary-label { color: #9cdcfe; }
+        .summary-value { color: #ce9178; font-weight: bold; }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin: 15px 0;
+            background: #252526;
+        }
+        th, td { 
+            border: 1px solid #3c3c3c; 
+            padding: 10px; 
+            text-align: left; 
+        }
+        th { 
+            background: #333333; 
+            color: #4ec9b0;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover { background: #2a2d2e; }
+        .id { color: #b5cea8; }
+        .title { color: #ce9178; }
+        .parent { color: #dcdcaa; }
+        .url { color: #569cd6; font-size: 0.9em; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        pre { 
+            background: #252526; 
+            padding: 15px; 
+            border-radius: 8px; 
+            overflow-x: auto;
+            border: 1px solid #3c3c3c;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .highlight { background: #4a4a00; }
+        .depth-0 { font-weight: bold; color: #4ec9b0; }
+        .depth-1 { padding-left: 20px; }
+        .depth-2 { padding-left: 40px; }
+        .copy-btn {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+            font-size: 14px;
+        }
+        .copy-btn:hover { background: #1177bb; }
+        .copy-btn.copied { background: #16825d; }
+        .note { 
+            background: #3c2a00; 
+            border-left: 4px solid #cca700; 
+            padding: 10px 15px; 
+            margin: 15px 0;
+        }
+        .json-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div id="content" class="loading">Loading bookmark data...</div>
+    <script src="debug.js"></script>
+</body>
+</html>

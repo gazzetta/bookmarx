@@ -673,6 +673,455 @@ export class SyncManager {
         }
     }
 
+    /**
+     * Sync down changes from the server to local browser.
+     * This fetches pending changes from other browsers and applies them locally.
+     * Unlike overwriteFromMaster, this preserves local bookmarks and only applies
+     * the delta (new/updated/deleted items from other browsers).
+     */
+    public async syncDown(): Promise<{ success: boolean; data?: any; error?: string }> {
+        const wasSuppressed = await this.storageManager.isQueueingSuppressed();
+        await this.storageManager.setQueueingSuppressed(true);
+
+        try {
+            console.log('\n=== Starting Sync Down (Pull Changes) ===');
+
+            const authToken = await this.storageManager.getAuthToken();
+            if (!authToken) {
+                throw new Error('Not authenticated');
+            }
+
+            const browserInstanceId = await this.storageManager.getBrowserInstanceId();
+            const deviceId = await this.storageManager.getDeviceId();
+
+            // Fetch pending changes from server
+            const response = await fetch(`${this.API_ENDPOINT}/pending`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Device-ID': deviceId,
+                    'X-Browser-Instance-ID': browserInstanceId
+                }
+            });
+
+            // Check for auth errors
+            if (response.status === 401) {
+                await this.handleAuthError(response);
+            }
+
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Pending changes response:', result);
+
+            if (!result.success) {
+                throw new Error(result.error?.message || 'Failed to fetch pending changes');
+            }
+
+            if (result.data.needsInitialSync) {
+                return {
+                    success: false,
+                    error: 'Master collection is empty. Please sync up first to populate it.'
+                };
+            }
+
+            const { changes, summary } = result.data;
+            
+            if (summary.total === 0) {
+                console.log('No pending changes to apply');
+                return {
+                    success: true,
+                    data: {
+                        message: 'Already up to date',
+                        applied: { creates: 0, updates: 0, deletes: 0 }
+                    }
+                };
+            }
+
+            console.log(`Applying ${summary.total} changes:`, summary);
+
+            // Apply changes in order: folders first (creates), then bookmarks (creates),
+            // then updates, then deletes (bookmarks first, then folders)
+            const applied = {
+                creates: { folders: 0, bookmarks: 0 },
+                updates: { folders: 0, bookmarks: 0 },
+                deletes: { folders: 0, bookmarks: 0 }
+            };
+
+            // Build a map of masterId -> local browserId for existing items
+            const tree = await this.getBookmarkTree();
+            const { localFolderMap, localBookmarkMap } = await this.buildLocalIdMaps(tree[0]);
+
+            // 1. Create new folders (parent folders first)
+            if (changes.creates.folders.length > 0) {
+                const folderIdMap: Record<string, string> = {}; // masterId -> new local id
+                
+                // Sort folders by creation time to handle parent-child ordering
+                const sortedFolders = [...changes.creates.folders].sort((a: any, b: any) => 
+                    (a.createdAt || 0) - (b.createdAt || 0)
+                );
+
+                for (const folder of sortedFolders) {
+                    try {
+                        const parentId = await this.resolveParentIdForSync(
+                            folder.masterParentId, 
+                            folder.parentId, 
+                            localFolderMap, 
+                            folderIdMap
+                        );
+                        
+                        const newFolder = await chrome.bookmarks.create({
+                            parentId,
+                            title: folder.title
+                        });
+                        
+                        folderIdMap[folder.masterId] = newFolder.id;
+                        localFolderMap.set(folder.masterId, newFolder.id);
+                        applied.creates.folders++;
+                        console.log(`Created folder: ${folder.title} (${newFolder.id})`);
+                    } catch (error) {
+                        console.error(`Failed to create folder ${folder.title}:`, error);
+                    }
+                }
+            }
+
+            // 2. Create new bookmarks
+            if (changes.creates.bookmarks.length > 0) {
+                for (const bookmark of changes.creates.bookmarks) {
+                    try {
+                        const parentId = await this.resolveParentIdForSync(
+                            bookmark.masterParentId, 
+                            bookmark.parentId, 
+                            localFolderMap, 
+                            {}
+                        );
+                        
+                        await chrome.bookmarks.create({
+                            parentId,
+                            title: bookmark.title,
+                            url: bookmark.url
+                        });
+                        
+                        applied.creates.bookmarks++;
+                        console.log(`Created bookmark: ${bookmark.title}`);
+                    } catch (error) {
+                        console.error(`Failed to create bookmark ${bookmark.title}:`, error);
+                    }
+                }
+            }
+
+            // 3. Apply updates to folders
+            if (changes.updates.folders.length > 0) {
+                for (const folder of changes.updates.folders) {
+                    try {
+                        const localId = localFolderMap.get(folder.masterId);
+                        if (localId) {
+                            await chrome.bookmarks.update(localId, {
+                                title: folder.title
+                            });
+                            applied.updates.folders++;
+                            console.log(`Updated folder: ${folder.title}`);
+                        } else {
+                            console.warn(`Folder not found locally for update: ${folder.masterId}`);
+                        }
+                    } catch (error) {
+                        console.error(`Failed to update folder ${folder.title}:`, error);
+                    }
+                }
+            }
+
+            // 4. Apply updates to bookmarks
+            if (changes.updates.bookmarks.length > 0) {
+                for (const bookmark of changes.updates.bookmarks) {
+                    try {
+                        const localId = localBookmarkMap.get(bookmark.masterId);
+                        if (localId) {
+                            await chrome.bookmarks.update(localId, {
+                                title: bookmark.title,
+                                url: bookmark.url
+                            });
+                            applied.updates.bookmarks++;
+                            console.log(`Updated bookmark: ${bookmark.title}`);
+                        } else {
+                            console.warn(`Bookmark not found locally for update: ${bookmark.masterId}`);
+                        }
+                    } catch (error) {
+                        console.error(`Failed to update bookmark ${bookmark.title}:`, error);
+                    }
+                }
+            }
+
+            // 5. Delete bookmarks (before folders to avoid errors)
+            if (changes.deletes.bookmarks.length > 0) {
+                for (const bookmark of changes.deletes.bookmarks) {
+                    try {
+                        const localId = localBookmarkMap.get(bookmark.masterId);
+                        if (localId) {
+                            await chrome.bookmarks.remove(localId);
+                            applied.deletes.bookmarks++;
+                            console.log(`Deleted bookmark: ${bookmark.title}`);
+                        }
+                    } catch (error) {
+                        console.error(`Failed to delete bookmark ${bookmark.title}:`, error);
+                    }
+                }
+            }
+
+            // 6. Delete folders
+            if (changes.deletes.folders.length > 0) {
+                for (const folder of changes.deletes.folders) {
+                    try {
+                        const localId = localFolderMap.get(folder.masterId);
+                        if (localId) {
+                            await chrome.bookmarks.removeTree(localId);
+                            applied.deletes.folders++;
+                            console.log(`Deleted folder: ${folder.title}`);
+                        }
+                    } catch (error) {
+                        console.error(`Failed to delete folder ${folder.title}:`, error);
+                    }
+                }
+            }
+
+            // Acknowledge the sync to the server
+            await this.acknowledgeSyncDown(summary.total);
+            await this.storageManager.updateLastSync();
+
+            const totalApplied = 
+                applied.creates.folders + applied.creates.bookmarks +
+                applied.updates.folders + applied.updates.bookmarks +
+                applied.deletes.folders + applied.deletes.bookmarks;
+
+            console.log(`Sync down complete. Applied ${totalApplied} changes.`);
+
+            return {
+                success: true,
+                data: {
+                    message: `Applied ${totalApplied} changes`,
+                    applied,
+                    summary
+                }
+            };
+
+        } catch (error) {
+            console.error('Sync down error:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error'
+            };
+        } finally {
+            try {
+                await this.storageManager.setQueueingSuppressed(wasSuppressed);
+            } catch (error) {
+                console.error('Failed to restore queueing state after syncDown:', error);
+            }
+        }
+    }
+
+    /**
+     * Build maps of masterId -> local browserId for existing bookmarks and folders.
+     * This requires that we've previously synced and stored the masterId mapping.
+     * For now, we match by URL (bookmarks) and path (folders).
+     */
+    private async buildLocalIdMaps(rootNode: chrome.bookmarks.BookmarkTreeNode): Promise<{
+        localFolderMap: Map<string, string>;
+        localBookmarkMap: Map<string, string>;
+    }> {
+        const localFolderMap = new Map<string, string>();
+        const localBookmarkMap = new Map<string, string>();
+        
+        // For now, we need to fetch the master collection to get masterId mappings
+        // In the future, we could store these locally during initial sync
+        const masterCollection = await this.fetchMasterCollection();
+        if (!masterCollection.success) {
+            console.warn('Could not fetch master collection for ID mapping');
+            return { localFolderMap, localBookmarkMap };
+        }
+
+        // Build URL -> masterId map for bookmarks
+        const masterBookmarksByUrl = new Map<string, string>();
+        for (const b of masterCollection.data.bookmarks || []) {
+            if (b.url && b.masterId) {
+                masterBookmarksByUrl.set(this.normalizeUrl(b.url), b.masterId);
+            }
+        }
+
+        // Build path -> masterId map for folders
+        const masterFoldersByPath = new Map<string, string>();
+        const masterFolderMap = new Map<string, any>();
+        for (const f of masterCollection.data.folders || []) {
+            masterFolderMap.set(f.masterId, f);
+        }
+        for (const f of masterCollection.data.folders || []) {
+            const path = this.buildFolderPath(f.masterId, masterFolderMap);
+            if (path && f.masterId) {
+                masterFoldersByPath.set(path.toLowerCase(), f.masterId);
+            }
+        }
+
+        // Now traverse local tree and match
+        const processNode = (node: chrome.bookmarks.BookmarkTreeNode, pathParts: string[]) => {
+            if (node.id === '0') {
+                // Root node - process children
+                for (const child of node.children || []) {
+                    processNode(child, []);
+                }
+                return;
+            }
+
+            if (node.url) {
+                // It's a bookmark
+                const normalizedUrl = this.normalizeUrl(node.url);
+                const masterId = masterBookmarksByUrl.get(normalizedUrl);
+                if (masterId) {
+                    localBookmarkMap.set(masterId, node.id);
+                }
+            } else {
+                // It's a folder
+                const currentPath = [...pathParts, node.title.toLowerCase()].join('/');
+                const masterId = masterFoldersByPath.get(currentPath);
+                if (masterId) {
+                    localFolderMap.set(masterId, node.id);
+                }
+                
+                // Process children
+                for (const child of node.children || []) {
+                    processNode(child, [...pathParts, node.title.toLowerCase()]);
+                }
+            }
+        };
+
+        processNode(rootNode, []);
+        
+        console.log(`Built local ID maps: ${localFolderMap.size} folders, ${localBookmarkMap.size} bookmarks`);
+        return { localFolderMap, localBookmarkMap };
+    }
+
+    private normalizeUrl(url: string): string {
+        try {
+            const parsed = new URL(url);
+            let normalized = parsed.protocol + '//' + parsed.host.toLowerCase();
+            let pathname = parsed.pathname;
+            if (pathname.length > 1 && pathname.endsWith('/')) {
+                pathname = pathname.slice(0, -1);
+            }
+            normalized += pathname;
+            if (parsed.search) {
+                const params = new URLSearchParams(parsed.search);
+                const entries: [string, string][] = [];
+                params.forEach((value, key) => entries.push([key, value]));
+                entries.sort((a, b) => a[0].localeCompare(b[0]));
+                const sortedParams = new URLSearchParams(entries);
+                const searchStr = sortedParams.toString();
+                if (searchStr) {
+                    normalized += '?' + searchStr;
+                }
+            }
+            if (parsed.hash) {
+                normalized += parsed.hash;
+            }
+            return normalized.toLowerCase();
+        } catch {
+            return url.toLowerCase().trim();
+        }
+    }
+
+    private buildFolderPath(masterId: string, folderMap: Map<string, any>): string {
+        const parts: string[] = [];
+        let currentId: string | null = masterId;
+        const visited = new Set<string>();
+
+        while (currentId && !visited.has(currentId)) {
+            visited.add(currentId);
+            const folder = folderMap.get(currentId);
+            if (!folder) break;
+
+            if (folder.title) {
+                parts.unshift(folder.title.toLowerCase());
+            }
+            currentId = folder.masterParentId;
+        }
+
+        return parts.join('/');
+    }
+
+    /**
+     * Resolve a parent ID for creating a new item during sync down.
+     * Tries masterParentId first, falls back to browser parentId mapping.
+     */
+    private async resolveParentIdForSync(
+        masterParentId: string | null,
+        browserParentId: string | null,
+        localFolderMap: Map<string, string>,
+        newFolderIdMap: Record<string, string>
+    ): Promise<string> {
+        // First, try to find by masterParentId
+        if (masterParentId) {
+            // Check in newly created folders this session
+            if (newFolderIdMap[masterParentId]) {
+                return newFolderIdMap[masterParentId];
+            }
+            // Check in existing local folders
+            const localId = localFolderMap.get(masterParentId);
+            if (localId) {
+                return localId;
+            }
+        }
+
+        // Fall back to browser root folder mapping
+        // Note: This mapping is used when syncing changes between browsers
+        // We need to map Firefox/Edge/Opera IDs to the current browser's root folder IDs
+        if (browserParentId) {
+            const rootMap: Record<string, string> = {
+                // Chrome/Brave/Chromium root IDs
+                '1': '1', // Bookmarks Bar
+                '2': '2', // Other Bookmarks
+                '3': '3', // Mobile Bookmarks
+                // Firefox root IDs
+                'toolbar_____': '1', // Firefox Bookmarks Toolbar -> Bookmarks Bar
+                'unfiled_____': '2', // Firefox Other Bookmarks -> Other Bookmarks
+                'mobile______': '3', // Firefox Mobile -> Mobile
+                'menu________': '2', // Firefox Bookmarks Menu -> Other Bookmarks
+                // Edge may use similar numeric IDs but with "Favourites" naming
+                // Opera may have different root structure
+            };
+            if (rootMap[browserParentId]) {
+                return rootMap[browserParentId];
+            }
+        }
+
+        // Default to Bookmarks Bar
+        return '1';
+    }
+
+    /**
+     * Acknowledge to the server that changes have been applied.
+     */
+    private async acknowledgeSyncDown(changesApplied: number): Promise<void> {
+        try {
+            const authToken = await this.storageManager.getAuthToken();
+            const browserInstanceId = await this.storageManager.getBrowserInstanceId();
+            const deviceId = await this.storageManager.getDeviceId();
+
+            await fetch(`${this.API_ENDPOINT}/ack`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-Device-ID': deviceId,
+                    'X-Browser-Instance-ID': browserInstanceId
+                },
+                body: JSON.stringify({ changesApplied })
+            });
+        } catch (error) {
+            console.error('Failed to acknowledge sync:', error);
+            // Don't throw - sync was successful even if ack fails
+        }
+    }
+
     public async overwriteFromMaster(): Promise<any> {
         const wasSuppressed = await this.storageManager.isQueueingSuppressed();
         await this.storageManager.setQueueingSuppressed(true);
@@ -752,26 +1201,138 @@ export class SyncManager {
         // Get all bookmarks using safe wrapper
         const tree = await this.getBookmarkTree();
         
+        // Log the tree structure for debugging
+        console.log('[clearLocalBookmarks] Tree structure:', JSON.stringify({
+            rootId: tree[0]?.id,
+            rootTitle: tree[0]?.title,
+            rootChildren: tree[0]?.children?.map(c => ({ id: c.id, title: c.title, childCount: c.children?.length || 0 }))
+        }));
+        
+        // Opera-specific system folders that should NOT be cleared
+        // These are either system-managed or trash folders
+        const skipFolderTitles = new Set([
+            'bin',              // Opera trash
+            'trash',            // Alternative trash name
+            'speed dials',      // Opera speed dial
+            'pinboard',         // Opera pinboard
+            'unsynchronized pinboard'  // Opera unsynchronized pinboard
+        ]);
+        
+        // Folders we SHOULD clear (user bookmark folders)
+        const clearFolderTitles = new Set([
+            'bookmarks bar',
+            'bookmarks toolbar',
+            'other bookmarks',
+            'unsorted bookmarks',
+            'imported bookmarks',
+            'unfiled bookmarks',
+            'bookmarks menu',
+            'mobile bookmarks',
+            'bookmarks',         // Opera uses just "Bookmarks" as the main folder
+            'my bookmarks',      // Some Opera versions
+            'favourites',        // Opera alternative name
+            'favorites',         // Opera alternative name (US spelling)
+            'favourites bar',    // Edge UK spelling
+            'favorites bar'      // Edge US spelling
+        ]);
+        
         // Process each root folder
-        for (const rootNode of tree[0].children || []) {
-            // Skip the root node itself
-            if (rootNode.id === '0') continue;
+        const rootFolders = tree[0]?.children || [];
+        
+        for (const rootFolder of rootFolders) {
+            const folderTitle = (rootFolder.title || '').toLowerCase();
             
-            // Process each child of the root folders (Bookmarks Bar, Other Bookmarks, etc.)
-            for (const child of rootNode.children || []) {
+            // Skip Opera system folders
+            if (skipFolderTitles.has(folderTitle)) {
+                console.log(`[clearLocalBookmarks] SKIPPING system folder: ${rootFolder.title} (id: ${rootFolder.id})`);
+                continue;
+            }
+            
+            // Only clear known bookmark folders, skip unknown ones to be safe
+            const isKnownFolder = clearFolderTitles.has(folderTitle);
+            if (!isKnownFolder) {
+                console.log(`[clearLocalBookmarks] SKIPPING unknown folder: ${rootFolder.title} (id: ${rootFolder.id})`);
+                continue;
+            }
+            
+            console.log(`[clearLocalBookmarks] Processing root folder: ${rootFolder.title} (id: ${rootFolder.id}), children: ${rootFolder.children?.length || 0}`);
+            
+            const children = rootFolder.children || [];
+            
+            // Delete in reverse order to avoid index shifting issues
+            for (let i = children.length - 1; i >= 0; i--) {
+                const child = children[i];
                 try {
-                    // If it's a folder, remove it and all its contents
                     if (!child.url) {
+                        // It's a folder - remove it and all its contents
+                        console.log(`[clearLocalBookmarks] Removing folder: ${child.title} (id: ${child.id})`);
                         await chrome.bookmarks.removeTree(child.id);
                     } else {
-                        // If it's a bookmark, just remove it
+                        // It's a bookmark
+                        console.log(`[clearLocalBookmarks] Removing bookmark: ${child.title} (id: ${child.id})`);
                         await chrome.bookmarks.remove(child.id);
                     }
                 } catch (error) {
-                    console.error(`Error removing bookmark/folder ${child.id}:`, error);
+                    console.error(`[clearLocalBookmarks] Error removing ${child.id} (${child.title}):`, error);
                     // Continue with other bookmarks even if one fails
                 }
             }
+        }
+        
+        // Verify deletion worked - only count items in clearable folders
+        const verifyTree = await this.getBookmarkTree();
+        let remainingCount = 0;
+        const foldersWithRemaining: string[] = [];
+        
+        for (const rootFolder of verifyTree[0]?.children || []) {
+            const folderTitle = (rootFolder.title || '').toLowerCase();
+            if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
+                continue; // Don't count skipped folders
+            }
+            const count = rootFolder.children?.length || 0;
+            if (count > 0) {
+                remainingCount += count;
+                foldersWithRemaining.push(`${rootFolder.title}: ${count}`);
+            }
+        }
+        
+        console.log(`[clearLocalBookmarks] Complete. Remaining items in clearable folders: ${remainingCount}`);
+        
+        if (remainingCount > 0) {
+            console.warn(`[clearLocalBookmarks] Some items were not deleted! Folders: ${foldersWithRemaining.join(', ')}`);
+            console.warn('[clearLocalBookmarks] Attempting second pass...');
+            
+            // Second pass - sometimes items remain due to timing issues
+            for (const rootFolder of verifyTree[0]?.children || []) {
+                const folderTitle = (rootFolder.title || '').toLowerCase();
+                if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
+                    continue;
+                }
+                
+                for (const child of rootFolder.children || []) {
+                    try {
+                        if (!child.url) {
+                            await chrome.bookmarks.removeTree(child.id);
+                        } else {
+                            await chrome.bookmarks.remove(child.id);
+                        }
+                    } catch (error) {
+                        console.error(`[clearLocalBookmarks] Second pass error for ${child.id}:`, error);
+                    }
+                }
+            }
+            
+            // Final verification
+            const finalTree = await this.getBookmarkTree();
+            let finalRemaining = 0;
+            for (const rootFolder of finalTree[0]?.children || []) {
+                const folderTitle = (rootFolder.title || '').toLowerCase();
+                if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
+                    continue;
+                }
+                finalRemaining += rootFolder.children?.length || 0;
+            }
+            console.log(`[clearLocalBookmarks] After second pass, remaining: ${finalRemaining}`);
         }
     }
     
@@ -790,13 +1351,40 @@ export class SyncManager {
             rootFolders[normalizeTitle(rootNode.title)] = rootNode.id;
         }
 
-        const bookmarksBarId = rootFolders['bookmarks bar'] || rootFolders['bookmarks toolbar'] || '1';
-        const otherBookmarksId = rootFolders['other bookmarks'] || rootFolders['unfiled bookmarks'] || '2';
+        // Different browsers use different names for the bookmarks bar:
+        // - Chrome/Brave/Chromium: "Bookmarks Bar" (id: 1)
+        // - Firefox: "Bookmarks Toolbar" (id: toolbar_____)
+        // - Edge: "Favourites bar" or "Favorites bar"
+        // - Opera: "Bookmarks bar" (but may have additional folders like Pinboard, Bin)
+        const bookmarksBarId = rootFolders['bookmarks bar'] 
+            || rootFolders['bookmarks toolbar'] 
+            || rootFolders['favourites bar']    // Edge UK spelling
+            || rootFolders['favorites bar']     // Edge US spelling
+            || rootFolders['bookmarks'] 
+            || rootFolders['my bookmarks'] 
+            || '1';
+        const otherBookmarksId = rootFolders['other bookmarks'] 
+            || rootFolders['unfiled bookmarks'] 
+            || rootFolders['unsorted bookmarks']
+            || rootFolders['other favourites']  // Edge UK spelling
+            || rootFolders['other favorites']   // Edge US spelling 
+            || '2';
         const bookmarksMenuId = rootFolders['bookmarks menu'];
         const mobileBookmarksId = rootFolders['mobile bookmarks'] || '3';
         
         // Create a map to track new IDs for folders
         const folderIdMap: Record<string, string> = {};
+
+        // Log detected browser folders for debugging
+        console.log('[restoreFromMasterCollection] Detected browser root folders:', {
+            allRootFolders: rootFolders,
+            resolved: {
+                bookmarksBarId,
+                otherBookmarksId,
+                bookmarksMenuId,
+                mobileBookmarksId
+            }
+        });
 
         const resolveRootIdBySourceId = (sourceId: string): string | undefined => {
             const normalizedSourceId = sourceId.trim().toLowerCase();
@@ -847,21 +1435,33 @@ export class SyncManager {
                 || normalizedTitle === 'bookmarks menu'
                 || normalizedTitle === 'other bookmarks'
                 || normalizedTitle === 'unfiled bookmarks'
-                || normalizedTitle === 'mobile bookmarks';
+                || normalizedTitle === 'mobile bookmarks'
+                || normalizedTitle === 'bookmarks'      // Opera main folder
+                || normalizedTitle === 'my bookmarks'   // Some Opera versions
+                || normalizedTitle === 'unsorted bookmarks'
+                || normalizedTitle === 'favourites bar'   // Edge UK spelling
+                || normalizedTitle === 'favorites bar'    // Edge US spelling
+                || normalizedTitle === 'other favourites' // Edge UK spelling
+                || normalizedTitle === 'other favorites'; // Edge US spelling
         };
 
         const resolveRootIdByTitle = (title: string): string | undefined => {
             const normalizedTitle = normalizeTitle(title);
-            if (normalizedTitle === 'bookmarks bar') {
+            // Bookmarks Bar equivalents across browsers
+            if (normalizedTitle === 'bookmarks bar'
+                || normalizedTitle === 'bookmarks toolbar'
+                || normalizedTitle === 'favourites bar'     // Edge UK
+                || normalizedTitle === 'favorites bar'      // Edge US
+                || normalizedTitle === 'bookmarks'          // Opera
+                || normalizedTitle === 'my bookmarks') {    // Some Opera versions
                 return bookmarksBarId;
             }
-            if (normalizedTitle === 'bookmarks toolbar') {
-                return bookmarksBarId;
-            }
-            if (normalizedTitle === 'other bookmarks') {
-                return otherBookmarksId;
-            }
-            if (normalizedTitle === 'unfiled bookmarks') {
+            // Other Bookmarks equivalents across browsers
+            if (normalizedTitle === 'other bookmarks'
+                || normalizedTitle === 'unfiled bookmarks'
+                || normalizedTitle === 'unsorted bookmarks'
+                || normalizedTitle === 'other favourites'   // Edge UK
+                || normalizedTitle === 'other favorites') { // Edge US
                 return otherBookmarksId;
             }
             if (normalizedTitle === 'bookmarks menu') {
@@ -968,7 +1568,10 @@ export class SyncManager {
                 return true;
             })
             .sort((a: any, b: any) => {
-                const parentCompare = String(a.parentId ?? '').localeCompare(String(b.parentId ?? ''));
+                // Sort by masterParentId first (or parentId as fallback), then by position
+                const aParent = String(a.masterParentId ?? a.parentId ?? '');
+                const bParent = String(b.masterParentId ?? b.parentId ?? '');
+                const parentCompare = aParent.localeCompare(bParent);
                 if (parentCompare !== 0) {
                     return parentCompare;
                 }
@@ -1029,7 +1632,10 @@ export class SyncManager {
         // Then create all bookmarks
         const bookmarks = (Array.isArray(collection.bookmarks) ? collection.bookmarks : [])
             .sort((a: any, b: any) => {
-                const parentCompare = String(a.parentId ?? '').localeCompare(String(b.parentId ?? ''));
+                // Sort by masterParentId first (or parentId as fallback), then by position
+                const aParent = String(a.masterParentId ?? a.parentId ?? '');
+                const bParent = String(b.masterParentId ?? b.parentId ?? '');
+                const parentCompare = aParent.localeCompare(bParent);
                 if (parentCompare !== 0) {
                     return parentCompare;
                 }

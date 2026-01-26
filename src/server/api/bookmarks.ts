@@ -79,6 +79,8 @@ function buildBookmarkTree(folders: any[], bookmarks: any[]): BookmarkNode[] {
             dateAdded: folder.dateAdded,
             createdAt: folder.createdAt,
             updatedAt: folder.updatedAt,
+            sourceBrowser: folder.sourceBrowser,
+            sessionId: folder.sessionId,
             children: []
         };
         
@@ -101,7 +103,9 @@ function buildBookmarkTree(folders: any[], bookmarks: any[]): BookmarkNode[] {
             url: bookmark.url,
             dateAdded: bookmark.dateAdded,
             createdAt: bookmark.createdAt,
-            updatedAt: bookmark.updatedAt
+            updatedAt: bookmark.updatedAt,
+            sourceBrowser: bookmark.sourceBrowser,
+            sessionId: bookmark.sessionId
         };
 
         // Try linking by masterParentId first (reliable for merged items)

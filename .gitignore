@@ -1,15 +1,34 @@
 # Dependencies
 node_modules/
 
-# Production
-dist/
-dist*/
-build/
+# Next.js build output
+.next/
+out/
+src/website/.next/
 
-# Debug
+# Expo / React Native
+.expo/
+src/mobile/.expo/
+android/build/
+ios/build/
+ios/Pods/
+*.p12
+*.jks
+
+# Browser Extension & Server
+dist/
+dist-firefox/
+build/
+src/extension/dist/
+src/extension/dist-firefox/
+src/server/dist/
+
+# Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
+server.log
 
 # Environment variables
 .env
@@ -17,16 +36,21 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
+src/website/.env*
+src/mobile/.env*
+src/server/.env*
+src/extension/.env*
 
-# IDE
+# IDE / Editor
 .idea/
 .vscode/
 *.swp
 *.swo
+.DS_Store
+Thumbs.db
 
 # Database
 *.db
-
-# OS
-.DS_Store
-Thumbs.db
+*.db-journal
+*.sqlite

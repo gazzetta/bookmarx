@@ -276,6 +276,24 @@ class BackgroundService {
                     });
                 return true; // Keep the message channel open for async response
             }
+
+            // Sync down (pull changes from server to local browser)
+            if (message.action === 'syncDown') {
+                console.log('Received request to sync down from master');
+                this.syncManager.syncDown()
+                    .then(result => {
+                        console.log('Sync down completed with result:', result);
+                        sendResponse(result);
+                    })
+                    .catch(error => {
+                        console.error('Sync down error:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    });
+                return true; // Keep the message channel open for async response
+            }
     
             // Sync status handler
             if (message.action === 'getSyncStatus') {

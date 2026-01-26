@@ -40,11 +40,13 @@ class AuthService {
       
       if (token && userData) {
         const user = JSON.parse(userData) as User;
+        const isPremium = user.subscriptionTier === 'premium' || user.subscriptionTier === 'lifetime';
         return {
           token,
           user,
           isLoading: false,
           isAuthenticated: true,
+          isPremium,
         };
       }
     } catch (error) {
@@ -56,6 +58,7 @@ class AuthService {
       user: null,
       isLoading: false,
       isAuthenticated: false,
+      isPremium: false,
     };
   }
 

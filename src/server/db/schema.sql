@@ -6,6 +6,12 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT NOT NULL UNIQUE,
     passwordHash TEXT,
     displayName TEXT,
+    subscriptionTier TEXT DEFAULT 'free',           -- free, premium
+    subscriptionExpiresAt INTEGER,                  -- Unix timestamp (null for lifetime or free)
+    bookmarkLimit INTEGER DEFAULT 250,              -- Enforced limit
+    browserLimit INTEGER DEFAULT 2,                 -- Max synced browsers
+    collectionLimit INTEGER DEFAULT 1,              -- Max collections
+    polarCustomerId TEXT,                           -- Polar customer ID for subscription management
     createdAt INTEGER DEFAULT (strftime('%s', 'now')),
     updatedAt INTEGER DEFAULT (strftime('%s', 'now'))
 );
@@ -20,6 +26,38 @@ CREATE TABLE IF NOT EXISTS user_identities (
     createdAt INTEGER DEFAULT (strftime('%s', 'now')),
     updatedAt INTEGER DEFAULT (strftime('%s', 'now')),
     UNIQUE(provider, providerUserId),
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Subscriptions table (tracks subscription history)
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    planType TEXT NOT NULL,                          -- monthly, yearly, lifetime
+    status TEXT NOT NULL,                            -- active, cancelled, expired, trialing
+    amount INTEGER NOT NULL,                         -- Amount in cents
+    currency TEXT DEFAULT 'USD',
+    startsAt INTEGER NOT NULL,                       -- Unix timestamp
+    endsAt INTEGER,                                  -- Unix timestamp (null for lifetime)
+    cancelledAt INTEGER,
+    paymentProvider TEXT DEFAULT 'polar',            -- polar, appstore, playstore
+    externalSubscriptionId TEXT,                     -- Provider's subscription ID
+    externalCustomerId TEXT,                         -- Provider's customer ID
+    createdAt INTEGER DEFAULT (strftime('%s', 'now')),
+    updatedAt INTEGER DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Collections table (for multiple bookmark collections)
+CREATE TABLE IF NOT EXISTS collections (
+    id TEXT PRIMARY KEY,                             -- UUID
+    userId TEXT NOT NULL,
+    name TEXT NOT NULL,                              -- "Master Collection", "Work", "Personal"
+    description TEXT,
+    isDefault INTEGER DEFAULT 0,                     -- 1 for Master Collection
+    sortOrder INTEGER DEFAULT 0,
+    createdAt INTEGER DEFAULT (strftime('%s', 'now')),
+    updatedAt INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -45,17 +83,21 @@ CREATE TABLE IF NOT EXISTS folders (
     browserId TEXT NOT NULL,             -- Browser's internal ID for this folder
     browserInstanceId TEXT,              -- References browsers.browserInstanceId, nullable for initial sync
     userId TEXT NOT NULL,
+    collectionId TEXT,                   -- References collections.id (null = default/master collection)
     title TEXT NOT NULL,
     parentId TEXT,
     masterParentId TEXT,                 -- Parent folder's masterId for cross-device references
     position INTEGER NOT NULL,
     dateAdded INTEGER NOT NULL,
-    status TEXT CHECK(status IN ('active', 'deleted')) DEFAULT 'active',
+    sourceBrowser TEXT,                  -- Browser type that created this folder (chrome, firefox, edge, opera, brave, etc.)
+    sessionId TEXT,                      -- Session UUID grouping items from same sync/merge operation (for rollback)
+    status TEXT CHECK(status IN ('active', 'deleted', 'rolled_back')) DEFAULT 'active',
     syncVersion INTEGER DEFAULT 1,
     timestamp INTEGER,
     createdAt INTEGER DEFAULT (strftime('%s', 'now')),
     updatedAt INTEGER DEFAULT (strftime('%s', 'now')),
-    FOREIGN KEY (browserInstanceId) REFERENCES browsers(browserInstanceId)
+    FOREIGN KEY (browserInstanceId) REFERENCES browsers(browserInstanceId),
+    FOREIGN KEY (collectionId) REFERENCES collections(id)
 );
 
 -- Bookmarks table
@@ -65,18 +107,22 @@ CREATE TABLE IF NOT EXISTS bookmarks (
     browserId TEXT NOT NULL,             -- Browser's internal ID for this bookmark
     browserInstanceId TEXT,              -- References browsers.browserInstanceId, nullable for initial sync
     userId TEXT NOT NULL,
+    collectionId TEXT,                   -- References collections.id (null = default/master collection)
     url TEXT NOT NULL,
     title TEXT NOT NULL,
     parentId TEXT NOT NULL,
     masterParentId TEXT,                 -- Parent folder's masterId for cross-device references
     position INTEGER NOT NULL,
     dateAdded INTEGER NOT NULL,
-    status TEXT CHECK(status IN ('active', 'deleted')) DEFAULT 'active',
+    sourceBrowser TEXT,                  -- Browser type that created this bookmark (chrome, firefox, edge, opera, brave, etc.)
+    sessionId TEXT,                      -- Session UUID grouping items from same sync/merge operation (for rollback)
+    status TEXT CHECK(status IN ('active', 'deleted', 'rolled_back')) DEFAULT 'active',
     syncVersion INTEGER DEFAULT 1,
     timestamp INTEGER,
     createdAt INTEGER DEFAULT (strftime('%s', 'now')),
     updatedAt INTEGER DEFAULT (strftime('%s', 'now')),
-    FOREIGN KEY (browserInstanceId) REFERENCES browsers(browserInstanceId)
+    FOREIGN KEY (browserInstanceId) REFERENCES browsers(browserInstanceId),
+    FOREIGN KEY (collectionId) REFERENCES collections(id)
 );
 
 -- Sync History table
@@ -105,7 +151,7 @@ CREATE TABLE IF NOT EXISTS sync_history_errors (
     FOREIGN KEY (syncHistoryId) REFERENCES sync_history(id) ON DELETE CASCADE
 );
 
--- Indexes
+-- Indexes (for base schema - premium-related indexes created by migrations)
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_user_identities_userid ON user_identities(userId);
 CREATE INDEX IF NOT EXISTS idx_user_identities_provider ON user_identities(provider, providerUserId);
@@ -123,3 +169,5 @@ CREATE INDEX IF NOT EXISTS idx_bookmarks_masterid ON bookmarks(masterId);
 CREATE INDEX IF NOT EXISTS idx_folders_masterid ON folders(masterId);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_masterparentid ON bookmarks(masterParentId);
 CREATE INDEX IF NOT EXISTS idx_folders_masterparentid ON folders(masterParentId);
+-- Note: Indexes for premium fields (polarCustomerId, subscriptions, collections, collectionId, sessionId, sourceBrowser)
+-- are created by migrations for existing databases

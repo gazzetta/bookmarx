@@ -7,6 +7,8 @@ interface BookmarkNode {
     dateAdded?: number;
     createdAt?: number;
     updatedAt?: number;
+    sourceBrowser?: string;
+    sessionId?: string;
 }
 
 interface ApiResponse {
@@ -23,6 +25,8 @@ interface AuthState {
         id: string;
         email: string;
         displayName: string | null;
+        isPremium?: boolean;
+        subscriptionTier?: string;
     };
 }
 
@@ -60,7 +64,16 @@ class MasterCollectionView {
 
             const userId = auth.user.id;
             const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-            this.userInfo.textContent = `Signed in: ${auth.user.email} • Times shown in: ${timeZone}`;
+            const isPremium = auth.user.isPremium || auth.user.subscriptionTier === 'premium';
+            
+            // Build user info with optional edit link
+            let userInfoHtml = `Signed in: ${auth.user.email} • Times shown in: ${timeZone}`;
+            if (isPremium) {
+                userInfoHtml += ` • <a href="http://localhost:3006/collections/default/edit" target="_blank" style="color: #f59e0b; text-decoration: none;">✏️ Edit in Web</a>`;
+            } else {
+                userInfoHtml += ` • <a href="http://localhost:3006/settings/subscription" target="_blank" style="color: #888; text-decoration: none;">⭐ Upgrade to Edit</a>`;
+            }
+            this.userInfo.innerHTML = userInfoHtml;
 
             console.log('Fetching master collection for user:', userId);
             const tree = await this.fetchMasterCollection(userId, auth.token);
@@ -199,7 +212,13 @@ class MasterCollectionView {
                     && typeof node.createdAt === 'number'
                     && node.updatedAt > node.createdAt;
                 const dbEdited = this.formatDate(node.updatedAt);
-                let metaHtml = `Chrome added: <span class="date-chrome">${chromeAdded}</span> <br /> DB added: <span class="date-db">${dbAdded}</span>`;
+                
+                // Format browser name with proper capitalization
+                const browserName = node.sourceBrowser 
+                    ? node.sourceBrowser.charAt(0).toUpperCase() + node.sourceBrowser.slice(1)
+                    : 'Unknown';
+                
+                let metaHtml = `${browserName} added: <span class="date-chrome">${chromeAdded}</span> <br /> DB added: <span class="date-db">${dbAdded}</span>`;
                 if (showEdited) {
                     metaHtml += ` <br /> Edited: <span class="date-edited">${dbEdited}</span>`;
                 }

@@ -50,6 +50,14 @@ module.exports = (env, argv) => {
                         from: 'popup/index.html',
                         to: 'popup/index.html'
                     },
+                    { 
+                        from: 'popup/debug.html',
+                        to: 'popup/debug.html'
+                    },
+                    { 
+                        from: 'popup/debug.js',
+                        to: 'popup/debug.js'
+                    },
                     {
                         from: 'pages/master-collection.html',
                         to: 'pages/master-collection.html'

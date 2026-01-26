@@ -1,12 +1,12 @@
-# BookMarx Stage 2 Progress
+# BookMarx Stage 2 & 3 Progress
 
 ## Overview
 **Started:** January 23, 2026  
-**Goal:** Multi-platform support (Chrome/Brave/Edge/Firefox + iOS/Android mobile app)
+**Goal:** Multi-platform support (Chrome/Brave/Edge/Firefox + iOS/Android mobile app) + Premium Features
 
 ---
 
-## Phase Status
+## Stage 2 Phase Status
 
 | Phase | Description | Status | Notes |
 |-------|-------------|--------|-------|
@@ -19,6 +19,21 @@
 | 7 | Android Share Intent | ✅ Complete | Kotlin |
 | 8 | Production Deploy | ✅ Complete | Server + stores |
 | 9 | Testing | ⬜ Not Started | All platforms |
+
+---
+
+## Stage 3 Phase Status (Premium Features)
+
+| Phase | Description | Status | Notes |
+|-------|-------------|--------|-------|
+| 1 | Database Schema | ✅ Complete | Premium fields, subscriptions, collections |
+| 2 | Premium Middleware | ✅ Complete | Limit enforcement |
+| 3 | Sessions API | ✅ Complete | History & rollback endpoints |
+| 4 | Collections API | ✅ Complete | CRUD operations |
+| 5 | Polar Integration | ✅ Complete | Webhook handler |
+| 6 | Extension Updates | ✅ Complete | Premium tier UI in popup |
+| 7 | Web Collection Editor | ✅ Complete | Next.js with drag/drop |
+| 8 | Mobile Premium Gating | ✅ Complete | Feature access control |
 
 ---
 
@@ -156,6 +171,41 @@
 ---
 
 ## Session Log
+
+### 2026-01-24 (Stage 3 - Premium Features)
+- ✅ Created database migrations for premium fields on users table
+- ✅ Created subscriptions and collections tables
+- ✅ Added collectionId to bookmarks/folders tables
+- ✅ Implemented premium middleware (requirePremium, checkBookmarkLimit, checkBrowserLimit)
+- ✅ Created sessions API endpoints for rollback functionality
+- ✅ Created collections API endpoints
+- ✅ Created Polar webhook handler for subscription management
+- ✅ Updated auth middleware to include premium info in user object
+- ✅ Added /api/v1/user/stats endpoint for usage tracking
+- ✅ Updated extension popup with premium tier display, usage limits, upgrade CTA
+- ✅ Added CSS styles for premium UI components
+- ✅ Built complete Next.js website with:
+  - Landing page with pricing
+  - Login/Register pages
+  - Dashboard with stats
+  - Collections list and viewer
+  - Drag-drop collection editor (premium, @dnd-kit)
+  - Session history with rollback (premium)
+  - Subscription management page
+- ✅ Created Zustand editor store for collection editing state
+- ✅ Added POST /api/v1/collections/:id/changes endpoint for batch edits
+- ✅ Updated database updateBookmark/updateFolder for partial updates
+- ✅ Updated extension MC page with "Edit in Web" link (premium)
+- ✅ Mobile Premium Gating (Phase 8):
+  - Added premium types (UserStats, Session, Collection)
+  - Updated useAuth hook with isPremium state and stats
+  - Added getUserStats, getSessions, getCollection API methods
+  - Created PremiumGate, PremiumBadge, PremiumFeatureList, UsageLimitBar components
+  - Created Upgrade screen (plan selection + management for existing subscribers)
+  - Created Sessions list screen (premium gated)
+  - Created Session detail screen with rollback/restore
+  - Updated home screen with premium badge, usage limits, feature shortcuts
+- ⏳ Next: Final Testing
 
 ### 2026-01-23
 - ✅ Archived Stage 1 documentation to `stage-1/`

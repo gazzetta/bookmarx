@@ -46,6 +46,8 @@ const firefoxBookmarks = {
         { id: 'ffb2', browserId: 'ffb2', title: 'BF', url: 'https://bitcointalk.org/index.php?topic=1656416.msg27790672#msg27790672', parentId: 'ff100', position: 0, dateAdded: Date.now() },
         // Same bookmark in Design2 folder (should be deduplicated)
         { id: 'ffb3', browserId: 'ffb3', title: 'Tophatters', url: 'https://tophatters.co/collections/newdeals', parentId: 'ff101', position: 0, dateAdded: Date.now() },
+        // NEW bookmark in Design2 folder that only exists in Firefox (should be CREATED)
+        { id: 'ffb6', browserId: 'ffb6', title: 'Firefox Design2 Unique', url: 'https://unique-in-design2.com/', parentId: 'ff101', position: 1, dateAdded: Date.now() },
         // New bookmark only in Firefox
         { id: 'ffb4', browserId: 'ffb4', title: 'Firefox Only Bookmark', url: 'https://firefox.com/', parentId: 'ff200', position: 0, dateAdded: Date.now() },
         // Same URL but different path (should NOT be deduplicated - different folder)

@@ -34,6 +34,21 @@
                 <div class="auth-user">
                     <div class="auth-user-label">Signed in as</div>
                     <div id="authUserEmail" class="auth-user-email"></div>
+                    <div id="tierBadge" class="tier-badge tier-free">Free</div>
+                </div>
+                <div id="usageLimits" class="usage-limits">
+                    <div class="usage-item">
+                        <span class="usage-label">Bookmarks</span>
+                        <span class="usage-value"><span id="bookmarkUsage">0</span> / <span id="bookmarkLimit">250</span></span>
+                    </div>
+                    <div class="usage-item">
+                        <span class="usage-label">Browsers</span>
+                        <span class="usage-value"><span id="browserUsage">1</span> / <span id="browserLimit">2</span></span>
+                    </div>
+                </div>
+                <div id="upgradeCta" class="upgrade-cta">
+                    <span class="upgrade-text">Unlock unlimited syncing</span>
+                    <button id="upgradeBtn" class="upgrade-button">⭐ Upgrade</button>
                 </div>
                 <button id="logout" class="auth-button secondary">Log out</button>
             </div>

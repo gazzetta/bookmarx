@@ -26,10 +26,33 @@ const getGoogleClient = () => {
     return new OAuth2Client(googleClientId);
 };
 
-const buildUser = (record: { id: string; email: string; displayName: string | null }): AuthUser => ({
+const buildUser = (record: { 
+    id: string; 
+    email: string; 
+    displayName: string | null;
+    subscriptionTier?: string;
+    subscriptionExpiresAt?: number | null;
+    bookmarkLimit?: number;
+    browserLimit?: number;
+    collectionLimit?: number;
+}): AuthUser & { 
+    subscriptionTier: string;
+    subscriptionExpiresAt: number | null;
+    bookmarkLimit: number;
+    browserLimit: number;
+    collectionLimit: number;
+    isPremium: boolean;
+} => ({
     id: record.id,
     email: record.email,
-    displayName: record.displayName
+    displayName: record.displayName,
+    subscriptionTier: record.subscriptionTier || 'free',
+    subscriptionExpiresAt: record.subscriptionExpiresAt || null,
+    bookmarkLimit: record.bookmarkLimit || 250,
+    browserLimit: record.browserLimit || 2,
+    collectionLimit: record.collectionLimit || 1,
+    isPremium: record.subscriptionTier === 'premium' && 
+        (!record.subscriptionExpiresAt || record.subscriptionExpiresAt > Math.floor(Date.now() / 1000))
 });
 
 const issueToken = (user: AuthUser): string => {
@@ -235,4 +258,36 @@ export const getMe = async (req: Request, res: Response) => {
         success: true,
         data: buildUser(user)
     });
+};
+
+export const getUserStats = async (req: Request, res: Response) => {
+    const authUser = (req as Request & { user?: { id: string; email: string } }).user;
+
+    if (!authUser) {
+        return res.status(401).json({
+            success: false,
+            error: { message: 'Unauthorized' }
+        });
+    }
+
+    try {
+        const bookmarkCount = db.getBookmarkCountForUser(authUser.id);
+        const browserCount = db.getBrowserCount(authUser.id);
+        const collectionCount = db.getCollectionCount(authUser.id);
+
+        return res.json({
+            success: true,
+            data: {
+                bookmarkCount,
+                browserCount,
+                collectionCount
+            }
+        });
+    } catch (error) {
+        console.error('Failed to get user stats:', error);
+        return res.status(500).json({
+            success: false,
+            error: { message: 'Failed to get user stats' }
+        });
+    }
 };

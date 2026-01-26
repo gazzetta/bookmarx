@@ -7,14 +7,31 @@ interface AuthPayload {
     email: string;
 }
 
+export interface AuthenticatedUser {
+    id: string;
+    email: string;
+    subscriptionTier: 'free' | 'premium';
+    subscriptionExpiresAt: number | null;
+    bookmarkLimit: number;
+    browserLimit: number;
+    collectionLimit: number;
+    polarCustomerId: string | null;
+}
+
 export const authenticate = (req: Request, res: Response, next: NextFunction) => {
     // Test bypass for local development - check for X-Test-User-Id header
     const testUserId = req.headers['x-test-user-id'] as string;
     if (process.env.NODE_ENV !== 'production' && testUserId && testUserId.startsWith('test_')) {
         console.log(`[AUTH] Test bypass enabled for user: ${testUserId}`);
-        (req as Request & { user?: { id: string; email: string } }).user = {
+        (req as Request & { user?: AuthenticatedUser }).user = {
             id: testUserId,
-            email: `${testUserId}@test.local`
+            email: `${testUserId}@test.local`,
+            subscriptionTier: 'premium',  // Test users get premium
+            subscriptionExpiresAt: null,
+            bookmarkLimit: 10000,
+            browserLimit: 999,
+            collectionLimit: 999,
+            polarCustomerId: null
         };
         return next();
     }
@@ -53,9 +70,16 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
             });
         }
         
-        (req as Request & { user?: { id: string; email: string } }).user = {
+        // Include premium info in the user object
+        (req as Request & { user?: AuthenticatedUser }).user = {
             id: payload.sub,
-            email: payload.email
+            email: payload.email,
+            subscriptionTier: user.subscriptionTier || 'free',
+            subscriptionExpiresAt: user.subscriptionExpiresAt || null,
+            bookmarkLimit: user.bookmarkLimit || 250,
+            browserLimit: user.browserLimit || 2,
+            collectionLimit: user.collectionLimit || 1,
+            polarCustomerId: user.polarCustomerId || null
         };
         return next();
     } catch (error) {

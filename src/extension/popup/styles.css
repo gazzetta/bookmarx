@@ -110,6 +110,102 @@ body {
     word-break: break-all;
 }
 
+/* Premium tier badge */
+.tier-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-top: 4px;
+    width: fit-content;
+}
+
+.tier-badge.tier-free {
+    background: #e5e7eb;
+    color: #6b7280;
+}
+
+.tier-badge.tier-premium {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #78350f;
+}
+
+/* Usage limits display */
+.usage-limits {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 8px;
+    background: #f9fafb;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.usage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.usage-label {
+    color: #6b7280;
+}
+
+.usage-value {
+    font-weight: 500;
+    color: #374151;
+}
+
+.usage-value.near-limit {
+    color: #f59e0b;
+}
+
+.usage-value.at-limit {
+    color: #ef4444;
+}
+
+/* Upgrade CTA */
+.upgrade-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding: 10px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 8px;
+    border: 1px solid #fbbf24;
+}
+
+.upgrade-cta.hidden {
+    display: none;
+}
+
+.upgrade-text {
+    font-size: 12px;
+    color: #92400e;
+    font-weight: 500;
+}
+
+.upgrade-button {
+    padding: 6px 12px;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.upgrade-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .popup-header {
     display: flex;
     justify-content: space-between;

@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../hooks/useAuth';
 import { useBookmarks } from '../hooks/useBookmarks';
+import { PremiumBadge, UsageLimitBar } from '../components/PremiumGate';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { isAuthenticated, isLoading: authLoading, user, logout } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, isPremium, stats, logout } = useAuth();
   const { folders, bookmarks, isLoading, fetchMasterCollection, getFoldersInFolder, getBookmarksInFolder } = useBookmarks();
 
   useEffect(() => {
@@ -60,11 +61,33 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.welcome}>Welcome, {user?.displayName || user?.email}</Text>
-        <TouchableOpacity onPress={logout}>
-          <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <Text style={styles.welcome}>Welcome, {user?.displayName || user?.email?.split('@')[0]}</Text>
+          <PremiumBadge tier={(user?.subscriptionTier || 'free') as 'free' | 'premium' | 'lifetime'} size="small" />
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity onPress={() => router.push('/sessions')} style={styles.headerButton}>
+            <Ionicons name="time-outline" size={22} color="#3B82F6" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/upgrade')} style={styles.headerButton}>
+            <Ionicons name={isPremium ? "settings-outline" : "star-outline"} size={22} color="#F59E0B" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={logout} style={styles.headerButton}>
+            <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {stats && !isPremium && (
+        <View style={styles.usageSection}>
+          <UsageLimitBar 
+            current={stats.bookmarkCount} 
+            max={stats.limits.maxBookmarks} 
+            label="Bookmarks" 
+            isPremium={isPremium}
+          />
+        </View>
+      )}
 
       {isLoading ? (
         <ActivityIndicator size="large" color="#3B82F6" style={styles.loader} />
@@ -106,10 +129,29 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerButton: {
+    padding: 6,
+  },
   welcome: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  usageSection: {
+    padding: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   loader: {
     marginTop: 40,

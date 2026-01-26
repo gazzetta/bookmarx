@@ -216,17 +216,15 @@ class PopupManager {
                             totalBookmarks: bookmarks.length
                         },
                         folders: folders,
-                        bookmarks: bookmarks.slice(0, 50), // Limit bookmarks for readability
-                        rawTreeSample: rawTree
+                        bookmarks: bookmarks.slice(0, 50),
+                        rawTree: rawTree
                     };
 
-                    // Create HTML content
-                    const html = this.createDebugHtml(debugData);
-                    
-                    // Open in new tab using data URL
-                    const blob = new Blob([html], { type: 'text/html' });
-                    const url = URL.createObjectURL(blob);
-                    chrome.tabs.create({ url });
+                    // Store data and open debug page
+                    chrome.storage.local.set({ debugBookmarkData: debugData }, () => {
+                        const url = chrome.runtime.getURL('popup/debug.html');
+                        chrome.tabs.create({ url });
+                    });
                 });
             } catch (error) {
                 this.showError('Failed to get bookmark data');
@@ -457,16 +455,32 @@ class PopupManager {
 
     private async handleSyncDown(): Promise<void> {
         try {
-            // Get remote changes and apply them locally
-            const result = await this.sendMessage({ action: 'syncNow' });
+            this.syncDownButton.disabled = true;
+            this.syncDownButton.textContent = '⏳ Syncing...';
+
+            // Use the new syncDown action to pull changes from server
+            const result = await this.sendMessage({ action: 'syncDown' });
+            
             if (result.success) {
-                this.showSuccess('Remote changes applied locally');
+                const applied = result.data?.applied;
+                const total = (applied?.creates?.folders || 0) + (applied?.creates?.bookmarks || 0) +
+                             (applied?.updates?.folders || 0) + (applied?.updates?.bookmarks || 0) +
+                             (applied?.deletes?.folders || 0) + (applied?.deletes?.bookmarks || 0);
+                
+                if (total > 0) {
+                    this.showSuccess(`Applied ${total} changes from master collection`);
+                } else {
+                    this.showSuccess('Already up to date with master collection');
+                }
                 await this.updateUI();
             } else {
-                throw new Error(result.error?.message || 'Sync down failed');
+                throw new Error(result.error || 'Sync down failed');
             }
         } catch (error) {
             this.showError((error as Error).message);
+        } finally {
+            this.syncDownButton.textContent = '⬇️ Sync Down';
+            // Button state will be updated by updateUI
         }
     }
 
@@ -516,6 +530,9 @@ class PopupManager {
             this.authLoggedOut.classList.add('hidden');
             this.authLoggedIn.classList.remove('hidden');
             this.authUserEmail.textContent = auth.user?.email || 'Unknown user';
+            
+            // Update premium tier display
+            this.updatePremiumUI(auth.user);
         } else {
             this.authLoggedIn.classList.add('hidden');
             this.authLoggedOut.classList.remove('hidden');
@@ -529,6 +546,109 @@ class PopupManager {
         }
         if (this.overwriteButton) this.overwriteButton.disabled = !isAuthed;
         if (this.openManagerButton) this.openManagerButton.disabled = !isAuthed;
+    }
+
+    private updatePremiumUI(user: any): void {
+        const tierBadge = document.getElementById('tierBadge');
+        const bookmarkUsage = document.getElementById('bookmarkUsage');
+        const bookmarkLimit = document.getElementById('bookmarkLimit');
+        const browserUsage = document.getElementById('browserUsage');
+        const browserLimit = document.getElementById('browserLimit');
+        const upgradeCta = document.getElementById('upgradeCta');
+        const upgradeButton = document.getElementById('upgradeButton');
+
+        if (!tierBadge || !bookmarkUsage || !bookmarkLimit || !browserUsage || !browserLimit || !upgradeCta) {
+            return;
+        }
+
+        const isPremium = user?.isPremium || user?.subscriptionTier === 'premium';
+        const tier = isPremium ? 'premium' : 'free';
+        
+        // Update tier badge
+        tierBadge.textContent = tier === 'premium' ? '⭐ Premium' : 'Free';
+        tierBadge.className = `tier-badge tier-${tier}`;
+
+        // Update usage limits
+        const userBookmarkLimit = user?.bookmarkLimit || 250;
+        const userBrowserLimit = user?.browserLimit || 2;
+        
+        bookmarkLimit.textContent = userBookmarkLimit >= 10000 ? '∞' : userBookmarkLimit.toString();
+        browserLimit.textContent = userBrowserLimit >= 100 ? '∞' : userBrowserLimit.toString();
+
+        // Fetch current usage from server
+        this.fetchUsageStats(bookmarkUsage, browserUsage, userBookmarkLimit, userBrowserLimit);
+
+        // Show/hide upgrade CTA
+        if (isPremium) {
+            upgradeCta.classList.add('hidden');
+        } else {
+            upgradeCta.classList.remove('hidden');
+        }
+
+        // Add upgrade button click handler
+        if (upgradeButton && !upgradeButton.hasAttribute('data-listener-attached')) {
+            upgradeButton.setAttribute('data-listener-attached', 'true');
+            upgradeButton.addEventListener('click', () => {
+                // Open the upgrade page in a new tab
+                chrome.tabs.create({ url: 'https://bookmarx.app/upgrade' });
+            });
+        }
+    }
+
+    private async fetchUsageStats(
+        bookmarkUsageEl: HTMLElement, 
+        browserUsageEl: HTMLElement,
+        bookmarkLimit: number,
+        browserLimit: number
+    ): Promise<void> {
+        try {
+            const data = await this.getStorageData();
+            const auth = data?.auth;
+            if (!auth?.token) return;
+
+            const response = await fetch(`${this.apiBase}/api/v1/user/stats`, {
+                headers: {
+                    'Authorization': `Bearer ${auth.token}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    const bookmarkCount = result.data?.bookmarkCount || 0;
+                    const browserCount = result.data?.browserCount || 0;
+
+                    bookmarkUsageEl.textContent = bookmarkCount.toString();
+                    browserUsageEl.textContent = browserCount.toString();
+
+                    // Add warning classes if near or at limit
+                    const bookmarkUsageValue = bookmarkUsageEl.parentElement?.querySelector('.usage-value');
+                    const browserUsageValue = browserUsageEl.parentElement?.querySelector('.usage-value');
+
+                    if (bookmarkUsageValue) {
+                        bookmarkUsageValue.classList.remove('near-limit', 'at-limit');
+                        if (bookmarkCount >= bookmarkLimit) {
+                            bookmarkUsageValue.classList.add('at-limit');
+                        } else if (bookmarkCount >= bookmarkLimit * 0.8) {
+                            bookmarkUsageValue.classList.add('near-limit');
+                        }
+                    }
+
+                    if (browserUsageValue) {
+                        browserUsageValue.classList.remove('near-limit', 'at-limit');
+                        if (browserCount >= browserLimit) {
+                            browserUsageValue.classList.add('at-limit');
+                        } else if (browserCount >= browserLimit * 0.8) {
+                            browserUsageValue.classList.add('near-limit');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch usage stats:', error);
+            bookmarkUsageEl.textContent = '-';
+            browserUsageEl.textContent = '-';
+        }
     }
 
     private async handleGoogleLogin(): Promise<void> {
@@ -837,149 +957,6 @@ class PopupManager {
         };
 
         return { folders, bookmarks, rawTree: simplifyTree(node) };
-    }
-
-    private createDebugHtml(data: any): string {
-        return `<!DOCTYPE html>
-<html>
-<head>
-    <title>BookMarx Debug - Bookmark Data</title>
-    <style>
-        body { 
-            font-family: 'Consolas', 'Monaco', monospace; 
-            padding: 20px; 
-            background: #1e1e1e; 
-            color: #d4d4d4;
-            line-height: 1.5;
-        }
-        h1, h2, h3 { color: #569cd6; margin-top: 30px; }
-        h1 { border-bottom: 2px solid #569cd6; padding-bottom: 10px; }
-        .summary { 
-            background: #2d2d2d; 
-            padding: 15px; 
-            border-radius: 8px; 
-            margin: 20px 0;
-            border-left: 4px solid #4ec9b0;
-        }
-        .summary-item { margin: 5px 0; }
-        .summary-label { color: #9cdcfe; }
-        .summary-value { color: #ce9178; font-weight: bold; }
-        table { 
-            border-collapse: collapse; 
-            width: 100%; 
-            margin: 15px 0;
-            background: #252526;
-        }
-        th, td { 
-            border: 1px solid #3c3c3c; 
-            padding: 10px; 
-            text-align: left; 
-        }
-        th { 
-            background: #333333; 
-            color: #4ec9b0;
-            position: sticky;
-            top: 0;
-        }
-        tr:hover { background: #2a2d2e; }
-        .id { color: #b5cea8; }
-        .title { color: #ce9178; }
-        .parent { color: #dcdcaa; }
-        .url { color: #569cd6; font-size: 0.9em; max-width: 400px; overflow: hidden; text-overflow: ellipsis; }
-        pre { 
-            background: #252526; 
-            padding: 15px; 
-            border-radius: 8px; 
-            overflow-x: auto;
-            border: 1px solid #3c3c3c;
-        }
-        .highlight { background: #4a4a00; }
-        .depth-0 { font-weight: bold; color: #4ec9b0; }
-        .depth-1 { padding-left: 20px; }
-        .depth-2 { padding-left: 40px; }
-        .copy-btn {
-            background: #0e639c;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-left: 10px;
-        }
-        .copy-btn:hover { background: #1177bb; }
-        .note { 
-            background: #3c2a00; 
-            border-left: 4px solid #cca700; 
-            padding: 10px 15px; 
-            margin: 15px 0;
-        }
-    </style>
-</head>
-<body>
-    <h1>BookMarx Debug - Bookmark Data Structure</h1>
-    
-    <div class="summary">
-        <div class="summary-item"><span class="summary-label">Browser:</span> <span class="summary-value">${JSON.stringify(data.browser)}</span></div>
-        <div class="summary-item"><span class="summary-label">Timestamp:</span> <span class="summary-value">${data.timestamp}</span></div>
-        <div class="summary-item"><span class="summary-label">Total Folders:</span> <span class="summary-value">${data.summary.totalFolders}</span></div>
-        <div class="summary-item"><span class="summary-label">Total Bookmarks:</span> <span class="summary-value">${data.summary.totalBookmarks}</span></div>
-    </div>
-
-    <div class="note">
-        <strong>Key IDs to look for:</strong><br>
-        <strong>Chrome:</strong> "0" (root), "1" (Bookmarks Bar), "2" (Other Bookmarks)<br>
-        <strong>Firefox:</strong> "root________", "toolbar_____" (Bookmarks Toolbar), "menu________" (Bookmarks Menu), "unfiled_____" (Other Bookmarks)
-    </div>
-
-    <h2>Folders (${data.folders.length} total)</h2>
-    <p>These are the folders that would be sent to the server during sync/merge:</p>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Parent ID</th>
-            <th>Index</th>
-            <th>Depth</th>
-        </tr>
-        ${data.folders.map((f: any) => `
-        <tr class="${f.depth <= 1 ? 'highlight' : ''}">
-            <td class="id">${f.id}</td>
-            <td class="title depth-${Math.min(f.depth, 2)}">${f.title || '(unnamed)'}</td>
-            <td class="parent">${f.parentId || '(none)'}</td>
-            <td>${f.index ?? '-'}</td>
-            <td>${f.depth}</td>
-        </tr>
-        `).join('')}
-    </table>
-
-    <h2>Sample Bookmarks (first 50 of ${data.summary.totalBookmarks})</h2>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Parent ID</th>
-            <th>URL</th>
-        </tr>
-        ${data.bookmarks.map((b: any) => `
-        <tr>
-            <td class="id">${b.id}</td>
-            <td class="title">${b.title || '(unnamed)'}</td>
-            <td class="parent">${b.parentId || '(none)'}</td>
-            <td class="url">${b.url}</td>
-        </tr>
-        `).join('')}
-    </table>
-
-    <h2>Raw Tree Structure (truncated)</h2>
-    <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('rawJson').textContent)">Copy JSON</button>
-    <pre id="rawJson">${JSON.stringify(data.rawTree, null, 2)}</pre>
-
-    <h2>Full Folder Data (for copying)</h2>
-    <button class="copy-btn" onclick="navigator.clipboard.writeText(document.getElementById('foldersJson').textContent)">Copy Folders JSON</button>
-    <pre id="foldersJson">${JSON.stringify(data.folders, null, 2)}</pre>
-
-</body>
-</html>`;
     }
 }
 

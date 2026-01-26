@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { API_BASE_URL, STORAGE_KEYS } from '../constants/config';
-import type { ApiResponse, MasterCollection, CaptureRequest, CaptureResponse, User } from '../types';
+import type { ApiResponse, MasterCollection, CaptureRequest, CaptureResponse, User, UserStats, Session, Collection } from '../types';
 
 class ApiClient {
   private baseUrl: string;
@@ -67,6 +67,34 @@ class ApiClient {
 
   async getMe(): Promise<ApiResponse<{ user: User }>> {
     return this.request('/auth/me');
+  }
+
+  async getUserStats(): Promise<ApiResponse<UserStats>> {
+    return this.request('/user/stats');
+  }
+
+  async getSessions(limit = 20): Promise<ApiResponse<{ sessions: Session[] }>> {
+    return this.request(`/sessions?limit=${limit}`);
+  }
+
+  async getSessionDetails(sessionId: number): Promise<ApiResponse<{ session: Session; items: any[] }>> {
+    return this.request(`/sessions/${sessionId}`);
+  }
+
+  async rollbackSession(sessionId: number): Promise<ApiResponse<{ message: string; affectedItems: number }>> {
+    return this.request(`/sessions/${sessionId}/rollback`, { method: 'POST' });
+  }
+
+  async restoreSession(sessionId: number): Promise<ApiResponse<{ message: string; affectedItems: number }>> {
+    return this.request(`/sessions/${sessionId}/restore`, { method: 'POST' });
+  }
+
+  async getCollections(): Promise<ApiResponse<{ collections: Collection[]; count: number; canCreate: boolean }>> {
+    return this.request('/collections');
+  }
+
+  async getCollection(collectionId: string): Promise<ApiResponse<{ collection: Collection; folders: any[]; bookmarks: any[] }>> {
+    return this.request(`/collections/${collectionId}`);
   }
 
   async getMasterCollection(): Promise<ApiResponse<MasterCollection>> {
