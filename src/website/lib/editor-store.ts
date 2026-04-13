@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Folder, Bookmark, EditorChange } from './api'
+import { Folder, Bookmark, EditorChange, CopyItem } from './api'
 
 export interface TreeItem {
   type: 'folder' | 'bookmark'
@@ -9,8 +9,17 @@ export interface TreeItem {
   url?: string
   favicon?: string | null
   masterParentId: string | null
-  sortOrder: number
+  position: number
   children?: TreeItem[]
+}
+
+export interface ImportSourceItem {
+  masterId: string
+  type: 'folder' | 'bookmark'
+  title: string
+  url?: string
+  favicon?: string | null
+  children?: ImportSourceItem[]
 }
 
 interface EditorState {
@@ -18,16 +27,16 @@ interface EditorState {
   collectionId: string | null
   originalItems: { folders: Folder[]; bookmarks: Bookmark[] }
   tree: TreeItem[]
-  
+
   // UI State
   expandedFolders: Set<string>
   selectedItems: Set<string>
   searchQuery: string
-  
+
   // Change tracking
   pendingChanges: EditorChange[]
   hasUnsavedChanges: boolean
-  
+
   // Actions
   setCollectionId: (id: string) => void
   loadData: (folders: Folder[], bookmarks: Bookmark[]) => void
@@ -35,7 +44,7 @@ interface EditorState {
   toggleSelect: (masterId: string) => void
   clearSelection: () => void
   setSearchQuery: (query: string) => void
-  
+
   // Edit actions
   moveItem: (itemId: string, itemType: 'folder' | 'bookmark', newParentId: string | null, newIndex: number) => void
   renameItem: (masterId: string, itemType: 'folder' | 'bookmark', newTitle: string) => void
@@ -43,7 +52,8 @@ interface EditorState {
   deleteItem: (masterId: string, itemType: 'folder' | 'bookmark') => void
   addFolder: (parentId: string | null, title: string) => void
   addBookmark: (parentId: string | null, title: string, url: string) => void
-  
+  importSourceItems: (sourceItems: ImportSourceItem[], targetParentId: string | null, sourceCollectionId: string) => void
+
   // Persistence
   getChanges: () => EditorChange[]
   clearChanges: () => void
@@ -52,7 +62,7 @@ interface EditorState {
 
 function buildTree(folders: Folder[], bookmarks: Bookmark[]): TreeItem[] {
   const folderMap = new Map<string, TreeItem>()
-  
+
   // Convert folders to tree items
   folders.forEach(folder => {
     folderMap.set(folder.masterId, {
@@ -61,7 +71,7 @@ function buildTree(folders: Folder[], bookmarks: Bookmark[]): TreeItem[] {
       masterId: folder.masterId,
       title: folder.title,
       masterParentId: folder.masterParentId,
-      sortOrder: folder.sortOrder,
+      position: folder.position,
       children: []
     })
   })
@@ -77,7 +87,7 @@ function buildTree(folders: Folder[], bookmarks: Bookmark[]): TreeItem[] {
       url: bookmark.url,
       favicon: bookmark.favicon,
       masterParentId: bookmark.masterParentId,
-      sortOrder: bookmark.sortOrder
+      position: bookmark.position
     }
 
     if (bookmark.masterParentId && folderMap.has(bookmark.masterParentId)) {
@@ -91,7 +101,7 @@ function buildTree(folders: Folder[], bookmarks: Bookmark[]): TreeItem[] {
   const rootItems: TreeItem[] = []
   folders.forEach(folder => {
     const treeItem = folderMap.get(folder.masterId)!
-    
+
     if (folder.masterParentId && folderMap.has(folder.masterParentId)) {
       folderMap.get(folder.masterParentId)!.children!.push(treeItem)
     } else {
@@ -102,14 +112,12 @@ function buildTree(folders: Folder[], bookmarks: Bookmark[]): TreeItem[] {
   // Add root bookmarks
   rootItems.push(...rootBookmarks)
 
-  // Sort children by sortOrder then title
+  // Sort children by position (preserving original browser order)
   const sortChildren = (items: TreeItem[]) => {
     items.sort((a, b) => {
-      // Folders first
-      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
-      // Then by sortOrder
-      if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder
-      // Then by title
+      // Sort primarily by position to match browser extension order
+      if (a.position !== b.position) return a.position - b.position
+      // Fall back to title if positions are equal
       return a.title.localeCompare(b.title)
     })
     items.forEach(item => {
@@ -139,7 +147,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const topLevelIds = tree
       .filter(item => item.type === 'folder')
       .map(item => item.masterId)
-    
+
     set({
       originalItems: { folders, bookmarks },
       tree,
@@ -181,11 +189,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       parentId: newParentId || undefined,
       position: newIndex
     }
-    
+
     set(state => {
       // Update tree structure
       const newTree = JSON.parse(JSON.stringify(state.tree)) as TreeItem[]
-      
+
       // Find and remove item from current location
       let movedItem: TreeItem | null = null
       const removeFromTree = (items: TreeItem[]): boolean => {
@@ -241,7 +249,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set(state => {
       const newTree = JSON.parse(JSON.stringify(state.tree)) as TreeItem[]
-      
+
       const updateTitle = (items: TreeItem[]): boolean => {
         for (const item of items) {
           if (item.masterId === masterId) {
@@ -274,7 +282,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set(state => {
       const newTree = JSON.parse(JSON.stringify(state.tree)) as TreeItem[]
-      
+
       const updateUrl = (items: TreeItem[]): boolean => {
         for (const item of items) {
           if (item.masterId === masterId) {
@@ -306,7 +314,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set(state => {
       const newTree = JSON.parse(JSON.stringify(state.tree)) as TreeItem[]
-      
+
       const removeItem = (items: TreeItem[]): boolean => {
         for (let i = 0; i < items.length; i++) {
           if (items[i].masterId === masterId) {
@@ -351,7 +359,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         masterId: tempId,
         title,
         masterParentId: parentId,
-        sortOrder: 0,
+        position: 0,
         children: []
       }
 
@@ -400,7 +408,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         title,
         url,
         masterParentId: parentId,
-        sortOrder: 0
+        position: 0
       }
 
       if (parentId) {
@@ -429,6 +437,73 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     })
   },
 
+  importSourceItems: (sourceItems, targetParentId, sourceCollectionId) => {
+    const change: EditorChange = {
+      type: 'COPY_FROM',
+      itemType: 'folder',
+      sourceCollectionId,
+      copyItems: sourceItems.map(item => ({
+        masterId: item.masterId,
+        type: item.type,
+        targetParentId,
+      })),
+    }
+
+    const buildLocalItems = (items: ImportSourceItem[], parentId: string | null): TreeItem[] => {
+      return items.map(item => {
+        const tempId = `import-${item.masterId}-${Date.now()}`
+        const treeItem: TreeItem = {
+          type: item.type,
+          id: tempId,
+          masterId: tempId,
+          title: item.title,
+          url: item.url,
+          favicon: item.favicon,
+          masterParentId: parentId,
+          position: 0,
+          ...(item.type === 'folder' ? {
+            children: item.children ? buildLocalItems(item.children, tempId) : []
+          } : {})
+        }
+        return treeItem
+      })
+    }
+
+    set(state => {
+      const newTree = JSON.parse(JSON.stringify(state.tree)) as TreeItem[]
+      const localItems = buildLocalItems(sourceItems, targetParentId)
+
+      if (targetParentId) {
+        const insertIntoFolder = (items: TreeItem[]): boolean => {
+          for (const item of items) {
+            if (item.masterId === targetParentId && item.children) {
+              item.children.push(...localItems)
+              return true
+            }
+            if (item.children && insertIntoFolder(item.children)) {
+              return true
+            }
+          }
+          return false
+        }
+        insertIntoFolder(newTree)
+      } else {
+        newTree.push(...localItems)
+      }
+
+      const newExpanded = new Set(state.expandedFolders)
+      if (targetParentId) newExpanded.add(targetParentId)
+      localItems.filter(i => i.type === 'folder').forEach(i => newExpanded.add(i.masterId))
+
+      return {
+        tree: newTree,
+        expandedFolders: newExpanded,
+        pendingChanges: [...state.pendingChanges, change],
+        hasUnsavedChanges: true
+      }
+    })
+  },
+
   getChanges: () => get().pendingChanges,
 
   clearChanges: () => set({ pendingChanges: [], hasUnsavedChanges: false }),
@@ -439,7 +514,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const topLevelIds = tree
       .filter(item => item.type === 'folder')
       .map(item => item.masterId)
-    
+
     set({
       tree,
       expandedFolders: new Set(topLevelIds),

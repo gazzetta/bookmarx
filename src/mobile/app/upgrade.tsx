@@ -41,10 +41,10 @@ export default function UpgradeScreen() {
 
   const handleUpgrade = async () => {
     setIsProcessing(true);
-    
+
     // In production, this would redirect to Polar checkout
-    const checkoutUrl = `https://bookmarx.io/checkout?plan=${selectedPlan}&email=${encodeURIComponent(user?.email || '')}`;
-    
+    const checkoutUrl = `https://bookmarx.gasdigital.co.uk/checkout?plan=${selectedPlan}&email=${encodeURIComponent(user?.email || '')}`;
+
     try {
       const supported = await Linking.canOpenURL(checkoutUrl);
       if (supported) {
@@ -55,12 +55,12 @@ export default function UpgradeScreen() {
     } catch (error) {
       Alert.alert('Error', 'Failed to start checkout process');
     }
-    
+
     setIsProcessing(false);
   };
 
   const handleManageSubscription = async () => {
-    const portalUrl = 'https://bookmarx.io/account/subscription';
+    const portalUrl = 'https://bookmarx.gasdigital.co.uk/account/subscription';
     try {
       await Linking.openURL(portalUrl);
     } catch (error) {
@@ -84,10 +84,10 @@ export default function UpgradeScreen() {
             <Text style={styles.currentPlanLabel}>Current Plan</Text>
             <PremiumBadge tier={currentTier} size="large" />
           </View>
-          
+
           {user?.subscriptionEndsAt && (
             <Text style={styles.renewalDate}>
-              {currentTier === 'lifetime' 
+              {currentTier === 'lifetime'
                 ? 'Lifetime access - never expires'
                 : `Renews on ${new Date(user.subscriptionEndsAt).toLocaleDateString()}`
               }
@@ -97,24 +97,24 @@ export default function UpgradeScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Usage</Text>
-          
+
           {stats && (
             <>
-              <UsageLimitBar 
-                current={stats.bookmarkCount} 
-                max={stats.limits.maxBookmarks} 
+              <UsageLimitBar
+                current={stats.bookmarkCount}
+                max={stats.limits.maxBookmarks}
                 label="Bookmarks"
                 isPremium={isPremium}
               />
-              <UsageLimitBar 
-                current={stats.browserCount} 
-                max={stats.limits.maxBrowsers} 
+              <UsageLimitBar
+                current={stats.browserCount}
+                max={stats.limits.maxBrowsers}
                 label="Connected Browsers"
                 isPremium={isPremium}
               />
-              <UsageLimitBar 
-                current={stats.collectionCount} 
-                max={stats.limits.maxCollections} 
+              <UsageLimitBar
+                current={stats.collectionCount}
+                max={stats.limits.maxCollections}
                 label="Collections"
                 isPremium={isPremium}
               />
@@ -127,7 +127,7 @@ export default function UpgradeScreen() {
           <PremiumFeatureList currentTier={currentTier} />
         </View>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.manageButton}
           onPress={handleManageSubscription}
         >
@@ -167,15 +167,15 @@ export default function UpgradeScreen() {
       {stats && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Current Usage</Text>
-          <UsageLimitBar 
-            current={stats.bookmarkCount} 
-            max={stats.limits.maxBookmarks} 
+          <UsageLimitBar
+            current={stats.bookmarkCount}
+            max={stats.limits.maxBookmarks}
             label="Bookmarks"
             isPremium={false}
           />
-          <UsageLimitBar 
-            current={stats.browserCount} 
-            max={stats.limits.maxBrowsers} 
+          <UsageLimitBar
+            current={stats.browserCount}
+            max={stats.limits.maxBrowsers}
             label="Connected Browsers"
             isPremium={false}
           />
@@ -184,7 +184,7 @@ export default function UpgradeScreen() {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Choose a Plan</Text>
-        
+
         {PRICING_PLANS.map((plan) => (
           <TouchableOpacity
             key={plan.id}
@@ -200,7 +200,7 @@ export default function UpgradeScreen() {
                 <Text style={styles.popularBadgeText}>Most Popular</Text>
               </View>
             )}
-            
+
             <View style={styles.planRadio}>
               <View style={[
                 styles.radioOuter,
@@ -209,14 +209,14 @@ export default function UpgradeScreen() {
                 {selectedPlan === plan.id && <View style={styles.radioInner} />}
               </View>
             </View>
-            
+
             <View style={styles.planInfo}>
               <Text style={styles.planName}>{plan.name}</Text>
               {plan.savings && (
                 <Text style={styles.planSavings}>{plan.savings}</Text>
               )}
             </View>
-            
+
             <View style={styles.planPricing}>
               <Text style={styles.planPrice}>{plan.price}</Text>
               <Text style={styles.planPeriod}>{plan.period}</Text>
@@ -230,7 +230,7 @@ export default function UpgradeScreen() {
         <PremiumFeatureList currentTier="free" />
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.upgradeButton, isProcessing && styles.upgradeButtonDisabled]}
         onPress={handleUpgrade}
         disabled={isProcessing}
@@ -251,7 +251,7 @@ export default function UpgradeScreen() {
         <Text style={styles.footerText}>
           Cancel anytime. 30-day money-back guarantee.
         </Text>
-        <TouchableOpacity onPress={() => Linking.openURL('https://bookmarx.io/terms')}>
+        <TouchableOpacity onPress={() => Linking.openURL('https://bookmarx.gasdigital.co.uk/terms')}>
           <Text style={styles.footerLink}>Terms of Service</Text>
         </TouchableOpacity>
       </View>

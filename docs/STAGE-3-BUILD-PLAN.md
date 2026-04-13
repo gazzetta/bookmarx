@@ -354,7 +354,7 @@ public rollbackSession(sessionId: string, userId: string): number {
 | Premium gating | Hard to enforce | Easy server-side checks |
 | Rich UI | Limited | Full React/Next.js power |
 
-**Decision:** Host the Collection Editor on the website (`app.bookmarx.io/editor`)
+**Decision:** Host the Collection Editor on the website (`bookmarx.gasdigital.co.uk/editor`)
 
 ### 5.2 Website Pages Structure
 **Directory:** `src/website/app/`
@@ -480,7 +480,7 @@ editMasterBtn?.addEventListener('click', async () => {
   const user = await storageManager.getUser();
   if (user?.subscriptionTier === 'premium') {
     // Open web editor
-    chrome.tabs.create({ url: 'https://app.bookmarx.io/collections/master/edit' });
+    chrome.tabs.create({ url: 'https://bookmarx.gasdigital.co.uk/collections/master/edit' });
   } else {
     // Show upgrade prompt
     showUpgradePrompt();

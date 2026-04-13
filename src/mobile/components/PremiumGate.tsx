@@ -175,9 +175,10 @@ interface UsageLimitBarProps {
  * Progress bar showing usage against limits
  */
 export function UsageLimitBar({ current, max, label, isPremium }: UsageLimitBarProps) {
-  const percentage = max ? Math.min((current / max) * 100, 100) : 0;
-  const isNearLimit = max && percentage >= 80;
-  const isAtLimit = max && percentage >= 100;
+  const hasLimit = max !== null;
+  const percentage = hasLimit ? Math.min((current / max) * 100, 100) : 0;
+  const isNearLimit = hasLimit && percentage >= 80;
+  const isAtLimit = hasLimit && percentage >= 100;
 
   return (
     <View style={styles.usageContainer}>

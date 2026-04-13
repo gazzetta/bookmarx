@@ -2,6 +2,7 @@ import { BookmarkManager } from './BookmarkManager';
 import { SyncManager } from './SyncManager';
 import { StorageManager } from './StorageManager';
 import { detectBrowser } from './utils/browserDetect';
+import { API_BASE_URL } from '../config';
 
 class BackgroundService {
     private bookmarkManager: BookmarkManager;
@@ -45,7 +46,7 @@ class BackgroundService {
                 void this.checkSyncStatusAndNotify();
             }
         });
-    
+
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             if (message.action === 'getAuthState') {
                 // Use callback style for Firefox MV2 compatibility
@@ -157,6 +158,64 @@ class BackgroundService {
                 return true;
             }
 
+            if (message.action === 'googleLogin') {
+                (async () => {
+                    try {
+                        const redirectUrl = chrome.identity.getRedirectURL();
+                        const clientId = '669480413219-sv4vq2de70at057ra24jis15bftota8g.apps.googleusercontent.com';
+                        const scopes = encodeURIComponent('email profile');
+                        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUrl)}&scope=${scopes}`;
+
+                        console.log('[GoogleLogin] Redirect URL:', redirectUrl);
+                        console.log('[GoogleLogin] Client ID:', clientId);
+                        console.log('[GoogleLogin] Starting launchWebAuthFlow...');
+
+                        const responseUrl = await new Promise<string>((resolve, reject) => {
+                            chrome.identity.launchWebAuthFlow(
+                                { url: authUrl, interactive: true },
+                                (callbackUrl) => {
+                                    if (chrome.runtime.lastError || !callbackUrl) {
+                                        console.error('[GoogleLogin] launchWebAuthFlow error:', chrome.runtime.lastError);
+                                        reject(new Error(chrome.runtime.lastError?.message || 'Google authorization failed'));
+                                        return;
+                                    }
+                                    resolve(callbackUrl);
+                                }
+                            );
+                        });
+
+                        const hashParams = new URLSearchParams(responseUrl.split('#')[1]);
+                        const accessToken = hashParams.get('access_token');
+                        if (!accessToken) {
+                            throw new Error('No access token in Google response');
+                        }
+
+                        console.log('[GoogleLogin] Got access token, calling backend API...');
+                        const response = await fetch(`${API_BASE_URL}/api/v1/auth/google`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ accessToken })
+                        });
+
+                        const payload = await response.json();
+                        if (!response.ok || !payload.success) {
+                            throw new Error(payload.error?.message || 'Google login failed');
+                        }
+
+                        await this.storageManager.setAuth(payload.data);
+                        console.log('[GoogleLogin] Auth stored successfully');
+                        sendResponse({ success: true, data: payload.data });
+                    } catch (error) {
+                        console.error('[GoogleLogin] Error:', error);
+                        sendResponse({
+                            success: false,
+                            error: { message: error instanceof Error ? error.message : 'Google login failed' }
+                        });
+                    }
+                })();
+                return true;
+            }
+
             if (message.action === 'clearAuth') {
                 (async () => {
                     try {
@@ -214,15 +273,28 @@ class BackgroundService {
                         sendResponse({ success: result });
                     })
                     .catch(error => {
-                        console.error('Sync error:', error);
-                        sendResponse({
-                            success: false,
-                            error: error instanceof Error ? error.message : 'Unknown error'
-                        });
+                        // Check if this is a LimitError with additional details
+                        if (error.name === 'LimitError') {
+                            console.warn('Sync blocked by limit:', error.message);
+                            sendResponse({
+                                success: false,
+                                error: {
+                                    message: error.message,
+                                    code: error.code,
+                                    upgradeUrl: error.upgradeUrl
+                                }
+                            });
+                        } else {
+                            console.error('Sync error:', error);
+                            sendResponse({
+                                success: false,
+                                error: { message: error instanceof Error ? error.message : 'Unknown error' }
+                            });
+                        }
                     });
                 return true; // Keep the message channel open for async response
             }
-            
+
             // Get master collection summary
             if (message.action === 'getMasterCollectionSummary') {
                 console.log('Received request for master collection summary');
@@ -240,7 +312,31 @@ class BackgroundService {
                     });
                 return true; // Keep the message channel open for async response
             }
-            
+
+            // Get master collection URLs for comparison with local bookmarks
+            if (message.action === 'getMasterCollectionUrls') {
+                (async () => {
+                    try {
+                        const masterData = await this.syncManager.fetchMasterCollectionPublic();
+                        if (!masterData.success) {
+                            sendResponse({ success: false, error: masterData.error });
+                            return;
+                        }
+                        const urls = new Set<string>();
+                        for (const b of masterData.data?.bookmarks || []) {
+                            if (b.url) urls.add(b.url.toLowerCase().trim());
+                        }
+                        sendResponse({ success: true, data: { urls: Array.from(urls) } });
+                    } catch (error) {
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true;
+            }
+
             // Overwrite from master collection
             if (message.action === 'overwriteFromMaster') {
                 console.log('Received request to overwrite from master collection');
@@ -294,7 +390,7 @@ class BackgroundService {
                     });
                 return true; // Keep the message channel open for async response
             }
-    
+
             // Sync status handler
             if (message.action === 'getSyncStatus') {
                 (async () => {
@@ -347,7 +443,7 @@ class BackgroundService {
                         sendResponse({
                             success: true,
                             data: {
-                                isInitialSync: needsInitialSync,
+                                needsInitialSync,
                                 local,
                                 remote
                             }
@@ -412,7 +508,7 @@ class BackgroundService {
     }
 
     private async getServerSyncStatus(authToken: string, browserInstanceId: string): Promise<any> {
-        const response = await fetch('http://localhost:3005/api/v1/sync/status', {
+        const response = await fetch(`${API_BASE_URL}/api/v1/sync/status`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -425,13 +521,13 @@ class BackgroundService {
         if (response.status === 401) {
             const data = await response.json().catch(() => ({}));
             const code = data?.error?.code;
-            
+
             // If user not found in database, clear local auth
             if (code === 'USER_NOT_FOUND') {
                 console.warn('[Background] User not found in database, clearing local auth');
                 await this.storageManager.clearAuth();
             }
-            
+
             throw new Error(data?.error?.message || 'Authentication failed');
         }
 
@@ -552,7 +648,7 @@ class BackgroundService {
     private async handleFirstInstall(): Promise<void> {
         // Initialize extension data and settings
         await this.storageManager.setDefaults();
-        
+
         // For now, just log that installation is complete
         console.log('BookMarx installed successfully');
     }

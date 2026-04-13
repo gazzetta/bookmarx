@@ -1,3 +1,5 @@
+import { API_BASE_URL, WEBSITE_BASE_URL } from '../config';
+
 interface BookmarkNode {
     id: string;
     title: string;
@@ -65,13 +67,13 @@ class MasterCollectionView {
             const userId = auth.user.id;
             const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             const isPremium = auth.user.isPremium || auth.user.subscriptionTier === 'premium';
-            
+
             // Build user info with optional edit link
             let userInfoHtml = `Signed in: ${auth.user.email} • Times shown in: ${timeZone}`;
             if (isPremium) {
-                userInfoHtml += ` • <a href="http://localhost:3006/collections/default/edit" target="_blank" style="color: #f59e0b; text-decoration: none;">✏️ Edit in Web</a>`;
+                userInfoHtml += ` • <a href="${WEBSITE_BASE_URL}/collections/default/edit" target="_blank" style="color: #f59e0b; text-decoration: none;">✏️ Edit in Web</a>`;
             } else {
-                userInfoHtml += ` • <a href="http://localhost:3006/settings/subscription" target="_blank" style="color: #888; text-decoration: none;">⭐ Upgrade to Edit</a>`;
+                userInfoHtml += ` • <a href="${WEBSITE_BASE_URL}/settings/subscription" target="_blank" style="color: #888; text-decoration: none;">⭐ Upgrade to Edit</a>`;
             }
             this.userInfo.innerHTML = userInfoHtml;
 
@@ -104,7 +106,7 @@ class MasterCollectionView {
 
     private async fetchMasterCollection(userId: string, token: string): Promise<BookmarkNode[]> {
         try {
-            const apiUrl = `http://localhost:3005/api/v1/bookmarks/tree/${userId}`;
+            const apiUrl = `${API_BASE_URL}/api/v1/bookmarks/tree/${userId}`;
             console.log('Fetching from:', apiUrl);
 
             const response = await fetch(apiUrl, {
@@ -168,17 +170,13 @@ class MasterCollectionView {
             const auth = await this.getAuth();
             const userId = auth?.user.id || 'unknown';
             parentElement.innerHTML = `
-                <div class="empty-state" style="text-align: center; padding: 20px;">
-                    <h2 style="margin-bottom: 16px;">No Bookmarks Found</h2>
-                    <p style="color: #666; margin-bottom: 12px;">
-                        Your bookmark collection is empty. To get started:
+                <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-text">No Bookmarks Found</div>
+                    <p style="color: #94a3b8; margin: 12px 0;">
+                        Your bookmark collection is empty.
                     </p>
-                    <ol style="text-align: left; max-width: 400px; margin: 0 auto; line-height: 1.6;">
-                        <li>Click the BookMarx extension icon in your browser</li>
-                        <li>Select "Import Bookmarks" to import your existing browser bookmarks</li>
-                        <li>Or create new bookmarks using the "Add Bookmark" button</li>
-                    </ol>
-                    <div style="margin-top: 16px; color: #888; font-size: 0.9em;">
+                    <div style="margin-top: 16px; color: #cbd5e1; font-size: 0.8em; font-family: monospace;">
                         User ID: ${userId}
                     </div>
                 </div>
@@ -200,32 +198,60 @@ class MasterCollectionView {
                 const link = document.createElement('a');
                 link.href = node.url;
                 link.className = 'bookmark-link';
-                link.innerHTML = `- <span class="bookmark-title">${node.title}</span> <span class="bookmark-url" style="color: #888; font-size: 0.9em; margin-left: 8px;">[${node.url}]</span>`;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
 
+                // Icon
+                const icon = document.createElement('div');
+                icon.className = 'bookmark-icon';
+                icon.textContent = '🔖'; // Could be replaced with favicon image if available
+
+                // Info (Title + URL)
+                const info = document.createElement('div');
+                info.className = 'bookmark-info';
+
+                const title = document.createElement('div');
+                title.className = 'bookmark-title';
+                title.textContent = node.title || 'Untitled';
+
+                const url = document.createElement('div');
+                url.className = 'bookmark-url';
+                // Remove protocol for cleaner display
+                url.textContent = node.url.replace(/^https?:\/\/(www\.)?/, '');
+
+                info.appendChild(title);
+                info.appendChild(url);
+
+                // Meta (Source + Dates)
                 const meta = document.createElement('div');
                 meta.className = 'bookmark-meta';
+
+                // Format browser name with proper capitalization
+                if (node.sourceBrowser) {
+                    const browserName = node.sourceBrowser.charAt(0).toUpperCase() + node.sourceBrowser.slice(1);
+                    const browserPill = document.createElement('span');
+                    browserPill.className = 'pill';
+                    browserPill.textContent = browserName;
+                    meta.appendChild(browserPill);
+                    meta.appendChild(document.createElement('br'));
+                }
+
                 const chromeAdded = this.formatDate(node.dateAdded);
                 const dbAdded = this.formatDate(node.createdAt);
-                const showEdited = typeof node.updatedAt === 'number'
-                    && typeof node.createdAt === 'number'
-                    && node.updatedAt > node.createdAt;
-                const dbEdited = this.formatDate(node.updatedAt);
-                
-                // Format browser name with proper capitalization
-                const browserName = node.sourceBrowser 
-                    ? node.sourceBrowser.charAt(0).toUpperCase() + node.sourceBrowser.slice(1)
-                    : 'Unknown';
-                
-                let metaHtml = `${browserName} added: <span class="date-chrome">${chromeAdded}</span> <br /> DB added: <span class="date-db">${dbAdded}</span>`;
-                if (showEdited) {
-                    metaHtml += ` <br /> Edited: <span class="date-edited">${dbEdited}</span>`;
-                }
-                meta.innerHTML = metaHtml;
+
+                const dateInfo = document.createElement('span');
+                // dateInfo.innerHTML = `Added: ${dbAdded}`;
+                // Simplified meta for cleaner look, hover for details? 
+                // For now keeping it simple
+                dateInfo.textContent = dbAdded.split(',')[0]; // Just the date
+                meta.appendChild(document.createTextNode(' '));
+                meta.appendChild(dateInfo);
+
+                link.appendChild(icon);
+                link.appendChild(info);
+                link.appendChild(meta);
 
                 bookmarkDiv.appendChild(link);
-                bookmarkDiv.appendChild(meta);
                 parentElement.appendChild(bookmarkDiv);
             } else {
                 // Render folder
@@ -234,25 +260,45 @@ class MasterCollectionView {
 
                 const folderName = document.createElement('div');
                 folderName.className = 'folder-name';
-                folderName.innerHTML = `<span class="folder-icon">📂</span> <span class="folder-title">${node.title}</span>`;
+
+                const icon = document.createElement('div');
+                icon.className = 'folder-icon';
+                icon.textContent = '📁';
+
+                const title = document.createElement('div');
+                title.className = 'folder-title';
+                title.textContent = node.title || 'Untitled';
+
+                // Optional: Count (not available in node currently without calculation)
+
+                folderName.appendChild(icon);
+                folderName.appendChild(title);
 
                 const childrenDiv = document.createElement('div');
                 childrenDiv.className = 'folder-children';
+
+                // Folders default to expanded or based on preference? 
+                // Defaulting to expanded for now
 
                 folderDiv.appendChild(folderName);
                 folderDiv.appendChild(childrenDiv);
                 parentElement.appendChild(folderDiv);
 
                 // Handle folder click
-                folderName.addEventListener('click', () => {
+                folderName.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     childrenDiv.classList.toggle('collapsed');
-                    const icon = folderName.querySelector('.folder-icon') as HTMLElement;
-                    icon.textContent = childrenDiv.classList.contains('collapsed') ? '📁' : '📂';
+                    const isCollapsed = childrenDiv.classList.contains('collapsed');
+                    icon.textContent = isCollapsed ? '📁' : '📂';
+                    folderName.style.opacity = isCollapsed ? '0.7' : '1';
                 });
 
                 // Render children if any
                 if (node.children && Array.isArray(node.children) && node.children.length > 0) {
                     this.renderTree(node.children, childrenDiv);
+                } else {
+                    // Empty folder indicator?
+                    // childrenDiv.innerHTML = '<div style="padding: 8px 16px; color: #cbd5e1; font-size: 0.8em; font-style: italic;">Empty</div>';
                 }
             }
         });

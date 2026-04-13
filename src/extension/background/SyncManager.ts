@@ -1,5 +1,6 @@
 import { StorageManager } from './StorageManager';
 import { detectBrowser } from './utils/browserDetect';
+import { API_BASE_URL } from '../config';
 
 interface SyncResponse {
     success: boolean;
@@ -37,14 +38,28 @@ export class AuthError extends Error {
     }
 }
 
+// Custom error for subscription limit exceeded (bookmarks, browsers, etc.)
+export class LimitError extends Error {
+    constructor(
+        message: string,
+        public code: string,
+        public upgradeUrl: string
+    ) {
+        super(message);
+        this.name = 'LimitError';
+    }
+}
+
 export class SyncManager {
     private syncInProgress: boolean = false;
     private readonly SYNC_RETRY_DELAY = 5000; // 5 seconds
     private readonly MAX_RETRY_ATTEMPTS = 3;
     private retryCount = 0;
-    private readonly API_ENDPOINT = 'http://localhost:3005/api/v1/sync'; // We'll update this later
+    private readonly API_BASE = `${API_BASE_URL}/api/v1`;
+    private readonly API_ENDPOINT = `${this.API_BASE}/sync`;
+    private appConfig: any = null;
 
-    constructor(private storageManager: StorageManager) {}
+    constructor(private storageManager: StorageManager) { }
 
     // Safe wrapper for chrome.bookmarks.getTree() that works in both Chrome and Firefox
     private async getBookmarkTree(): Promise<chrome.bookmarks.BookmarkTreeNode[]> {
@@ -77,22 +92,44 @@ export class SyncManager {
         if (response.status === 401) {
             const data = await response.json().catch(() => ({}));
             const code = data?.error?.code;
-            
+
             // If user not found, clear local auth
             if (code === 'USER_NOT_FOUND') {
                 console.warn('[SyncManager] User not found in database, clearing local auth');
                 await this.storageManager.clearAuth();
                 throw new AuthError('Your session has expired. Please log in again.', code);
             }
-            
+
             throw new AuthError(data?.error?.message || 'Authentication failed');
         }
     }
 
     public async initialize(): Promise<void> {
+        // Fetch config on init
+        await this.fetchAppConfig();
+
         // We'll only set up the schedule if autoSync gets enabled later
         if (await this.isAutoSyncEnabled()) {
             await this.setupSyncSchedule();
+        }
+    }
+
+    private async fetchAppConfig(): Promise<void> {
+        try {
+            const response = await fetch(`${this.API_BASE}/config`);
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    this.appConfig = result.data;
+                }
+            }
+        } catch (error) {
+            console.error('[SyncManager] Failed to fetch app config:', error);
+            // Fallback to defaults if fetch fails
+            this.appConfig = {
+                branding: { premiumTitle: 'Premium' },
+                limits: { premium: { bookmarks: 10000, browsers: 100 } }
+            };
         }
     }
 
@@ -152,8 +189,12 @@ export class SyncManager {
                 throw new Error(response.error || 'Sync failed');
             }
 
-        } catch (error) {
-            console.error('Sync error:', error);
+        } catch (error: any) {
+            if (error.name === 'LimitError') {
+                console.warn('Sync blocked by limit:', error.message);
+            } else {
+                console.error('Sync error:', error);
+            }
             throw error;
         } finally {
             this.syncInProgress = false;
@@ -169,7 +210,7 @@ export class SyncManager {
             const deviceId = await this.storageManager.getDeviceId();
             const browserInstanceId = await this.storageManager.getBrowserInstanceId();
             const userId = await this.storageManager.getUserId();
-            
+
             // Get device info for metadata
             const browserInfo = await detectBrowser();
             const deviceInfo = {
@@ -240,17 +281,24 @@ export class SyncManager {
         try {
             console.log('\n=== Starting Initial Sync ===');
 
+            // Ensure we have config
+            if (!this.appConfig) {
+                await this.fetchAppConfig();
+            }
+
             const authToken = await this.storageManager.getAuthToken();
             if (!authToken) {
                 throw new Error('Not authenticated');
             }
-            
+
+            // ... (bookmark tree processing and device info logic remains the same) ...
+
             // Get all bookmarks using safe wrapper
             const tree = await this.getBookmarkTree();
             const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
-            
+
             console.log(`Preparing to sync ${bookmarks.length} bookmarks and ${folders.length} folders`);
-            
+
             // Get device info
             const browserInfo = await detectBrowser();
             const deviceInfo = {
@@ -268,14 +316,14 @@ export class SyncManager {
             }
 
             console.log('Device Info:', deviceInfo);
-            
+
             // Prepare sync metadata
             const metadata = {
                 deviceInfo,
                 userAgent: navigator.userAgent,
                 timestamp: Date.now()
             };
-            
+
             // Send to server
             console.log('\nSending initial sync request to server...');
             const userId = await this.storageManager.getUserId();
@@ -297,12 +345,61 @@ export class SyncManager {
                 })
             });
 
+            // Parse response - even error responses have JSON body
+            const result = await response.json();
+
             if (!response.ok) {
-                console.error('Server response not OK:', response.status);
-                throw new Error('Failed to send initial sync');
+                // Check if it's a limit error (business logic) vs actual error
+                const isLimitError = ['BOOKMARK_LIMIT_REACHED', 'BROWSER_LIMIT_REACHED', 'BROWSER_REGISTRATION_RATE_LIMITED'].includes(result?.error?.code);
+
+                if (isLimitError) {
+                    console.warn('Sync blocked by limit:', response.status, result?.error?.message);
+                } else {
+                    console.error('Server response not OK:', response.status, result);
+                }
+
+                // Check for specific error codes and provide user-friendly messages
+                const errorCode = result?.error?.code;
+                const errorMessage = result?.error?.message;
+                const premiumTitle = this.appConfig?.branding?.premiumTitle || 'Premium';
+                const premiumBookmarks = this.appConfig?.limits?.premium?.bookmarks || 10000;
+                const premiumBrowsers = this.appConfig?.limits?.premium?.browsers || 100;
+
+                if (errorCode === 'BOOKMARK_LIMIT_REACHED') {
+                    const limit = result.error.limit || 250;
+                    const attemptedToAdd = result.error.attemptedToAdd || bookmarks.length;
+                    throw new LimitError(
+                        `You have ${attemptedToAdd} bookmarks but the free plan only allows ${limit}. ` +
+                        `Please upgrade to ${premiumTitle} for ${premiumBookmarks.toLocaleString()} bookmarks.`,
+                        'BOOKMARK_LIMIT_REACHED',
+                        result.error.upgradeUrl || 'https://bookmarx.gasdigital.co.uk/upgrade'
+                    );
+                }
+
+                if (errorCode === 'BROWSER_LIMIT_REACHED') {
+                    const limit = result.error.limit || 2;
+                    throw new LimitError(
+                        `You've reached your limit of ${limit} browsers. ` +
+                        `Please remove a browser or upgrade to ${premiumTitle} for up to ${premiumBrowsers} browsers.`,
+                        'BROWSER_LIMIT_REACHED',
+                        result.error.upgradeUrl || 'https://bookmarx.gasdigital.co.uk/upgrade'
+                    );
+                }
+
+                if (errorCode === 'BROWSER_REGISTRATION_RATE_LIMITED') {
+                    throw new LimitError(
+                        `You've registered too many browsers recently. Please wait or upgrade to ${premiumTitle}.`,
+                        'BROWSER_REGISTRATION_RATE_LIMITED',
+                        result.error.upgradeUrl || 'https://bookmarx.gasdigital.co.uk/upgrade'
+                    );
+                }
+
+                // Generic error
+                throw new Error(errorMessage || 'Failed to send initial sync');
             }
 
-            const result = await response.json();
+            // ... (rest of success handling) ...
+
             console.log('\nInitial sync response:', result);
 
             if (result.success) {
@@ -331,13 +428,13 @@ export class SyncManager {
             if (!authToken) {
                 throw new Error('Not authenticated');
             }
-            
+
             // Get all bookmarks using safe wrapper
             const tree = await this.getBookmarkTree();
             const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
-            
+
             console.log(`Preparing to merge ${bookmarks.length} bookmarks and ${folders.length} folders`);
-            
+
             // Get device info
             const browserInfo = await detectBrowser();
             const deviceInfo = {
@@ -355,14 +452,14 @@ export class SyncManager {
             }
 
             console.log('Device Info:', deviceInfo);
-            
+
             // Prepare sync metadata
             const metadata = {
                 deviceInfo,
                 userAgent: navigator.userAgent,
                 timestamp: Date.now()
             };
-            
+
             // Send to server merge endpoint
             console.log('\nSending merge request to server...');
             const userId = await this.storageManager.getUserId();
@@ -433,7 +530,7 @@ export class SyncManager {
                     bookmarks.push({
                         id: node.id,           // Server expects 'id' for mapping
                         browserId: node.id,
-                        userId: 'default',  
+                        userId: 'default',
                         title: node.title,
                         url: node.url,
                         parentId: node.parentId,
@@ -444,7 +541,7 @@ export class SyncManager {
                     folders.push({
                         id: node.id,           // Server expects 'id' for mapping
                         browserId: node.id,
-                        userId: 'default',  
+                        userId: 'default',
                         title: node.title,
                         parentId: node.parentId,
                         position: node.index || 0,
@@ -510,7 +607,7 @@ export class SyncManager {
         const changes: chrome.bookmarks.BookmarkChangesArg = {};
         if (change.data.changes.title) changes.title = change.data.changes.title;
         if (change.data.changes.url) changes.url = change.data.changes.url;
-        
+
         await chrome.bookmarks.update(change.data.id, changes);
     }
 
@@ -622,7 +719,7 @@ export class SyncManager {
         if (!authToken) {
             throw new Error('Not authenticated');
         }
-        
+
         const response = await fetch(`${this.API_ENDPOINT}/status`, {
             method: 'GET',
             headers: {
@@ -648,7 +745,7 @@ export class SyncManager {
             }
             const deviceId = await this.storageManager.getDeviceId();
             const userId = await this.storageManager.getUserId();
-            
+
             const response = await fetch(`${this.API_ENDPOINT}/master-summary`, {
                 method: 'GET',
                 headers: {
@@ -729,7 +826,7 @@ export class SyncManager {
             }
 
             const { changes, summary } = result.data;
-            
+
             if (summary.total === 0) {
                 console.log('No pending changes to apply');
                 return {
@@ -758,26 +855,26 @@ export class SyncManager {
             // 1. Create new folders (parent folders first)
             if (changes.creates.folders.length > 0) {
                 const folderIdMap: Record<string, string> = {}; // masterId -> new local id
-                
+
                 // Sort folders by creation time to handle parent-child ordering
-                const sortedFolders = [...changes.creates.folders].sort((a: any, b: any) => 
+                const sortedFolders = [...changes.creates.folders].sort((a: any, b: any) =>
                     (a.createdAt || 0) - (b.createdAt || 0)
                 );
 
                 for (const folder of sortedFolders) {
                     try {
                         const parentId = await this.resolveParentIdForSync(
-                            folder.masterParentId, 
-                            folder.parentId, 
-                            localFolderMap, 
+                            folder.masterParentId,
+                            folder.parentId,
+                            localFolderMap,
                             folderIdMap
                         );
-                        
+
                         const newFolder = await chrome.bookmarks.create({
                             parentId,
                             title: folder.title
                         });
-                        
+
                         folderIdMap[folder.masterId] = newFolder.id;
                         localFolderMap.set(folder.masterId, newFolder.id);
                         applied.creates.folders++;
@@ -793,18 +890,18 @@ export class SyncManager {
                 for (const bookmark of changes.creates.bookmarks) {
                     try {
                         const parentId = await this.resolveParentIdForSync(
-                            bookmark.masterParentId, 
-                            bookmark.parentId, 
-                            localFolderMap, 
+                            bookmark.masterParentId,
+                            bookmark.parentId,
+                            localFolderMap,
                             {}
                         );
-                        
+
                         await chrome.bookmarks.create({
                             parentId,
                             title: bookmark.title,
                             url: bookmark.url
                         });
-                        
+
                         applied.creates.bookmarks++;
                         console.log(`Created bookmark: ${bookmark.title}`);
                     } catch (error) {
@@ -890,7 +987,7 @@ export class SyncManager {
             await this.acknowledgeSyncDown(summary.total);
             await this.storageManager.updateLastSync();
 
-            const totalApplied = 
+            const totalApplied =
                 applied.creates.folders + applied.creates.bookmarks +
                 applied.updates.folders + applied.updates.bookmarks +
                 applied.deletes.folders + applied.deletes.bookmarks;
@@ -932,7 +1029,7 @@ export class SyncManager {
     }> {
         const localFolderMap = new Map<string, string>();
         const localBookmarkMap = new Map<string, string>();
-        
+
         // For now, we need to fetch the master collection to get masterId mappings
         // In the future, we could store these locally during initial sync
         const masterCollection = await this.fetchMasterCollection();
@@ -986,7 +1083,7 @@ export class SyncManager {
                 if (masterId) {
                     localFolderMap.set(masterId, node.id);
                 }
-                
+
                 // Process children
                 for (const child of node.children || []) {
                     processNode(child, [...pathParts, node.title.toLowerCase()]);
@@ -995,7 +1092,7 @@ export class SyncManager {
         };
 
         processNode(rootNode, []);
-        
+
         console.log(`Built local ID maps: ${localFolderMap.size} folders, ${localBookmarkMap.size} bookmarks`);
         return { localFolderMap, localBookmarkMap };
     }
@@ -1130,22 +1227,22 @@ export class SyncManager {
             console.log('Starting overwrite from master collection...');
 
             await this.storageManager.clearQueuedChanges();
-            
+
             // Get the master collection from the server
             const masterCollection = await this.fetchMasterCollection();
             if (!masterCollection.success) {
                 throw new Error(masterCollection.error || 'Failed to fetch master collection');
             }
-            
+
             // Clear local bookmarks (except root folders)
             await this.clearLocalBookmarks();
-            
+
             // Restore bookmarks from master collection
             await this.restoreFromMasterCollection(masterCollection.data);
-            
+
             // Update last sync timestamp
             await this.storageManager.updateLastSync();
-            
+
             return { success: true };
         } catch (error) {
             console.error('Overwrite error:', error);
@@ -1161,7 +1258,11 @@ export class SyncManager {
             }
         }
     }
-    
+
+    public async fetchMasterCollectionPublic(): Promise<any> {
+        return this.fetchMasterCollection();
+    }
+
     private async fetchMasterCollection(): Promise<any> {
         try {
             const authToken = await this.storageManager.getAuthToken();
@@ -1170,7 +1271,7 @@ export class SyncManager {
             }
             const deviceId = await this.storageManager.getDeviceId();
             const userId = await this.storageManager.getUserId();
-            
+
             const response = await fetch(`${this.API_ENDPOINT}/master-collection`, {
                 method: 'GET',
                 headers: {
@@ -1194,20 +1295,20 @@ export class SyncManager {
             };
         }
     }
-    
+
     private async clearLocalBookmarks(): Promise<void> {
         console.log('Clearing local bookmarks...');
-        
+
         // Get all bookmarks using safe wrapper
         const tree = await this.getBookmarkTree();
-        
+
         // Log the tree structure for debugging
         console.log('[clearLocalBookmarks] Tree structure:', JSON.stringify({
             rootId: tree[0]?.id,
             rootTitle: tree[0]?.title,
             rootChildren: tree[0]?.children?.map(c => ({ id: c.id, title: c.title, childCount: c.children?.length || 0 }))
         }));
-        
+
         // Opera-specific system folders that should NOT be cleared
         // These are either system-managed or trash folders
         const skipFolderTitles = new Set([
@@ -1217,7 +1318,7 @@ export class SyncManager {
             'pinboard',         // Opera pinboard
             'unsynchronized pinboard'  // Opera unsynchronized pinboard
         ]);
-        
+
         // Folders we SHOULD clear (user bookmark folders)
         const clearFolderTitles = new Set([
             'bookmarks bar',
@@ -1235,30 +1336,30 @@ export class SyncManager {
             'favourites bar',    // Edge UK spelling
             'favorites bar'      // Edge US spelling
         ]);
-        
+
         // Process each root folder
         const rootFolders = tree[0]?.children || [];
-        
+
         for (const rootFolder of rootFolders) {
             const folderTitle = (rootFolder.title || '').toLowerCase();
-            
+
             // Skip Opera system folders
             if (skipFolderTitles.has(folderTitle)) {
                 console.log(`[clearLocalBookmarks] SKIPPING system folder: ${rootFolder.title} (id: ${rootFolder.id})`);
                 continue;
             }
-            
+
             // Only clear known bookmark folders, skip unknown ones to be safe
             const isKnownFolder = clearFolderTitles.has(folderTitle);
             if (!isKnownFolder) {
                 console.log(`[clearLocalBookmarks] SKIPPING unknown folder: ${rootFolder.title} (id: ${rootFolder.id})`);
                 continue;
             }
-            
+
             console.log(`[clearLocalBookmarks] Processing root folder: ${rootFolder.title} (id: ${rootFolder.id}), children: ${rootFolder.children?.length || 0}`);
-            
+
             const children = rootFolder.children || [];
-            
+
             // Delete in reverse order to avoid index shifting issues
             for (let i = children.length - 1; i >= 0; i--) {
                 const child = children[i];
@@ -1278,12 +1379,12 @@ export class SyncManager {
                 }
             }
         }
-        
+
         // Verify deletion worked - only count items in clearable folders
         const verifyTree = await this.getBookmarkTree();
         let remainingCount = 0;
         const foldersWithRemaining: string[] = [];
-        
+
         for (const rootFolder of verifyTree[0]?.children || []) {
             const folderTitle = (rootFolder.title || '').toLowerCase();
             if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
@@ -1295,20 +1396,20 @@ export class SyncManager {
                 foldersWithRemaining.push(`${rootFolder.title}: ${count}`);
             }
         }
-        
+
         console.log(`[clearLocalBookmarks] Complete. Remaining items in clearable folders: ${remainingCount}`);
-        
+
         if (remainingCount > 0) {
             console.warn(`[clearLocalBookmarks] Some items were not deleted! Folders: ${foldersWithRemaining.join(', ')}`);
             console.warn('[clearLocalBookmarks] Attempting second pass...');
-            
+
             // Second pass - sometimes items remain due to timing issues
             for (const rootFolder of verifyTree[0]?.children || []) {
                 const folderTitle = (rootFolder.title || '').toLowerCase();
                 if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
                     continue;
                 }
-                
+
                 for (const child of rootFolder.children || []) {
                     try {
                         if (!child.url) {
@@ -1321,7 +1422,7 @@ export class SyncManager {
                     }
                 }
             }
-            
+
             // Final verification
             const finalTree = await this.getBookmarkTree();
             let finalRemaining = 0;
@@ -1335,17 +1436,17 @@ export class SyncManager {
             console.log(`[clearLocalBookmarks] After second pass, remaining: ${finalRemaining}`);
         }
     }
-    
+
     private async restoreFromMasterCollection(collection: any): Promise<void> {
         console.log('Restoring from master collection...', collection);
-        
+
         // Get the root folders using safe wrapper
         const tree = await this.getBookmarkTree();
         const rootFolders: Record<string, string> = {};
         const normalizeTitle = (value: string) => value.trim().toLowerCase();
         const getFolderSourceId = (folder: any): string => String(folder?.browserId ?? folder?.id ?? '');
         const getFolderParentId = (folder: any): string => String(folder?.parentId ?? '');
-        
+
         // Map folder names to IDs
         for (const rootNode of tree[0].children || []) {
             rootFolders[normalizeTitle(rootNode.title)] = rootNode.id;
@@ -1356,22 +1457,22 @@ export class SyncManager {
         // - Firefox: "Bookmarks Toolbar" (id: toolbar_____)
         // - Edge: "Favourites bar" or "Favorites bar"
         // - Opera: "Bookmarks bar" (but may have additional folders like Pinboard, Bin)
-        const bookmarksBarId = rootFolders['bookmarks bar'] 
-            || rootFolders['bookmarks toolbar'] 
+        const bookmarksBarId = rootFolders['bookmarks bar']
+            || rootFolders['bookmarks toolbar']
             || rootFolders['favourites bar']    // Edge UK spelling
             || rootFolders['favorites bar']     // Edge US spelling
-            || rootFolders['bookmarks'] 
-            || rootFolders['my bookmarks'] 
+            || rootFolders['bookmarks']
+            || rootFolders['my bookmarks']
             || '1';
-        const otherBookmarksId = rootFolders['other bookmarks'] 
-            || rootFolders['unfiled bookmarks'] 
+        const otherBookmarksId = rootFolders['other bookmarks']
+            || rootFolders['unfiled bookmarks']
             || rootFolders['unsorted bookmarks']
             || rootFolders['other favourites']  // Edge UK spelling
             || rootFolders['other favorites']   // Edge US spelling 
             || '2';
         const bookmarksMenuId = rootFolders['bookmarks menu'];
         const mobileBookmarksId = rootFolders['mobile bookmarks'] || '3';
-        
+
         // Create a map to track new IDs for folders
         const folderIdMap: Record<string, string> = {};
 
@@ -1628,7 +1729,7 @@ export class SyncManager {
                 }
             }
         }
-        
+
         // Then create all bookmarks
         const bookmarks = (Array.isArray(collection.bookmarks) ? collection.bookmarks : [])
             .sort((a: any, b: any) => {
@@ -1649,7 +1750,7 @@ export class SyncManager {
                 // Determine parent ID
                 const parentId = resolveParentId(bookmark.parentId) || bookmarksBarId;
                 const index = await getSafeIndex(parentId, bookmark.position);
-                
+
                 // Create the bookmark
                 await chrome.bookmarks.create({
                     parentId,

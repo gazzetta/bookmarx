@@ -2,10 +2,11 @@
 
 Cross-browser bookmark synchronization system with mobile app support.
 
-## Current Status: Stage 2 Development
+## Current Status: Stage 2 + Stage 3 Development
 
 **Stage 1 (Complete):** Chrome extension + Node.js server + SQLite database  
-**Stage 2 (In Progress):** Firefox port, Edge support, React Native mobile app
+**Stage 2 (Mostly Implemented):** Multi-browser + mobile foundations are in repo; manual QA/release tasks remain  
+**Stage 3 (Feature-Implemented, Validation Ongoing):** Premium tiers, collections, sessions, and web editor are implemented
 
 ---
 
@@ -16,14 +17,14 @@ Cross-browser bookmark synchronization system with mobile app support.
 |---------|--------|-------|
 | Chrome | ✅ Stage 1 | Full support |
 | Brave | ✅ Stage 1 | Same build as Chrome |
-| Edge | 🔄 Stage 2 | Same build, improved detection |
-| Firefox | 🔄 Stage 2 | Requires manifest v2 + polyfill |
+| Edge | 🟡 Stage 2 | Detection/build-ready, manual QA pending |
+| Firefox | 🟡 Stage 2 | Manifest v2 + polyfill in place, manual QA pending |
 
 ### Mobile
 | Platform | Status | Notes |
 |----------|--------|-------|
-| iOS | 🔄 Stage 2 | React Native app + Share Extension |
-| Android | 🔄 Stage 2 | React Native app + Share Intent |
+| iOS | 🟡 Stage 2 | React Native app + Share Extension scaffolded; device QA pending |
+| Android | 🟡 Stage 2 | React Native app + Share Intent scaffolded; device QA pending |
 
 ---
 
@@ -32,10 +33,10 @@ Cross-browser bookmark synchronization system with mobile app support.
 ```
 bookmarx/
 ├── src/
+│   ├── website/            # Next.js app + unified API runtime
+│   │   └── data/           # SQLite database (single source)
 │   ├── extension/          # Browser extension (Chrome/Firefox)
-│   ├── server/             # Node.js API server
-│   ├── mobile/             # React Native app (Stage 2)
-│   └── data/               # SQLite database
+│   └── mobile/             # React Native app (Stage 2)
 ├── docs/                   # Stage 2 documentation
 │   └── STAGE-2-BUILD-PLAN.md
 ├── stage-1/                # Archived Stage 1 docs
@@ -50,9 +51,9 @@ bookmarx/
 
 ## Quick Start (Development)
 
-### 1. Start the API Server
+### 1. Start the Unified Website + API
 ```powershell
-cd 'c:\CODING\bookmarx\src\server'
+cd 'c:\CODING\bookmarx\src\website'
 npm install
 npm run dev
 ```
@@ -81,6 +82,23 @@ See [docs/STAGE-2-BUILD-PLAN.md](docs/STAGE-2-BUILD-PLAN.md) for the complete im
 4. **Mobile App** - React Native iOS/Android
 5. **Share Extensions** - iOS Share Extension + Android Share Intent
 6. **Production Deployment** - Server, stores, certificates
+
+## Stage 3 Build Plan (Premium)
+
+See [docs/STAGE-3-BUILD-PLAN.md](docs/STAGE-3-BUILD-PLAN.md) for premium feature rollout:
+
+1. **Tier & Limits** - Free vs Premium enforcement
+2. **Sessions API** - History, rollback, restore
+3. **Collections API** - Collection CRUD + editor changes endpoint
+4. **Web Editor** - Next.js collection management experience
+5. **Mobile Gating** - Premium access paths for mobile
+
+## Latest Validation Snapshot (2026-02-12)
+
+- ✅ Extension bundles compile for Chrome and Firefox
+- ✅ Unified website build compiles API + Next.js successfully
+- ⚠️ Manual browser/device smoke tests are still required before calling release-ready
+- ✅ Mobile TypeScript check passes in `src/mobile` (`npx tsc --noEmit`)
 
 ---
 

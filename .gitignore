@@ -21,7 +21,7 @@ dist-firefox/
 build/
 src/extension/dist/
 src/extension/dist-firefox/
-src/server/dist/
+src/website/dist-server/
 
 # Debug logs
 npm-debug.log*
@@ -39,7 +39,6 @@ server.log
 .env.production
 src/website/.env*
 src/mobile/.env*
-src/server/.env*
 src/extension/.env*
 
 # IDE / Editor

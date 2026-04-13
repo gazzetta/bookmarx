@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../hooks/useAuth';
-import { api } from '../services/api';
-import { PremiumGate } from '../components/PremiumGate';
-import type { Session } from '../types';
+import { useAuth } from '../../hooks/useAuth';
+import { api } from '../../services/api';
+import { PremiumGate } from '../../components/PremiumGate';
+import type { Session } from '../../types';
 
 export default function SessionsScreen() {
   const router = useRouter();

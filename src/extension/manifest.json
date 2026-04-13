@@ -1,6 +1,7 @@
 {
     "manifest_version": 3,
     "name": "BookMarx",
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuODLd2s95Q3x3/dPIBH/vrnusXB4Iafn52fm3F5uXv5Ryaeu91iuioX6V+kBvSCJMDyMItyOO1JbLxO4beP/K4Of7OqvsQAL/7kGMUbH5vSFZNvKcpL5KzK7FJv5fokD4b59tRK0mgcRNYg8mbMAKbfnjrPVrSMRvCT5n0DrllqlTvHkUao15knN7E/b4bxx8bmCBF3vJlnJWk8ofqctIwcQSIYZ3Bx7sIX3C6w9rzS0erQoMeGmZi2rliraAh+HEknbDcl7/7n0a52mrnK2EDew4FUpHz0edq5QJzZsgSgEng+zeX51Ymb8l/7GghcIS3C9VXX9JEPxdVlG+Zna6wIDAQAB",
     "version": "1.0.0",
     "description": "Cross-browser bookmark synchronization system",
     "permissions": [
@@ -24,14 +25,18 @@
     "action": {
         "default_popup": "popup/index.html"
     },
-    "web_accessible_resources": [{
-        "resources": [
-            "pages/*",
-            "pages/master-collection.html",
-            "pages/master-collection.js"
-        ],
-        "matches": ["<all_urls>"]
-    }],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "pages/*",
+                "pages/master-collection.html",
+                "pages/master-collection.js"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
     "host_permissions": [
         "http://localhost:*/*",
         "http://127.0.0.1:*/*"

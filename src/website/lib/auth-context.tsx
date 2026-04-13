@@ -9,6 +9,7 @@ interface AuthContextType {
   isLoading: boolean
   isPremium: boolean
   login: (email: string, password: string) => Promise<void>
+  loginWithGoogle: (credential: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Check for stored token on mount
     const storedToken = localStorage.getItem('bookmarx_token')
     const storedUser = localStorage.getItem('bookmarx_user')
-    
+
     if (storedToken && storedUser) {
       setToken(storedToken)
       setUser(JSON.parse(storedUser))
@@ -49,6 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await api.login(email, password)
+    setToken(response.token)
+    setUser(response.user)
+    localStorage.setItem('bookmarx_token', response.token)
+    localStorage.setItem('bookmarx_user', JSON.stringify(response.user))
+  }
+
+  const loginWithGoogle = async (credential: string) => {
+    const response = await api.loginWithGoogle(credential)
     setToken(response.token)
     setUser(response.user)
     localStorage.setItem('bookmarx_token', response.token)
@@ -79,15 +88,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isPremium = user?.isPremium ?? false
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      isLoading, 
+    <AuthContext.Provider value={{
+      user,
+      token,
+      isLoading,
       isPremium,
-      login, 
-      register, 
+      login,
+      loginWithGoogle,
+      register,
       logout,
-      refreshUser 
+      refreshUser
     }}>
       {children}
     </AuthContext.Provider>

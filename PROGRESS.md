@@ -18,7 +18,7 @@
 | 6 | iOS Share Extension | ✅ Complete | Swift |
 | 7 | Android Share Intent | ✅ Complete | Kotlin |
 | 8 | Production Deploy | ✅ Complete | Server + stores |
-| 9 | Testing | ⬜ Not Started | All platforms |
+| 9 | Testing | 🟡 In Progress | Build validation done; manual QA pending |
 
 ---
 
@@ -38,6 +38,15 @@
 ---
 
 ## Detailed Progress
+
+### Validation Snapshot (2026-02-12)
+- [x] Extension build passes for Chrome (`npm run build:chrome`)
+- [x] Extension build passes for Firefox (`npm run build:firefox`)
+- [x] Unified website API build passes (`npm run build:api` in `src/website`)
+- [x] Unified website production build passes (`npm run build` in `src/website`)
+- [ ] Manual extension smoke tests across Chrome/Brave/Edge/Firefox
+- [ ] Premium workflow E2E API smoke tests with authenticated test accounts
+- [x] Mobile type-check clean (`npx tsc --noEmit` passes in `src/mobile`)
 
 ### Phase 1: Archive & Setup ✅
 - [x] Create `stage-1/` folder
@@ -120,8 +129,8 @@
 - [x] Implement API call to `/api/v1/capture`
 - [ ] Add to Xcode project (requires macOS)
 - [ ] Configure App Group
-- [ ] Implement ShareViewController.swift
-- [ ] Implement App Group token sharing
+- [x] Implement ShareViewController.swift
+- [ ] Implement App Group token sharing (native integration)
 - [ ] Test share from Safari
 - [ ] Test share from Chrome iOS
 - [ ] Test share from other apps
@@ -139,13 +148,11 @@
 - [ ] Test share from other apps
 
 ### Phase 8: Production Deploy ✅
-- [x] Create `deploy/` directory
-- [x] Create `ecosystem.config.js` (PM2 cluster config)
-- [x] Create `nginx.conf` (reverse proxy + SSL + rate limiting)
-- [x] Create `deploy.sh` (automated deployment script)
-- [x] Create `setup-server.sh` (initial VPS setup)
+- [x] Create root `deploy.sh` with embedded Nginx config
+- [x] Move PM2 ecosystem config to `src/website/ecosystem.config.js`
+- [x] Create root `deploy.sh` (automated deployment script)
 - [x] Create `.env.production.template`
-- [ ] Provision VPS and run setup-server.sh
+- [ ] Provision VPS and run `sudo ./deploy.sh`
 - [ ] Configure DNS and SSL certificate
 - [ ] Run deploy.sh
 - [ ] Configure production environment variables
