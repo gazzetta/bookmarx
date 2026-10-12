@@ -180,7 +180,16 @@ server {
 EOF
 
     ln -sf "$SITE_CONF" /etc/nginx/sites-enabled/bookmarx
-    rm -f /etc/nginx/sites-enabled/default
+
+    # NOTE: this box hosts other sites, and the nginx `default` catch-all may be
+    # serving some of them. Back it up before disabling it so it can be restored,
+    # and only remove it from sites-enabled. Stored outside conf.d/ so nginx
+    # never loads the .bak file.
+    if [ -L /etc/nginx/sites-enabled/default ] || [ -f /etc/nginx/sites-enabled/default ]; then
+        cp -L /etc/nginx/sites-enabled/default /etc/nginx/bookmarx-default.bak 2>/dev/null || true
+        log_warn "Backed up nginx default site to /etc/nginx/bookmarx-default.bak and disabled it"
+        rm -f /etc/nginx/sites-enabled/default
+    fi
 fi
 
 # Restart PM2
