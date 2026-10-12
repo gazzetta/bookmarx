@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { api, Collection, Folder, Bookmark, CollectionEvent, CollectionBrowser } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface TreeItem {
   type: 'folder' | 'bookmark'
@@ -38,6 +39,7 @@ export default function CollectionViewPage() {
   const [archiveLoading, setArchiveLoading] = useState(false)
   const [archiveBrowsers, setArchiveBrowsers] = useState<CollectionBrowser[]>([])
   const [archiveCheckDone, setArchiveCheckDone] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; eventId: string | null }>({ isOpen: false, eventId: null })
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -51,12 +53,30 @@ export default function CollectionViewPage() {
     }
   }, [token, collectionId])
 
+  useEffect(() => {
+    if (notice && notice.type === 'success') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }, [notice])
+
   const loadCollection = async () => {
     if (!token) return
     try {
+      // Handle "default" alias - resolve to actual default collection ID
+      let actualCollectionId = collectionId
+      if (collectionId === 'default') {
+        const collections = await api.getCollections(token)
+        const defaultCollection = collections.collections.find(c => c.isDefault === 1)
+        if (defaultCollection) {
+          actualCollectionId = defaultCollection.id
+          // Update URL to actual ID without reloading
+          router.replace(`/collections/${actualCollectionId}`, undefined)
+        }
+      }
+
       const [data, eventsData] = await Promise.all([
-        api.getCollection(token, collectionId),
-        isPremium ? api.getCollectionEvents(token, collectionId) : Promise.resolve({ collection: null as unknown as Collection, events: [], count: 0 }),
+        api.getCollection(token, actualCollectionId),
+        isPremium ? api.getCollectionEvents(token, actualCollectionId) : Promise.resolve({ collection: null as unknown as Collection, events: [], count: 0 }),
       ])
       setCollection(data.collection)
       setEvents(eventsData.events || [])
@@ -79,7 +99,9 @@ export default function CollectionViewPage() {
   }
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('en-GB', {
+    // If timestamp is in seconds (before 2001-09-09 in ms), convert to milliseconds
+    const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp
+    return new Date(ms).toLocaleString('en-GB', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -164,9 +186,15 @@ export default function CollectionViewPage() {
     setExpandedFolders(new Set())
   }
 
-  const handleRollbackEvent = async (eventId: string) => {
+  const handleRollbackEvent = (eventId: string) => {
     if (!token) return
-    if (!confirm('Rollback this collection to the state before this event?')) return
+    setConfirmDialog({ isOpen: true, eventId })
+  }
+
+  const executeRollbackEvent = async () => {
+    const eventId = confirmDialog.eventId
+    if (!token || !eventId) return
+    setConfirmDialog({ isOpen: false, eventId: null })
 
     setRollingBackEventId(eventId)
     setNotice(null)
@@ -175,7 +203,7 @@ export default function CollectionViewPage() {
       await loadCollection()
       setNotice({
         type: 'success',
-        message: `Collection restored. ${result.restoredFolders} folders and ${result.restoredBookmarks} bookmarks were restored to the pre-event state.`
+        message: `Collection restored. ${result.restoredFolders} folders and ${result.restoredBookmarks} bookmarks were restored to the pre-event state.${result.deletedEvents > 0 ? ` ${result.deletedEvents} restore point${result.deletedEvents === 1 ? '' : 's'} were removed.` : ''}`
       })
     } catch (error) {
       console.error('Failed to rollback collection event:', error)
@@ -503,17 +531,15 @@ export default function CollectionViewPage() {
           <div className="bg-white dark:bg-[#242424] rounded-[1.75rem] border border-slate-200 dark:border-white/[0.06] p-6 shadow-sm">
             <div className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">Folders</div>
             <div className="mt-3 text-3xl font-black text-slate-900 dark:text-cream-100">{folderCount}</div>
-            <div className="mt-2 text-sm text-slate-500 dark:text-white/50">Structured sections inside this collection</div>
           </div>
           <div className="bg-white dark:bg-[#242424] rounded-[1.75rem] border border-slate-200 dark:border-white/[0.06] p-6 shadow-sm">
             <div className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">Bookmarks</div>
             <div className="mt-3 text-3xl font-black text-slate-900 dark:text-cream-100">{bookmarkCount}</div>
-            <div className="mt-2 text-sm text-slate-500 dark:text-white/50">Saved links ready to open from any device</div>
           </div>
           <div className="bg-white dark:bg-[#242424] rounded-[1.75rem] border border-slate-200 dark:border-white/[0.06] p-6 shadow-sm">
             <div className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">Restore Points</div>
             <div className="mt-3 text-3xl font-black text-slate-900 dark:text-cream-100">{events.length}</div>
-            <div className="mt-2 text-sm text-slate-500 dark:text-white/50">Moments you can roll back to safely</div>
+            <a href="#restore-points" className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-primary-600 dark:text-terra-400 hover:text-primary-700 dark:hover:text-terra-300 underline decoration-primary-300 dark:decoration-terra-500/40 underline-offset-2 transition-colors">View Restore Points <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg></a>
           </div>
           <div className="bg-white dark:bg-[#242424] rounded-[1.75rem] border border-slate-200 dark:border-white/[0.06] p-6 shadow-sm">
             <div className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">Latest Activity</div>
@@ -622,7 +648,7 @@ export default function CollectionViewPage() {
         </div>
 
         {isPremium && (
-          <div className="mt-8 bg-white dark:bg-[#242424] rounded-[2rem] border border-slate-200 dark:border-white/[0.06] overflow-hidden shadow-sm">
+          <div id="restore-points" className="mt-8 bg-white dark:bg-[#242424] rounded-[2rem] border border-slate-200 dark:border-white/[0.06] overflow-hidden shadow-sm scroll-mt-24">
             <div className="px-8 py-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-cream-100">Collection Restore Points</h2>
@@ -643,21 +669,19 @@ export default function CollectionViewPage() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100 dark:divide-white/5">
-                {events.map((event) => (
+                {events.map((event, index) => (
                   <div key={event.eventId} className="px-8 py-6 flex flex-col xl:flex-row xl:items-center gap-5 xl:gap-6">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${getEventTheme(event.type).iconWrap}`}>
-                      {getEventTheme(event.type).icon}
+                    <div className="flex items-center gap-4 shrink-0">
+                      <span className="text-xs font-black text-slate-300 dark:text-white/20 tabular-nums">{String(events.length - index).padStart(2, '0')}</span>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${getEventTheme(event.type).iconWrap}`}>
+                        {getEventTheme(event.type).icon}
+                      </div>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${getEventTheme(event.type).badge}`}>
                           {getEventLabel(event.type)}
                         </span>
-                        {event.rolledBackAt ? (
-                          <span className="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-700 dark:text-amber-300">
-                            Rolled back
-                          </span>
-                        ) : null}
                       </div>
                       <div className="mt-2 text-base font-bold text-slate-900 dark:text-cream-100">
                         {getEventSummary(event)}
@@ -665,7 +689,7 @@ export default function CollectionViewPage() {
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 dark:text-white/50">
                         <span>{formatDate(event.createdAt || event.timestamp)}</span>
                         {event.sourceBrowser ? <span>Source: {event.sourceBrowser}</span> : <span>Source: Web editor</span>}
-                        {event.sessionId ? <span>Session: {event.sessionId.slice(0, 10)}...</span> : null}
+                        {event.sessionId ? <span>Session: {event.sessionId}</span> : null}
                         <span>{event.changesCount} change{event.changesCount === 1 ? '' : 's'}</span>
                       </div>
                       <div className="mt-3 text-sm text-slate-500 dark:text-white/50">
@@ -808,6 +832,17 @@ export default function CollectionViewPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title="Rollback Restore Point"
+        message="Rollback this collection to the state before this event?\n\nWARNING: This restore point and ALL restore points after it will be permanently deleted. This cannot be undone."
+        confirmText="Rollback"
+        cancelText="Cancel"
+        variant="warning"
+        onConfirm={executeRollbackEvent}
+        onCancel={() => setConfirmDialog({ isOpen: false, eventId: null })}
+      />
     </DashboardLayout>
   )
 }

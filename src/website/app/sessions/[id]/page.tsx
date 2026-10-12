@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { api, SessionSummary, Folder, Bookmark } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
+import ConfirmDialog from '@/components/ConfirmDialog'
+import AlertDialog from '@/components/AlertDialog'
 
 export default function SessionDetailPage() {
   const router = useRouter()
@@ -18,6 +20,8 @@ export default function SessionDetailPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
   const [isRolledBack, setIsRolledBack] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'rollback' | 'restore' | null }>({ isOpen: false, action: null })
+  const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'success' })
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -48,44 +52,59 @@ export default function SessionDetailPage() {
     }
   }
 
-  const handleRollback = async () => {
-    if (!token || !confirm('Are you sure you want to rollback this session? All items from this sync will be removed from your Master Collection.')) {
-      return
-    }
-
-    setActionLoading(true)
-    try {
-      const result = await api.rollbackSession(token, sessionId)
-      setIsRolledBack(true)
-      alert(`Successfully rolled back ${result.rolledBackCount} items.`)
-    } catch (error) {
-      console.error('Failed to rollback session:', error)
-      alert('Failed to rollback session. Please try again.')
-    } finally {
-      setActionLoading(false)
-    }
+  const handleRollback = () => {
+    if (!token) return
+    setConfirmDialog({ isOpen: true, action: 'rollback' })
   }
 
-  const handleRestore = async () => {
-    if (!token || !confirm('Are you sure you want to restore this session? All items will be added back to your Master Collection.')) {
-      return
-    }
+  const handleRestore = () => {
+    if (!token) return
+    setConfirmDialog({ isOpen: true, action: 'restore' })
+  }
+
+  const executeConfirmAction = async () => {
+    if (!token) return
+    const action = confirmDialog.action
+    setConfirmDialog({ isOpen: false, action: null })
 
     setActionLoading(true)
     try {
-      const result = await api.restoreSession(token, sessionId)
-      setIsRolledBack(false)
-      alert(`Successfully restored ${result.restoredCount} items.`)
+      if (action === 'rollback') {
+        const result = await api.rollbackSession(token, sessionId)
+        setIsRolledBack(true)
+        setAlertDialog({
+          isOpen: true,
+          title: 'Session Rolled Back',
+          message: `Successfully rolled back ${result.rolledBackCount} items.`,
+          variant: 'success'
+        })
+      } else if (action === 'restore') {
+        const result = await api.restoreSession(token, sessionId)
+        setIsRolledBack(false)
+        setAlertDialog({
+          isOpen: true,
+          title: 'Session Restored',
+          message: `Successfully restored ${result.restoredCount} items.`,
+          variant: 'success'
+        })
+      }
     } catch (error) {
-      console.error('Failed to restore session:', error)
-      alert('Failed to restore session. Please try again.')
+      console.error(`Failed to ${action} session:`, error)
+      setAlertDialog({
+        isOpen: true,
+        title: 'Action Failed',
+        message: `Failed to ${action} session. Please try again.`,
+        variant: 'error'
+      })
     } finally {
       setActionLoading(false)
     }
   }
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('en-US', {
+    // Handle both seconds (Unix) and milliseconds timestamps
+    const ms = timestamp < 1e12 ? timestamp * 1000 : timestamp
+    return new Date(ms).toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -324,6 +343,29 @@ export default function SessionDetailPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.action === 'rollback' ? 'Rollback Session' : 'Restore Session'}
+        message={
+          confirmDialog.action === 'rollback'
+            ? 'Are you sure you want to rollback this session?\n\nAll items from this sync will be removed from your Master Collection.'
+            : 'Are you sure you want to restore this session?\n\nAll items will be added back to your Master Collection.'
+        }
+        confirmText={confirmDialog.action === 'rollback' ? 'Rollback' : 'Restore'}
+        cancelText="Cancel"
+        variant={confirmDialog.action === 'rollback' ? 'danger' : 'warning'}
+        onConfirm={executeConfirmAction}
+        onCancel={() => setConfirmDialog({ isOpen: false, action: null })}
+      />
+
+      <AlertDialog
+        isOpen={alertDialog.isOpen}
+        title={alertDialog.title}
+        message={alertDialog.message}
+        variant={alertDialog.variant}
+        onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+      />
     </DashboardLayout>
   )
 }

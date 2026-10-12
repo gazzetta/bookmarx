@@ -291,6 +291,38 @@ export default function DashboardPage() {
 
           {isPremium ? (
             <Link
+              href="/sessions"
+              className="group bg-white dark:bg-[#242424] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 hover:border-primary-300 dark:hover:border-terra-500/30 hover:shadow-lg hover:shadow-primary-500/5 dark:hover:shadow-none transition-all"
+            >
+              <div className="w-10 h-10 bg-slate-50 dark:bg-white/5 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary-50 dark:group-hover:bg-terra-500/10 transition-colors">
+                <svg className="w-5 h-5 text-slate-500 dark:text-white/50 group-hover:text-primary-600 dark:group-hover:text-terra-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-slate-900 dark:text-cream-100">Sessions</h3>
+              <p className="text-sm text-slate-500 dark:text-white/50 mt-1">View session history & rollback</p>
+            </Link>
+          ) : (
+            <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 opacity-75 relative overflow-hidden">
+              <div className="w-10 h-10 bg-slate-100 dark:bg-white/10 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-5 h-5 text-slate-400 dark:text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="font-bold text-slate-900 dark:text-cream-100">Sessions</h3>
+              <p className="text-sm text-primary-600 dark:text-terra-400 font-semibold mt-1">
+                {config.branding.premiumTitle} feature
+              </p>
+              <div className="absolute top-2 right-2">
+                <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              </div>
+            </div>
+          )}
+
+          {isPremium ? (
+            <Link
               href="/settings/subscription"
               className="group bg-white dark:bg-[#242424] border border-slate-200 dark:border-white/[0.06] rounded-2xl p-6 hover:border-primary-300 dark:hover:border-terra-500/30 hover:shadow-lg hover:shadow-primary-500/5 dark:hover:shadow-none transition-all"
             >

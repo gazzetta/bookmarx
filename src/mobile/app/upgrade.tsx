@@ -42,8 +42,8 @@ export default function UpgradeScreen() {
   const handleUpgrade = async () => {
     setIsProcessing(true);
 
-    // In production, this would redirect to Polar checkout
-    const checkoutUrl = `https://bookmarx.gasdigital.co.uk/checkout?plan=${selectedPlan}&email=${encodeURIComponent(user?.email || '')}`;
+    // In production, this redirects to the BookMarx checkout flow
+    const checkoutUrl = `https://www.bookmarx.cc/checkout?plan=${selectedPlan}&email=${encodeURIComponent(user?.email || '')}`;
 
     try {
       const supported = await Linking.canOpenURL(checkoutUrl);
@@ -60,7 +60,7 @@ export default function UpgradeScreen() {
   };
 
   const handleManageSubscription = async () => {
-    const portalUrl = 'https://bookmarx.gasdigital.co.uk/account/subscription';
+    const portalUrl = 'https://www.bookmarx.cc/account/subscription';
     try {
       await Linking.openURL(portalUrl);
     } catch (error) {
@@ -251,7 +251,7 @@ export default function UpgradeScreen() {
         <Text style={styles.footerText}>
           Cancel anytime. 30-day money-back guarantee.
         </Text>
-        <TouchableOpacity onPress={() => Linking.openURL('https://bookmarx.gasdigital.co.uk/terms')}>
+        <TouchableOpacity onPress={() => Linking.openURL('https://www.bookmarx.cc/terms')}>
           <Text style={styles.footerLink}>Terms of Service</Text>
         </TouchableOpacity>
       </View>

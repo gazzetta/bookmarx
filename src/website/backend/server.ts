@@ -10,11 +10,12 @@ import { db } from './db/database';
 import { InitialSyncRequest, SyncRequest } from './types/sync';
 import { getBookmarkTree } from './api/bookmarks';
 import { registerWithEmail, loginWithEmail, loginWithGoogle, getMe, getUserStats, forgotPassword, resetPassword } from './api/auth';
-import { authenticate } from './middleware/auth';
-import { checkBookmarkLimit, checkBrowserLimit } from './middleware/premium';
+import { authenticate, AuthenticatedUser } from './middleware/auth';
+import { checkBookmarkLimit, checkBrowserLimit, isPremium } from './middleware/premium';
 import sessionsRouter from './api/sessions';
 import collectionsRouter from './api/collections';
 import polarWebhookRouter from './api/webhooks/polar';
+import paypalWebhookRouter from './api/webhooks/paypal';
 import checkoutRouter from './api/checkout';
 
 // Load environment variables: .env first, then .env.local as fallback for local dev
@@ -41,7 +42,41 @@ app.use(helmet({
   crossOriginOpenerPolicy: false,  // Required for Google Sign-In popup to communicate back
   referrerPolicy: { policy: 'origin-when-cross-origin' },  // GSI needs referrer to verify origin
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+/**
+ * Resolve which collection to use for sync operations.
+ * Reads X-Collection-ID header; falls back to the user's default collection.
+ * Returns null with an error response already sent if resolution fails.
+ */
+function resolveCollectionForSync(req: Request, res: Response, userId: string): { id: string; updatedAt: number } | null {
+    const requestedId = req.headers['x-collection-id'] as string | undefined;
+    const user = (req as Request & { user?: AuthenticatedUser }).user;
+
+    if (requestedId) {
+        const collection = db.getCollectionById(requestedId, userId);
+        if (!collection) {
+            res.status(404).json({ success: false, error: { message: 'Collection not found' } });
+            return null;
+        }
+        if (!collection.isDefault && !isPremium(user)) {
+            res.status(403).json({
+                success: false,
+                error: { code: 'PREMIUM_REQUIRED', message: 'Syncing non-default collections requires premium' }
+            });
+            return null;
+        }
+        return collection;
+    }
+
+    const defaultCollection = db.getDefaultCollection(userId);
+    if (!defaultCollection) {
+        const newId = db.ensureDefaultCollection(userId);
+        const newCollection = db.getCollectionById(newId, userId);
+        return newCollection || { id: newId, updatedAt: Math.floor(Date.now() / 1000) };
+    }
+    return defaultCollection;
+}
 
 const handleSync: RequestHandler = async (req, res) => {
     try {
@@ -55,13 +90,29 @@ const handleSync: RequestHandler = async (req, res) => {
         }
         const userId = authUser.id;
 
-        // Ensure default collection exists when syncing
-        const defaultCollectionId = db.ensureDefaultCollection(userId);
+        const resolvedCollection = resolveCollectionForSync(req, res, userId);
+        if (!resolvedCollection) return;
+        const defaultCollectionId = resolvedCollection.id;
+
+        const resolveMasterParentId = (masterParentId: string | null | undefined, parentId: string | null | undefined): string | null => {
+            if (masterParentId) {
+                return masterParentId;
+            }
+
+            if (!parentId) {
+                return null;
+            }
+
+            const parentFolder = db.getFolderByMasterId(parentId, userId) as { masterId?: string } | undefined;
+            if (parentFolder?.masterId) {
+                return parentFolder.masterId;
+            }
+
+            return db.getFolderMasterIdByBrowserId(parentId, userId, defaultCollectionId);
+        };
 
         const { changes, deviceId, metadata } = req.body as SyncRequest;
 
-        // Register/Update browser activity - update lastSeen and version info
-        // This ensures active syncing browsers are counted correctly
         if (metadata?.deviceInfo) {
             const { deviceInfo } = metadata;
             db.registerBrowser({
@@ -72,7 +123,8 @@ const handleSync: RequestHandler = async (req, res) => {
                 browserVersion: deviceInfo.browserVersion,
                 os: deviceInfo.os,
                 osVersion: deviceInfo.osVersion,
-                userAgent: metadata.userAgent
+                userAgent: metadata.userAgent,
+                currentCollectionId: defaultCollectionId
             });
         }
 
@@ -90,16 +142,13 @@ const handleSync: RequestHandler = async (req, res) => {
                             console.log('Creating bookmark:', data);
                             try {
                                 // Resolve masterParentId from parentId if not provided
-                                let masterParentId = data.masterParentId;
-                                if (!masterParentId && data.parentId) {
-                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
-                                }
+                                const masterParentId = resolveMasterParentId(data.masterParentId, data.parentId);
 
                                 const createResult = db.createBookmark({
                                     ...data,
                                     masterParentId,
                                     userId,
-                                    collectionId: db.ensureDefaultCollection(userId),
+                                    collectionId: defaultCollectionId,
                                     metadata
                                 });
                                 results.push({
@@ -120,16 +169,13 @@ const handleSync: RequestHandler = async (req, res) => {
                             console.log('Creating folder:', data);
                             try {
                                 // Resolve masterParentId from parentId if not provided
-                                let masterParentId = data.masterParentId;
-                                if (!masterParentId && data.parentId) {
-                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
-                                }
+                                const masterParentId = resolveMasterParentId(data.masterParentId, data.parentId);
 
                                 const createResult = db.createFolder({
                                     ...data,
                                     masterParentId,
                                     userId,
-                                    collectionId: db.ensureDefaultCollection(userId),
+                                    collectionId: defaultCollectionId,
                                     metadata
                                 });
                                 results.push({
@@ -153,8 +199,19 @@ const handleSync: RequestHandler = async (req, res) => {
                         if (data.type === 'bookmark') {
                             console.log('Moving bookmark:', data);
                             try {
+                                // Pass `userId` so the masterId-keyed UPDATE in
+                                // db.moveBookmark (database.ts:1937 `WHERE masterId=? AND userId=?`)
+                                // can match a row another device created. Without it
+                                // the WHERE clause collides with `userId IS undefined`
+                                // and the move silently no-ops — which is exactly the
+                                // cross-device MOVE regression the masterId refactor
+                                // was supposed to fix (PROGRESS.md:71-73). The legacy
+                                // browserId+browserInstanceId fallback path at
+                                // database.ts:1959 is unaffected because it doesn't
+                                // filter on userId.
                                 results.push(await db.moveBookmark({
                                     ...data,
+                                    userId,
                                     metadata
                                 }));
                             } catch (err) {
@@ -170,6 +227,7 @@ const handleSync: RequestHandler = async (req, res) => {
                             try {
                                 results.push(await db.moveFolder({
                                     ...data,
+                                    userId,
                                     metadata
                                 }));
                             } catch (err) {
@@ -186,14 +244,26 @@ const handleSync: RequestHandler = async (req, res) => {
                     case 'DELETE':
                         console.log('Processing DELETE operation:', data);
 
-                        // For DELETE operations, we need to determine if it's a bookmark or folder
-                        // First, try to find it in the bookmarks table
+                        // For DELETE operations, we need to determine if it's a bookmark or folder.
+                        // The client may pass EITHER a browserId (legacy) OR a masterId (cross-
+                        // device). db.deleteBookmark/deleteFolder both branch on `bookmark.masterId`:
+                        //   - if set: `WHERE masterId = ? AND userId = ?` (works across devices,
+                        //     because the masterId is server-issued and globally unique)
+                        //   - if unset: `WHERE browserId = ? AND browserInstanceId = ?` (only
+                        //     works when the DELETE originates from the same browser that created
+                        //     the row — useless for the cross-device case)
+                        // We forward BOTH masterId AND the authenticated userId so the masterId
+                        // path is taken when the client knows it (which it must, since it just
+                        // pulled the master-collection). Without this, cross-device deletes
+                        // silently no-op — exactly what PROGRESS.md:71-73 says masterId prevents.
                         try {
                             const bookmarkExists = await db.checkBookmarkExists(data.browserId);
                             if (bookmarkExists) {
                                 console.log('Deleting bookmark:', data.browserId);
                                 results.push(await db.deleteBookmark({
                                     id: data.browserId,
+                                    masterId: data.masterId,
+                                    userId,
                                     metadata
                                 }));
                             } else {
@@ -203,6 +273,8 @@ const handleSync: RequestHandler = async (req, res) => {
                                     console.log('Deleting folder:', data.browserId);
                                     results.push(await db.deleteFolder({
                                         id: data.browserId,
+                                        masterId: data.masterId,
+                                        userId,
                                         metadata,
                                         recursive: true // Enable recursive deletion for non-empty folders
                                     }));
@@ -230,10 +302,7 @@ const handleSync: RequestHandler = async (req, res) => {
                             console.log('Updating bookmark:', data);
                             try {
                                 // Resolve masterParentId if parentId changed
-                                let masterParentId = data.masterParentId;
-                                if (!masterParentId && data.parentId) {
-                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
-                                }
+                                const masterParentId = resolveMasterParentId(data.masterParentId, data.parentId);
 
                                 results.push(db.updateBookmark({
                                     ...data,
@@ -253,10 +322,7 @@ const handleSync: RequestHandler = async (req, res) => {
                             console.log('Updating folder:', data);
                             try {
                                 // Resolve masterParentId if parentId changed
-                                let masterParentId = data.masterParentId;
-                                if (!masterParentId && data.parentId) {
-                                    masterParentId = db.getFolderMasterIdByBrowserId(data.parentId, userId);
-                                }
+                                const masterParentId = resolveMasterParentId(data.masterParentId, data.parentId);
 
                                 const result = db.updateFolder({
                                     ...data,
@@ -287,7 +353,10 @@ const handleSync: RequestHandler = async (req, res) => {
             }
         }
 
-        // Create sync history entry
+        // Create sync history entry. Fall back to the top-level request metadata when
+        // there are no changes (pure-pull) so that browserInstanceId is recorded properly.
+        // Without this fallback, getLastSyncForBrowser never advances and pendingChanges
+        // permanently reports stale counts (e.g. "503 to pull" with matching totals).
         await db.createSyncHistory({
             userId,
             deviceId,
@@ -306,7 +375,7 @@ const handleSync: RequestHandler = async (req, res) => {
                 bookmarksDeleted: changes.filter(c => c.type === 'DELETE' && c.data.type === 'bookmark').length,
                 foldersDeleted: changes.filter(c => c.type === 'DELETE' && c.data.type === 'folder').length
             },
-            metadata: changes[0]?.metadata
+            metadata: changes[0]?.metadata || metadata
         });
 
         res.json({
@@ -341,10 +410,16 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
             });
         }
         const userId = authUser.id;
+
+        const resolvedCollection = resolveCollectionForSync(req, res, userId);
+        if (!resolvedCollection) return;
+        const defaultCollectionId = resolvedCollection.id;
+
         const { bookmarks, folders, deviceId, metadata } = req.body as InitialSyncRequest;
         console.log(`Device ID: ${deviceId}`);
         console.log(`Received ${bookmarks.length} bookmarks and ${folders.length} folders`);
         console.log('Device Info:', metadata.deviceInfo);
+        console.log(`Target Collection: ${defaultCollectionId}`);
 
         // Generate a unique session ID for this initial sync (for rollback support)
         const sessionId = crypto.randomUUID();
@@ -363,12 +438,12 @@ export const handleInitialSync: RequestHandler = async (req, res) => {
             browserVersion: deviceInfo.browserVersion,
             os: deviceInfo.os,
             osVersion: deviceInfo.osVersion,
-            userAgent: metadata.userAgent
+            userAgent: metadata.userAgent,
+            currentCollectionId: defaultCollectionId
         });
 
         const folderResults = [];
         const bookmarkResults = [];
-        const defaultCollectionId = db.ensureDefaultCollection(userId);
         const preImportSnapshot = db.getCollectionSnapshot(defaultCollectionId, userId);
 
         const result = db.transaction(() => {
@@ -759,6 +834,7 @@ app.use('/api/v1/checkout', authenticate, checkoutRouter);
 
 // Webhook routes (no auth required - uses signature verification)
 app.use('/api/webhooks/polar', polarWebhookRouter);
+app.use('/api/webhooks/paypal', paypalWebhookRouter);
 
 // Get sync status
 app.get('/api/v1/sync/status', authenticate, async (req: Request, res: Response) => {
@@ -786,11 +862,15 @@ app.get('/api/v1/sync/status', authenticate, async (req: Request, res: Response)
             });
         }
 
-        // Check if initial sync is needed based on master collection
-        const bookmarkCount = db.getBookmarkCountForUser(userId);
-        const folderCount = db.getFolderCountForUser(userId);
-        const needsInitialSync = bookmarkCount + folderCount === 0;
-        console.log(`Master counts for user ${userId}:`, { bookmarkCount, folderCount });
+        // Resolve which collection to check status for
+        const resolvedCollection = resolveCollectionForSync(req, res, userId);
+        if (!resolvedCollection) return;
+        const collectionId = resolvedCollection.id;
+
+        const collectionBookmarks = db.getBookmarksByCollection(collectionId, userId);
+        const collectionFolders = db.getFoldersByCollection(collectionId, userId);
+        const needsInitialSync = collectionBookmarks.length + collectionFolders.length === 0;
+        console.log(`Collection ${collectionId} counts:`, { bookmarks: collectionBookmarks.length, folders: collectionFolders.length });
         console.log(`Needs initial sync? ${needsInitialSync}`);
 
         let pendingChanges = {
@@ -804,8 +884,7 @@ app.get('/api/v1/sync/status', authenticate, async (req: Request, res: Response)
         };
 
         if (!needsInitialSync) {
-            const lastSyncMs = db.getLastSyncForBrowser(userId, browserInstanceId);
-            const lastSyncSeconds = lastSyncMs ? Math.floor(lastSyncMs / 1000) : 0;
+            const lastSyncSeconds = db.getLastSyncForBrowser(userId, browserInstanceId) || 0;
             pendingChanges = db.getPendingChangesForBrowser(userId, browserInstanceId, lastSyncSeconds);
         }
 
@@ -813,7 +892,8 @@ app.get('/api/v1/sync/status', authenticate, async (req: Request, res: Response)
             success: true,
             data: {
                 needsInitialSync,
-                pendingChanges
+                pendingChanges,
+                collectionUpdatedAt: resolvedCollection.updatedAt
             }
         };
         console.log('Sending response:', response);
@@ -853,7 +933,7 @@ app.get('/api/v1/debug/stats', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now() });
+    res.json({ status: 'ok', timestamp: Math.floor(Date.now() / 1000) });
 });
 
 // Error handling middleware
@@ -887,21 +967,19 @@ app.get('/api/v1/sync/master-summary', authenticate, async (req: Request, res: R
 
         console.log(`User ID: ${userId}, Device ID: ${deviceId}`);
 
-        // Count only the default/master collection, not all collections
-        const defaultCollection = db.getDefaultCollection(userId);
-        let bookmarkCount = 0;
-        let folderCount = 0;
+        // Resolve collection from header or fall back to default
+        const resolvedCollection = resolveCollectionForSync(req, res, userId);
+        if (!resolvedCollection) return;
+        const collectionId = resolvedCollection.id;
 
-        if (defaultCollection) {
-            const bookmarks = db.getBookmarksByCollection(defaultCollection.id, userId);
-            const folders = db.getFoldersByCollection(defaultCollection.id, userId);
-            bookmarkCount = bookmarks.length;
-            folderCount = folders.length;
-        }
+        const bookmarks = db.getBookmarksByCollection(collectionId, userId);
+        const folders = db.getFoldersByCollection(collectionId, userId);
+        const bookmarkCount = bookmarks.length;
+        const folderCount = folders.length;
 
         const lastSyncTimestamp = db.getLastSyncForUser(userId);
 
-        console.log(`Found ${bookmarkCount} bookmarks and ${folderCount} folders (master collection only)`);
+        console.log(`Found ${bookmarkCount} bookmarks and ${folderCount} folders (collection: ${collectionId})`);
 
         const response = {
             success: true,
@@ -933,6 +1011,7 @@ app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res
     try {
         console.log('\n=== Master Collection Request ===');
         const deviceId = req.headers['x-device-id'] as string;
+        const browserInstanceId = req.headers['x-browser-instance-id'] as string | undefined;
         const authUser = (req as Request & { user?: { id: string } }).user;
         const userId = authUser?.id;
 
@@ -945,25 +1024,43 @@ app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res
             });
         }
 
-        console.log(`User ID: ${userId}, Device ID: ${deviceId}`);
+        console.log(`User ID: ${userId}, Device ID: ${deviceId}, Browser Instance ID: ${browserInstanceId || '(none)'}`);
 
-        // Get folders and bookmarks from the default/master collection only
-        const defaultCollection = db.getDefaultCollection(userId);
-        let folders: any[] = [];
-        let bookmarks: any[] = [];
-
-        if (defaultCollection) {
-            folders = db.getFoldersByCollection(defaultCollection.id, userId);
-            bookmarks = db.getBookmarksByCollection(defaultCollection.id, userId);
-        } else {
-            // Fallback: if no default collection, get items with null/empty collectionId
-            folders = db.getFoldersByCollection(null, userId);
-            bookmarks = db.getBookmarksByCollection(null, userId);
+        // Register browser activity to ensure browserInstanceId exists in browsers table
+        // (required for FOREIGN KEY constraint in sync_history)
+        if (browserInstanceId) {
+            try {
+                db.registerBrowser({
+                    browserInstanceId,
+                    userId,
+                    deviceId,
+                    browser: 'unknown',
+                    browserVersion: 'unknown',
+                    os: 'unknown',
+                    osVersion: 'unknown',
+                    userAgent: req.headers['user-agent'] as string || 'unknown'
+                });
+                console.log(`[MasterCollection] Registered browser ${browserInstanceId}`);
+            } catch (error) {
+                console.error('[MasterCollection] Failed to register browser:', error);
+                // Don't block the request if registration fails
+            }
         }
 
-        console.log(`Found ${bookmarks.length} bookmarks and ${folders.length} folders (master collection)`);
+        // Resolve collection from header or fall back to default
+        const resolvedCollection = resolveCollectionForSync(req, res, userId);
+        if (!resolvedCollection) return;
+        const collectionId = resolvedCollection.id;
 
-        // Create a record of this master collection fetch
+        const folders = db.getFoldersByCollection(collectionId, userId);
+        const bookmarks = db.getBookmarksByCollection(collectionId, userId);
+
+        console.log(`Found ${bookmarks.length} bookmarks and ${folders.length} folders (collection: ${collectionId})`);
+
+        // Create a record of this master collection fetch. Pass browserInstanceId via metadata
+        // so getLastSyncForBrowser can find this row and advance lastSync. Without this,
+        // pending-changes-for-browser keeps reporting stale totals (root cause of "503 to pull"
+        // when master and local totals already match).
         db.createSyncHistory({
             userId,
             deviceId,
@@ -975,8 +1072,9 @@ app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res
                 foldersProcessed: folders.length
             },
             metadata: {
-                timestamp: Date.now(),
-                action: 'MASTER_COLLECTION_FETCH'
+                timestamp: Math.floor(Date.now() / 1000),
+                action: 'MASTER_COLLECTION_FETCH',
+                deviceInfo: browserInstanceId ? { browserInstanceId } : undefined
             }
         });
 
@@ -985,7 +1083,7 @@ app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res
             data: {
                 folders,
                 bookmarks,
-                timestamp: Date.now()
+                timestamp: Math.floor(Date.now() / 1000)
             }
         };
 
@@ -998,6 +1096,137 @@ app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res
             success: false,
             error: {
                 message: 'Failed to get master collection',
+                details: error.message
+            }
+        });
+    }
+});
+
+// Get pending changes for sync down
+app.get('/api/v1/sync/pending', authenticate, async (req: Request, res: Response) => {
+    try {
+        console.log('\n=== Pending Changes Request ===');
+        const deviceId = req.headers['x-device-id'] as string;
+        const browserInstanceId = req.headers['x-browser-instance-id'] as string | undefined;
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        const userId = authUser?.id;
+
+        if (!userId || !deviceId) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Device ID is required'
+                }
+            });
+        }
+
+        if (!browserInstanceId) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    message: 'Browser Instance ID is required'
+                }
+            });
+        }
+
+        console.log(`User ID: ${userId}, Device ID: ${deviceId}, Browser Instance ID: ${browserInstanceId}`);
+
+        // Register browser activity to ensure browserInstanceId exists in browsers table
+        // (required for FOREIGN KEY constraint in sync_history)
+        try {
+            db.registerBrowser({
+                browserInstanceId,
+                userId,
+                deviceId,
+                browser: 'unknown',
+                browserVersion: 'unknown',
+                os: 'unknown',
+                osVersion: 'unknown',
+                userAgent: req.headers['user-agent'] as string || 'unknown'
+            });
+            console.log(`[Pending] Registered browser ${browserInstanceId}`);
+        } catch (error) {
+            console.error('[Pending] Failed to register browser:', error);
+            // Don't block the request if registration fails
+        }
+
+        // Resolve collection from header or fall back to default
+        const resolvedCollection = resolveCollectionForSync(req, res, userId);
+        if (!resolvedCollection) return;
+        const collectionId = resolvedCollection.id;
+
+        // Check if master collection is empty (needs initial sync)
+        const folders = db.getFoldersByCollection(collectionId, userId);
+        const bookmarks = db.getBookmarksByCollection(collectionId, userId);
+        const needsInitialSync = folders.length === 0 && bookmarks.length === 0;
+
+        if (needsInitialSync) {
+            console.log('Master collection is empty - needs initial sync');
+            return res.json({
+                success: true,
+                data: {
+                    needsInitialSync: true,
+                    changes: { creates: { folders: [], bookmarks: [] }, updates: { folders: [], bookmarks: [] }, deletes: { folders: [], bookmarks: [] } },
+                    summary: { total: 0 }
+                }
+            });
+        }
+
+        // Get last sync timestamp for this browser instance
+        const lastSync = db.getLastSyncForBrowser(userId, browserInstanceId);
+        const lastSyncSeconds = lastSync || 0;
+        console.log(`Last sync for browser: ${lastSync ? new Date(lastSync * 1000).toISOString() : 'never'}`);
+
+        // Get pending changes (delta from other browsers)
+        const changes = db.getPendingChangesDetails(userId, browserInstanceId, lastSyncSeconds);
+
+        const total = changes.creates.folders.length + changes.creates.bookmarks.length +
+                     changes.updates.folders.length + changes.updates.bookmarks.length +
+                     changes.deletes.folders.length + changes.deletes.bookmarks.length;
+
+        const summary = {
+            total,
+            creates: changes.creates.folders.length + changes.creates.bookmarks.length,
+            updates: changes.updates.folders.length + changes.updates.bookmarks.length,
+            deletes: changes.deletes.folders.length + changes.deletes.bookmarks.length
+        };
+
+        console.log(`Pending changes: ${summary.total} total (${summary.creates} creates, ${summary.updates} updates, ${summary.deletes} deletes)`);
+
+        // Create a record of this pending changes fetch. Pass browserInstanceId via metadata
+        // so getLastSyncForBrowser can find this row and advance lastSync.
+        db.createSyncHistory({
+            userId,
+            deviceId,
+            type: 'SYNC',
+            changesCount: total,
+            status: 'SUCCESS',
+            details: {
+                bookmarksProcessed: changes.creates.bookmarks.length + changes.updates.bookmarks.length + changes.deletes.bookmarks.length,
+                foldersProcessed: changes.creates.folders.length + changes.updates.folders.length + changes.deletes.folders.length
+            },
+            metadata: {
+                timestamp: Math.floor(Date.now() / 1000),
+                action: 'PENDING_CHANGES_FETCH',
+                deviceInfo: { browserInstanceId }
+            }
+        });
+
+        res.json({
+            success: true,
+            data: {
+                needsInitialSync: false,
+                changes,
+                summary
+            }
+        });
+    } catch (err) {
+        const error = err as Error;
+        console.error('Error getting pending changes:', error);
+        res.status(500).json({
+            success: false,
+            error: {
+                message: 'Failed to get pending changes',
                 details: error.message
             }
         });
@@ -1035,6 +1264,8 @@ const ROOT_ID_TO_CANONICAL: Record<string, string> = {
 function isRootFolderId(id: string | null): boolean {
     if (!id) return true;
     if (id === '0') return true;
+    // Chrome/Brave/Chromium/Edge root IDs: 1=Bookmarks Bar, 2=Other Bookmarks, 3=Mobile Bookmarks
+    if (id === '1' || id === '2' || id === '3') return true;
     return FIREFOX_ROOT_IDS.has(id);
 }
 
@@ -1113,13 +1344,16 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
         }
         const userId = authUser.id;
 
-        // Ensure default collection exists when syncing
-        const defaultCollectionId = db.ensureDefaultCollection(userId);
+        const resolvedCollection = resolveCollectionForSync(req, res, userId);
+        if (!resolvedCollection) return;
+        const defaultCollectionId = resolvedCollection.id;
+
         const preMergeSnapshot = db.getCollectionSnapshot(defaultCollectionId, userId);
 
         const { bookmarks, folders, deviceId, metadata } = req.body as InitialSyncRequest;
         console.log(`Device ID: ${deviceId}`);
         console.log(`Received ${bookmarks.length} bookmarks and ${folders.length} folders for merge`);
+        console.log(`Target Collection: ${defaultCollectionId}`);
 
         // Generate a unique session ID for this merge operation (for rollback support)
         const sessionId = crypto.randomUUID();
@@ -1137,7 +1371,8 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
             browserVersion: deviceInfo.browserVersion,
             os: deviceInfo.os,
             osVersion: deviceInfo.osVersion,
-            userAgent: metadata.userAgent
+            userAgent: metadata.userAgent,
+            currentCollectionId: defaultCollectionId
         });
 
         let foldersCreated = 0;
@@ -1173,7 +1408,7 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
             const existingBookmarkKeys = new Set<string>();
             for (const b of existingBookmarks) {
                 const folderPath = b.masterParentId ? buildFolderPath(b.masterParentId, existingFolderMap) : '';
-                const key = (folderPath + '|' + b.url).toLowerCase();
+                const key = (folderPath + '|' + b.title + '|' + b.url).toLowerCase();
                 existingBookmarkKeys.add(key);
             }
 
@@ -1326,24 +1561,45 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
                 }
             }
 
+            if (folderQueue.length > 0) {
+                console.warn(`[MERGE] Folder processing incomplete: ${folderQueue.length} folders still in queue after max iterations`);
+                for (const f of folderQueue) {
+                    console.warn(`  Unprocessed folder: id="${f.id}", title="${f.title}", parentId="${f.parentId}"`);
+                }
+            }
+
+            console.log(`[MERGE] browserIdToMasterId after folder processing (${browserIdToMasterId.size} entries):`);
+            for (const [browserId, masterId] of browserIdToMasterId) {
+                const label = incomingFolderMap.get(browserId)?.title || '(pre-existing)';
+                console.log(`  "${browserId}" -> ${masterId} (${label})`);
+            }
+
             const filteredBookmarks = bookmarks.filter((b: any) =>
                 b.url &&
                 b.url.trim() !== '' &&
                 !b.url.startsWith('place:')
             );
+            const placeBMs = bookmarks.length - filteredBookmarks.length;
+            console.log(`Bookmark filtering: ${bookmarks.length} total -> ${filteredBookmarks.length} regular, ${placeBMs} place:/empty filtered`);
+
+            let bookmarksFailed = 0;
+            const failedBookmarks: { url: string; title: string; parentId: string; reason: string }[] = [];
 
             for (const bookmark of filteredBookmarks) {
                 let masterParentId: string | null = null;
                 if (bookmark.parentId && bookmark.parentId !== '0') {
                     masterParentId = browserIdToMasterId.get(bookmark.parentId) || null;
+                    if (!masterParentId) {
+                        console.warn(`[MERGE] No master mapping for parentId="${bookmark.parentId}" (bookmark: "${bookmark.title}" ${bookmark.url}). browserIdToMasterId keys: [${Array.from(browserIdToMasterId.keys()).join(', ')}]`);
+                    }
                 }
 
                 const folderPath = masterParentId ? buildFolderPath(masterParentId, existingFolderMap) : '';
-                const dedupeKey = (folderPath + '|' + bookmark.url).toLowerCase();
+                const dedupeKey = (folderPath + '|' + bookmark.title + '|' + bookmark.url).toLowerCase();
 
                 if (existingBookmarkKeys.has(dedupeKey)) {
                     bookmarksSkipped++;
-                    console.log(`Bookmark exists: ${bookmark.url} in ${folderPath}`);
+                    console.log(`Bookmark exists: "${bookmark.title}" ${bookmark.url} in path="${folderPath}"`);
                 } else {
                     try {
                         db.createBookmark({
@@ -1357,11 +1613,23 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
                         });
                         existingBookmarkKeys.add(dedupeKey);
                         bookmarksCreated++;
-                        console.log(`Created bookmark: ${bookmark.title} - ${bookmark.url}`);
+                        console.log(`Created bookmark: "${bookmark.title}" ${bookmark.url} -> parentId="${bookmark.parentId}", masterParentId=${masterParentId}, path="${folderPath}"`);
                     } catch (err) {
-                        console.error(`Failed to create bookmark ${bookmark.url}:`, err);
+                        bookmarksFailed++;
+                        const reason = err instanceof Error ? err.message : String(err);
+                        failedBookmarks.push({ url: bookmark.url, title: bookmark.title, parentId: bookmark.parentId, reason });
+                        console.error(`[MERGE] Failed to create bookmark "${bookmark.title}" ${bookmark.url} (parentId="${bookmark.parentId}", masterParentId=${masterParentId}):`, err);
                     }
                 }
+            }
+
+            if (bookmarksFailed > 0) {
+                console.error(`[MERGE] ${bookmarksFailed} bookmarks failed to create:`, JSON.stringify(failedBookmarks, null, 2));
+            }
+
+            const accountedFor = bookmarksCreated + bookmarksSkipped + bookmarksFailed;
+            if (accountedFor !== filteredBookmarks.length) {
+                console.error(`[MERGE] BOOKMARK COUNT MISMATCH: ${filteredBookmarks.length} filtered but only ${accountedFor} accounted for (created=${bookmarksCreated}, skipped=${bookmarksSkipped}, failed=${bookmarksFailed})`);
             }
 
             db.createSyncHistory({
@@ -1369,17 +1637,19 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
                 deviceId,
                 type: 'MERGE_IMPORT',
                 changesCount: foldersCreated + bookmarksCreated,
-                status: 'SUCCESS',
+                status: bookmarksFailed > 0 ? 'PARTIAL' : 'SUCCESS',
                 collectionId: defaultCollectionId,
                 sessionId,
                 details: {
                     changesProcessed: foldersCreated + bookmarksCreated,
-                    bookmarksProcessed: bookmarksCreated + bookmarksSkipped,
+                    bookmarksProcessed: bookmarksCreated + bookmarksSkipped + bookmarksFailed,
                     foldersProcessed: foldersCreated + foldersSkipped,
                     foldersCreated,
                     foldersSkipped,
                     bookmarksCreated,
                     bookmarksSkipped,
+                    bookmarksFailed,
+                    failedBookmarks: failedBookmarks.length > 0 ? failedBookmarks : undefined,
                     sessionId,
                     sourceBrowser,
                     collectionId: defaultCollectionId
@@ -1400,6 +1670,7 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
                     foldersSkipped,
                     bookmarksCreated,
                     bookmarksSkipped,
+                    bookmarksFailed,
                     sourceBrowser,
                     sessionId
                 }
@@ -1416,12 +1687,16 @@ app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Req
                 foldersSkipped,
                 bookmarksCreated,
                 bookmarksSkipped,
+                bookmarksFailed,
+                bookmarksReceived: bookmarks.length,
+                bookmarksFiltered: filteredBookmarks.length,
+                failedBookmarks: failedBookmarks.length > 0 ? failedBookmarks : undefined,
                 totalMasterFolders: existingFolders.length + foldersCreated,
                 totalMasterBookmarks: existingBookmarks.length + bookmarksCreated
             }
             };
         });
-        console.log('Merge completed:', response);
+        console.log('Merge completed:', JSON.stringify(response, null, 2));
         res.json(response);
     } catch (err) {
         const error = err as Error;
@@ -1463,8 +1738,19 @@ app.post('/api/v1/capture', authenticate, async (req: Request, res: Response) =>
         // Resolve masterParentId if parentId provided
         let resolvedMasterParentId = masterParentId;
         if (!resolvedMasterParentId && parentId) {
-            resolvedMasterParentId = db.getFolderMasterIdByBrowserId(parentId, userId);
+            const parentFolder = db.getFolderByMasterId(parentId, userId) as { masterId?: string } | undefined;
+            resolvedMasterParentId = parentFolder?.masterId || db.getFolderMasterIdByBrowserId(parentId, userId);
         }
+
+        // Resolve the user's default collection so the captured bookmark lands
+        // in the same bucket the desktop extension pulls via /sync/master-collection
+        // (which filters by `collectionId = ?`, server.ts ~1027). Without this the
+        // bookmark is stored with `collectionId IS NULL` and is invisible to the
+        // extension's master-collection read, defeating the entire share-sheet
+        // feature. If the user has no default yet, ensureDefaultCollection seeds
+        // one (and standard root folders) atomically.
+        const defaultCollection = db.getDefaultCollection(userId);
+        const collectionId = defaultCollection?.id ?? db.ensureDefaultCollection(userId);
 
         // Create the bookmark
         const result = db.createBookmark({
@@ -1473,11 +1759,12 @@ app.post('/api/v1/capture', authenticate, async (req: Request, res: Response) =>
             title: title || url,
             parentId: parentId || '1', // Default to Bookmarks Bar if not specified
             masterParentId: resolvedMasterParentId,
+            collectionId, // <-- must be the default collection UUID, not null
             position: 0,
-            dateAdded: Date.now(),
+            dateAdded: Math.floor(Date.now() / 1000),
             userId,
             metadata: {
-                timestamp: Date.now(),
+                timestamp: Math.floor(Date.now() / 1000),
                 deviceInfo: {
                     browserInstanceId: 'mobile-app',
                     deviceId: req.headers['x-device-id'] as string || 'mobile',
@@ -1500,7 +1787,7 @@ app.post('/api/v1/capture', authenticate, async (req: Request, res: Response) =>
                 title: title || url,
                 parentId: parentId || '1',
                 masterParentId: resolvedMasterParentId,
-                createdAt: Date.now()
+                createdAt: Math.floor(Date.now() / 1000)
             }
         });
     } catch (err) {

@@ -56,7 +56,7 @@ export class BookmarkManager {
         }
     }
     
-    private async handleBookmarkRemoved(id: string, removeInfo: chrome.bookmarks.BookmarkRemoveInfo): Promise<void> {
+    private async handleBookmarkRemoved(id: string): Promise<void> {
         try {
             if (await this.storageManager.isQueueingSuppressed()) {
                 return;

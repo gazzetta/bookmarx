@@ -53,3 +53,9 @@ Thumbs.db
 *.db
 *.db-journal
 *.sqlite
+
+# ---- Test harness (root tests/ workspace) ----
+test-results.junit.xml
+coverage/
+.vitest/
+src/website/*.tsbuildinfo

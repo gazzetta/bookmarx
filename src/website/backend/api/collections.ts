@@ -72,7 +72,7 @@ router.get('/:collectionId', authenticate, async (req: AuthenticatedRequest, res
                 error: {
                     code: 'PREMIUM_REQUIRED',
                     message: 'Access to non-default collections requires premium',
-                    upgradeUrl: 'https://bookmarx.gasdigital.co.uk/upgrade'
+                    upgradeUrl: 'https://www.bookmarx.cc/upgrade'
                 }
             });
         }
@@ -341,15 +341,25 @@ router.post('/:collectionId/changes', authenticate, requirePremium, async (req: 
                     switch (change.type) {
                         case 'move': {
                             const { itemId, itemType, newParentId } = change;
+                            const targetParentBrowserId = newParentId
+                                ? db.getFolderBrowserIdByMasterId(newParentId, userId, collection.id)
+                                : '1';
+
+                            if (newParentId && !targetParentBrowserId) {
+                                throw new Error(`Target parent not found for move: ${newParentId}`);
+                            }
+
                             if (itemType === 'folder') {
                                 db.updateFolder({
                                     masterId: itemId,
+                                    parentId: targetParentBrowserId || undefined,
                                     masterParentId: newParentId,
                                     userId
                                 });
                             } else {
                                 db.updateBookmark({
                                     masterId: itemId,
+                                    parentId: targetParentBrowserId || undefined,
                                     masterParentId: newParentId,
                                     userId
                                 });
@@ -404,11 +414,14 @@ router.post('/:collectionId/changes', authenticate, requirePremium, async (req: 
                         }
                         case 'add-folder': {
                             const { parentId, title } = change;
+                            const parentBrowserId = parentId
+                                ? db.getFolderBrowserIdByMasterId(parentId, userId, collection.id)
+                                : null;
                             db.createFolder({
                                 browserId: `manual-folder-${Date.now()}-${change.id || Math.random().toString(36).slice(2)}`,
                                 title,
-                                parentId: parentId || null,
-                                masterParentId: parentId,
+                                parentId: parentBrowserId || '1',
+                                masterParentId: parentId || null,
                                 position: 0,
                                 dateAdded: Date.now(),
                                 userId,
@@ -420,12 +433,15 @@ router.post('/:collectionId/changes', authenticate, requirePremium, async (req: 
                         }
                         case 'add-bookmark': {
                             const { parentId, title, url } = change;
+                            const parentBrowserId = parentId
+                                ? db.getFolderBrowserIdByMasterId(parentId, userId, collection.id)
+                                : null;
                             db.createBookmark({
                                 browserId: `manual-bookmark-${Date.now()}-${change.id || Math.random().toString(36).slice(2)}`,
                                 title,
                                 url,
-                                parentId: parentId || '',
-                                masterParentId: parentId,
+                                parentId: parentBrowserId || '1',
+                                masterParentId: parentId || null,
                                 position: 0,
                                 userId,
                                 collectionId: collection.id,
@@ -506,6 +522,12 @@ router.post('/:collectionId/changes', authenticate, requirePremium, async (req: 
         const failCount = results.filter(r => !r.success).length;
 
         console.log(`Applied ${successCount}/${changes.length} changes to collection ${collectionId} for user ${userId}`);
+
+        // Update collection's updatedAt timestamp to trigger extension sync
+        // The updateCollection method automatically updates the timestamp
+        if (successCount > 0) {
+            db.updateCollection(collection.id, userId, {});
+        }
 
         res.json({
             success: failCount === 0,

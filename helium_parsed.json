@@ -1,0 +1,3454 @@
+{
+  "folders": [
+    {
+      "id": "folder_1",
+      "title": "Bookmarks bar",
+      "parent": "Bookmarks bar",
+      "path": "Bookmarks bar"
+    },
+    {
+      "id": "folder_2",
+      "title": "ResElec",
+      "parent": "Bookmarks bar",
+      "path": "Bookmarks bar/ResElec"
+    },
+    {
+      "id": "folder_3",
+      "title": "Marketplacess",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Marketplacess"
+    },
+    {
+      "id": "folder_4",
+      "title": "eBid",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/eBid"
+    },
+    {
+      "id": "folder_5",
+      "title": "Ideas",
+      "parent": "eBid",
+      "path": "Bookmarks bar/ResElec/eBid/Ideas"
+    },
+    {
+      "id": "folder_6",
+      "title": "eBid Ideas",
+      "parent": "Ideas",
+      "path": "Bookmarks bar/ResElec/eBid/Ideas/eBid Ideas"
+    },
+    {
+      "id": "folder_7",
+      "title": "Affiliate",
+      "parent": "eBid",
+      "path": "Bookmarks bar/ResElec/eBid/Affiliate"
+    },
+    {
+      "id": "folder_8",
+      "title": "Competitors",
+      "parent": "eBid",
+      "path": "Bookmarks bar/ResElec/eBid/Competitors"
+    },
+    {
+      "id": "folder_9",
+      "title": "Fraud",
+      "parent": "eBid",
+      "path": "Bookmarks bar/ResElec/eBid/Fraud"
+    },
+    {
+      "id": "folder_10",
+      "title": "eBid Redeisng Ideas",
+      "parent": "eBid",
+      "path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas"
+    },
+    {
+      "id": "folder_11",
+      "title": "Sept2013",
+      "parent": "eBid Redeisng Ideas",
+      "path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013"
+    },
+    {
+      "id": "folder_12",
+      "title": "GasDigital",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/GasDigital"
+    },
+    {
+      "id": "folder_13",
+      "title": "GasDigital Labs",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/GasDigital Labs"
+    },
+    {
+      "id": "folder_14",
+      "title": "Nicedeals",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/Nicedeals"
+    },
+    {
+      "id": "folder_15",
+      "title": "Impressionz",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/Impressionz"
+    },
+    {
+      "id": "folder_16",
+      "title": "Hamiltons-care.co.uk",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/Hamiltons-care.co.uk"
+    },
+    {
+      "id": "folder_17",
+      "title": "SEO",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/SEO"
+    },
+    {
+      "id": "folder_18",
+      "title": "Sites",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/Sites"
+    },
+    {
+      "id": "folder_19",
+      "title": "Digg",
+      "parent": "Sites",
+      "path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg"
+    },
+    {
+      "id": "folder_20",
+      "title": "Hostupa",
+      "parent": "Sites",
+      "path": "Bookmarks bar/ResElec/GasDigital/Sites/Hostupa"
+    },
+    {
+      "id": "folder_21",
+      "title": "DVD Rental",
+      "parent": "Sites",
+      "path": "Bookmarks bar/ResElec/GasDigital/Sites/DVD Rental"
+    },
+    {
+      "id": "folder_22",
+      "title": "Givemedough",
+      "parent": "Sites",
+      "path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough"
+    },
+    {
+      "id": "folder_23",
+      "title": "pingmakers",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/pingmakers"
+    },
+    {
+      "id": "folder_24",
+      "title": "PPPay",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/PPPay"
+    },
+    {
+      "id": "folder_25",
+      "title": "LovePepper.com",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/LovePepper.com"
+    },
+    {
+      "id": "folder_26",
+      "title": "Software",
+      "parent": "LovePepper.com",
+      "path": "Bookmarks bar/ResElec/GasDigital/LovePepper.com/Software"
+    },
+    {
+      "id": "folder_27",
+      "title": "Snapagogo",
+      "parent": "GasDigital",
+      "path": "Bookmarks bar/ResElec/GasDigital/Snapagogo"
+    },
+    {
+      "id": "folder_28",
+      "title": "Tech",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Tech"
+    },
+    {
+      "id": "folder_29",
+      "title": "Dev Stuff",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Dev Stuff"
+    },
+    {
+      "id": "folder_30",
+      "title": "Linux",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Linux"
+    },
+    {
+      "id": "folder_31",
+      "title": "mySql",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/mySql"
+    },
+    {
+      "id": "folder_32",
+      "title": "Hosting",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Hosting"
+    },
+    {
+      "id": "folder_33",
+      "title": "Memcached",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Memcached"
+    },
+    {
+      "id": "folder_34",
+      "title": "Apache",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Apache"
+    },
+    {
+      "id": "folder_35",
+      "title": "Nagios",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Nagios"
+    },
+    {
+      "id": "folder_36",
+      "title": "Cloud",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Cloud"
+    },
+    {
+      "id": "folder_37",
+      "title": "HTML",
+      "parent": "Cloud",
+      "path": "Bookmarks bar/ResElec/Tech/Cloud/HTML"
+    },
+    {
+      "id": "folder_38",
+      "title": "Nginx",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Nginx"
+    },
+    {
+      "id": "folder_39",
+      "title": "Postifx",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Postifx"
+    },
+    {
+      "id": "folder_40",
+      "title": "Sphinx",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Sphinx"
+    },
+    {
+      "id": "folder_41",
+      "title": "Email",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/Email"
+    },
+    {
+      "id": "folder_42",
+      "title": "RegExp",
+      "parent": "Tech",
+      "path": "Bookmarks bar/ResElec/Tech/RegExp"
+    },
+    {
+      "id": "folder_43",
+      "title": "Personal",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Personal"
+    },
+    {
+      "id": "folder_44",
+      "title": "Film",
+      "parent": "Personal",
+      "path": "Bookmarks bar/ResElec/Personal/Film"
+    },
+    {
+      "id": "folder_45",
+      "title": "Money",
+      "parent": "Personal",
+      "path": "Bookmarks bar/ResElec/Personal/Money"
+    },
+    {
+      "id": "folder_46",
+      "title": "Holidays",
+      "parent": "Personal",
+      "path": "Bookmarks bar/ResElec/Personal/Holidays"
+    },
+    {
+      "id": "folder_47",
+      "title": "USA 2015",
+      "parent": "Holidays",
+      "path": "Bookmarks bar/ResElec/Personal/Holidays/USA 2015"
+    },
+    {
+      "id": "folder_48",
+      "title": "Ideas",
+      "parent": "Personal",
+      "path": "Bookmarks bar/ResElec/Personal/Ideas"
+    },
+    {
+      "id": "folder_49",
+      "title": "Promotion",
+      "parent": "Ideas",
+      "path": "Bookmarks bar/ResElec/Personal/Ideas/Promotion"
+    },
+    {
+      "id": "folder_50",
+      "title": "Move",
+      "parent": "Ideas",
+      "path": "Bookmarks bar/ResElec/Personal/Ideas/Move"
+    },
+    {
+      "id": "folder_51",
+      "title": "Investment",
+      "parent": "Ideas",
+      "path": "Bookmarks bar/ResElec/Personal/Ideas/Investment"
+    },
+    {
+      "id": "folder_52",
+      "title": "Gaming",
+      "parent": "Personal",
+      "path": "Bookmarks bar/ResElec/Personal/Gaming"
+    },
+    {
+      "id": "folder_53",
+      "title": "Roms",
+      "parent": "Gaming",
+      "path": "Bookmarks bar/ResElec/Personal/Gaming/Roms"
+    },
+    {
+      "id": "folder_54",
+      "title": "Build",
+      "parent": "Personal",
+      "path": "Bookmarks bar/ResElec/Personal/Build"
+    },
+    {
+      "id": "folder_55",
+      "title": "Front Door",
+      "parent": "Build",
+      "path": "Bookmarks bar/ResElec/Personal/Build/Front Door"
+    },
+    {
+      "id": "folder_56",
+      "title": "Mining",
+      "parent": "Personal",
+      "path": "Bookmarks bar/ResElec/Personal/Mining"
+    },
+    {
+      "id": "folder_57",
+      "title": "Mining Rig Ideas",
+      "parent": "Mining",
+      "path": "Bookmarks bar/ResElec/Personal/Mining/Mining Rig Ideas"
+    },
+    {
+      "id": "folder_58",
+      "title": "2024 Designs",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/2024 Designs"
+    },
+    {
+      "id": "folder_59",
+      "title": "Design",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Design"
+    },
+    {
+      "id": "folder_60",
+      "title": "Design2",
+      "parent": "Design",
+      "path": "Bookmarks bar/ResElec/Design/Design2"
+    },
+    {
+      "id": "folder_61",
+      "title": "Training 100",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Training 100"
+    },
+    {
+      "id": "folder_62",
+      "title": "Crypto",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Crypto"
+    },
+    {
+      "id": "folder_63",
+      "title": "KCC",
+      "parent": "Crypto",
+      "path": "Bookmarks bar/ResElec/Crypto/KCC"
+    },
+    {
+      "id": "folder_64",
+      "title": "AI tooling",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/AI tooling"
+    },
+    {
+      "id": "folder_65",
+      "title": "Tester Test",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Tester Test"
+    },
+    {
+      "id": "folder_66",
+      "title": "Bargn",
+      "parent": "ResElec",
+      "path": "Bookmarks bar/ResElec/Bargn"
+    }
+  ],
+  "bookmarks": [
+    {
+      "url": "https://bitcointalk.org/index.php?topic=1656416.msg27790672#msg27790672",
+      "original_url": "https://bitcointalk.org/index.php?topic=1656416.msg27790672#msg27790672",
+      "title": "BF",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://bitcointalk.org/index.php?topic=1656416.msg27790672#msg27790672"
+    },
+    {
+      "url": "https://virgintvgo.virginmedia.com/en.html",
+      "original_url": "https://virgintvgo.virginmedia.com/en.html",
+      "title": "TV Go",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://virgintvgo.virginmedia.com/en.html"
+    },
+    {
+      "url": "https://webextension.org/feedback.html?name=tab reloader (page auto refresh)&version=0.6.6&origin=tab-reloader.html",
+      "original_url": "https://webextension.org/feedback.html?name=Tab%20Reloader%20(page%20auto%20refresh)&version=0.6.6&origin=tab-reloader.html",
+      "title": "User Voice for Tab Reloader (page auto refresh) :: WebExtension.ORG",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://webextension.org/feedback.html?name=tab reloader (page auto refresh)&version=0.6.6&origin=tab-reloader.html"
+    },
+    {
+      "url": "https://www.live-footballontv.com",
+      "original_url": "https://www.live-footballontv.com/",
+      "title": "Live Football On TV",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://www.live-footballontv.com"
+    },
+    {
+      "url": "https://www.latimes.com",
+      "original_url": "https://www.latimes.com/",
+      "title": "LA Times",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://www.latimes.com"
+    },
+    {
+      "url": "https://www.radio.com/sunny981sd/listen",
+      "original_url": "https://www.radio.com/sunny981sd/listen",
+      "title": "Sunny 98.1 - LISTEN LIVE | RADIO.COM",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://www.radio.com/sunny981sd/listen"
+    },
+    {
+      "url": "https://zcl.suprnova.cc/index.php?page=account&action=edit",
+      "original_url": "https://zcl.suprnova.cc/index.php?page=account&action=edit",
+      "title": "ZCL",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://zcl.suprnova.cc/index.php?page=account&action=edit"
+    },
+    {
+      "url": "https://zen.suprnova.cc/index.php?page=account&action=transactions",
+      "original_url": "https://zen.suprnova.cc/index.php?page=account&action=transactions",
+      "title": "ZEN",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://zen.suprnova.cc/index.php?page=account&action=transactions"
+    },
+    {
+      "url": "https://hashflare.io/panel",
+      "original_url": "https://hashflare.io/panel",
+      "title": "HF",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://hashflare.io/panel"
+    },
+    {
+      "url": "https://www.nicehash.com/wallet",
+      "original_url": "https://www.nicehash.com/wallet",
+      "title": "NH",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://www.nicehash.com/wallet"
+    },
+    {
+      "url": "https://prohashing.com/person.html",
+      "original_url": "https://prohashing.com/person.html",
+      "title": "PH",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://prohashing.com/person.html"
+    },
+    {
+      "url": "https://bittrex.com",
+      "original_url": "https://bittrex.com/",
+      "title": "BR",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://bittrex.com"
+    },
+    {
+      "url": "https://www.binance.com",
+      "original_url": "https://www.binance.com/",
+      "title": "BN",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://www.binance.com"
+    },
+    {
+      "url": "https://burstforum.net/topic/6452/wallet-not-valid-can-t-receive-burst-in-my-account?loggedin=true",
+      "original_url": "https://burstforum.net/topic/6452/wallet-not-valid-can-t-receive-burst-in-my-account?loggedin=true",
+      "title": "BF",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://burstforum.net/topic/6452/wallet-not-valid-can-t-receive-burst-in-my-account?loggedin=true"
+    },
+    {
+      "url": "https://coinmarketcap.com",
+      "original_url": "https://coinmarketcap.com/",
+      "title": "CMC",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://coinmarketcap.com"
+    },
+    {
+      "url": "https://www.cryptocompare.com",
+      "original_url": "https://www.cryptocompare.com/",
+      "title": "COC",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://www.cryptocompare.com"
+    },
+    {
+      "url": "https://smry.ai/proxy?url=https://www.thetimes.com/sport/football/article/sunderland-crystal-palace-match-score-result-premier-league-xd3cs20j2",
+      "original_url": "https://smry.ai/proxy?url=https%3A%2F%2Fwww.thetimes.com%2Fsport%2Ffootball%2Farticle%2Fsunderland-crystal-palace-match-score-result-premier-league-xd3cs20j2",
+      "title": "Bypass Paywalls & Read Full Articles Free \u2013 No Login | Smry",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://smry.ai/proxy?url=https://www.thetimes.com/sport/football/article/sunderland-crystal-palace-match-score-result-premier-league-xd3cs20j2"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheets/d/1pf7cv7jb9apdionx0dlqdolp5pssj3_ys5rpgl66lne/edit?gid=0#gid=0",
+      "original_url": "https://docs.google.com/spreadsheets/d/1pF7Cv7Jb9aPdiOnx0dLqDOlp5pSsJ3_YS5Rpgl66LnE/edit?gid=0#gid=0",
+      "title": "DaviddTech Bots PUBLIC - Google Sheets",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://docs.google.com/spreadsheets/d/1pf7cv7jb9apdionx0dlqdolp5pssj3_ys5rpgl66lne/edit?gid=0#gid=0"
+    },
+    {
+      "url": "https://dribbble.com/shots/22611851-dimension-dev-re-design",
+      "original_url": "https://dribbble.com/shots/22611851-Dimension-dev-Re-Design",
+      "title": "Dimension.dev redeisng by O\u011fuz Ya\u011f\u0131z Kara on Dribbble",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://dribbble.com/shots/22611851-dimension-dev-re-design"
+    },
+    {
+      "url": "https://admin.microsoft.com/adminportal/home?#/homepage",
+      "original_url": "https://admin.microsoft.com/Adminportal/Home?#/homepage",
+      "title": "Domains - Microsoft 365 admin center",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://admin.microsoft.com/adminportal/home?#/homepage"
+    },
+    {
+      "url": "https://rydanelectricalservicesltd-admin.sharepoint.com/_layouts/15/online/adminhome.aspx#/home",
+      "original_url": "https://rydanelectricalservicesltd-admin.sharepoint.com/_layouts/15/online/AdminHome.aspx#/home",
+      "title": "Home - SharePoint admin center",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://rydanelectricalservicesltd-admin.sharepoint.com/_layouts/15/online/adminhome.aspx#/home"
+    },
+    {
+      "url": "https://entra.microsoft.com/#home",
+      "original_url": "https://entra.microsoft.com/#home",
+      "title": "Microsoft Entra - Microsoft Entra admin center",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://entra.microsoft.com/#home"
+    },
+    {
+      "url": "https://rydanelectricalservicesltd.sharepoint.com/sites/rdrive/sitepages/collabhome.aspx",
+      "original_url": "https://rydanelectricalservicesltd.sharepoint.com/sites/RDRIVE/SitePages/CollabHome.aspx",
+      "title": "R - Home",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://rydanelectricalservicesltd.sharepoint.com/sites/rdrive/sitepages/collabhome.aspx"
+    },
+    {
+      "url": "https://rydanelectricalservicesltd.sharepoint.com/sites/rdrive/shared documents/forms/allitems.aspx",
+      "original_url": "https://rydanelectricalservicesltd.sharepoint.com/sites/RDRIVE/Shared%20Documents/Forms/AllItems.aspx",
+      "title": "R - Drive",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://rydanelectricalservicesltd.sharepoint.com/sites/rdrive/shared documents/forms/allitems.aspx"
+    },
+    {
+      "url": "https://app.tempolabs.ai/project-create/ai-new",
+      "original_url": "https://app.tempolabs.ai/project-create/ai-new",
+      "title": "Tempa",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://app.tempolabs.ai/project-create/ai-new"
+    },
+    {
+      "url": "https://c14.qbo.intuit.com/app/homepage",
+      "original_url": "https://c14.qbo.intuit.com/app/homepage",
+      "title": "QuickBooks",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://c14.qbo.intuit.com/app/homepage"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=3fb1ozrts8q",
+      "original_url": "https://www.youtube.com/watch?v=3fb1OzrtS8Q",
+      "title": "(4877) TRDR Introduction Tutorial - YouTube",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://www.youtube.com/watch?v=3fb1ozrts8q"
+    },
+    {
+      "url": "https://github.com/iannuttall/task-magic",
+      "original_url": "https://github.com/iannuttall/task-magic",
+      "title": "iannuttall/task-magic: A complete task management system using Cursor/Windsurf rules",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://github.com/iannuttall/task-magic"
+    },
+    {
+      "url": "https://github.com/iannuttall/task-magic",
+      "original_url": "https://github.com/iannuttall/task-magic",
+      "title": "iannuttall/task-magic: A complete task management system using Cursor/Windsurf rules",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://github.com/iannuttall/task-magic"
+    },
+    {
+      "url": "https://tophatters.co",
+      "original_url": "https://tophatters.co/",
+      "title": "Tophatter's Inc. Official Site - Smashing Deals! - Free Shipping!",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://tophatters.co"
+    },
+    {
+      "url": "https://www.cratejoy.com/collections/home-maker",
+      "original_url": "https://www.cratejoy.com/collections/home-maker",
+      "title": "Home & Maker",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.cratejoy.com/collections/home-maker"
+    },
+    {
+      "url": "https://www.trouva.com/product/stella-nova-checkered-wool-coat",
+      "original_url": "https://www.trouva.com/product/stella-nova-checkered-wool-coat",
+      "title": "Checkered Wool Coat | Stella Nova | Trouva",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.trouva.com/product/stella-nova-checkered-wool-coat"
+    },
+    {
+      "url": "https://www.rubylane.com/item/1624272-1082/mademoiselle-rohmer-most-?t=831b94d7",
+      "original_url": "https://www.rubylane.com/item/1624272-1082/Mademoiselle-Rohmer-most-?t=831b94d7",
+      "title": "Mademoiselle Rohmer with the most luxurious body - Ruby Lane",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.rubylane.com/item/1624272-1082/mademoiselle-rohmer-most-?t=831b94d7"
+    },
+    {
+      "url": "https://www.bobshop.co.za",
+      "original_url": "https://www.bobshop.co.za/",
+      "title": "Bob Shop online shopping South Africa | bid or buy today",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.bobshop.co.za"
+    },
+    {
+      "url": "https://fyndiq.se",
+      "original_url": "https://fyndiq.se/",
+      "title": "GOOD Fynda p\u00e5 n\u00e4tet - L\u00e5ga priser & snabb leverans | Fyndiq",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://fyndiq.se"
+    },
+    {
+      "url": "https://www.eprice.it/pr/iphone-15pro",
+      "original_url": "https://www.eprice.it/pr/iphone-15pro",
+      "title": "Iphone 15pro: prezzi e offerte su ePRICE",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.eprice.it/pr/iphone-15pro"
+    },
+    {
+      "url": "https://www.morele.net",
+      "original_url": "https://www.morele.net/",
+      "title": "GOODMorele - zakupy online to pestka",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.morele.net"
+    },
+    {
+      "url": "https://cdon.se",
+      "original_url": "https://cdon.se/",
+      "title": "Det mesta av det b\u00e4sta till ett bra pris | CDON",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://cdon.se"
+    },
+    {
+      "url": "https://www.tradera.com/en",
+      "original_url": "https://www.tradera.com/en",
+      "title": "Tradera | Buy & Sell Used & Second Hand",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.tradera.com/en"
+    },
+    {
+      "url": "https://stockx.com",
+      "original_url": "https://stockx.com/",
+      "title": "StockX: Sneakers, Streetwear, Trading Cards, Handbags, Watches",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://stockx.com"
+    },
+    {
+      "url": "https://www.emag.ro",
+      "original_url": "https://www.emag.ro/",
+      "title": "eMAG.ro - C\u0103utarea nu se opre\u0219te niciodat\u0103",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.emag.ro"
+    },
+    {
+      "url": "https://www.kaufland.de",
+      "original_url": "https://www.kaufland.de/",
+      "title": "Kaufland.de \u2014 Angebote entdecken & g\u00fcnstig einkaufen",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.kaufland.de"
+    },
+    {
+      "url": "https://www.bol.com/nl/nl/l/bouwsets/20001/?bltgh=54e2adb7-b54b-426f-ad66-4a5046b347e5.recentlyviewedcategoriesentry.category-item-4.categoryimage",
+      "original_url": "https://www.bol.com/nl/nl/l/bouwsets/20001/?bltgh=54e2adb7-b54b-426f-ad66-4a5046b347e5.recentlyViewedCategoriesEntry.category-item-4.CategoryImage",
+      "title": "Bouwset kopen? Alle Bouwsets online | bol",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.bol.com/nl/nl/l/bouwsets/20001/?bltgh=54e2adb7-b54b-426f-ad66-4a5046b347e5.recentlyviewedcategoriesentry.category-item-4.categoryimage"
+    },
+    {
+      "url": "https://www.mercari.com",
+      "original_url": "https://www.mercari.com/",
+      "title": "Mercari: Your Marketplace",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.mercari.com"
+    },
+    {
+      "url": "https://www.ozon.ru",
+      "original_url": "https://www.ozon.ru/",
+      "title": "OZON \u043c\u0430\u0440\u043a\u0435\u0442\u043f\u043b\u0435\u0439\u0441 \u2013 \u043c\u0438\u043b\u043b\u0438\u043e\u043d\u044b \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u043f\u043e \u0432\u044b\u0433\u043e\u0434\u043d\u044b\u043c \u0446\u0435\u043d\u0430\u043c",
+      "folder_path": "Bookmarks bar/ResElec/Marketplacess",
+      "dedupe_key": "bookmarks bar/reselec/marketplacess|https://www.ozon.ru"
+    },
+    {
+      "url": "https://www.ebid.net/perlc/zadmin/zadmin.cgi?year=&month=&mo=admin-member-sales-total-usa-ca-sellers",
+      "original_url": "https://www.ebid.net/perlc/zadmin/zadmin.cgi?year=&month=&mo=admin-member-sales-total-usa-ca-sellers",
+      "title": "eBid.net Administration -",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.ebid.net/perlc/zadmin/zadmin.cgi?year=&month=&mo=admin-member-sales-total-usa-ca-sellers"
+    },
+    {
+      "url": "http://www.ebid.net",
+      "original_url": "http://www.ebid.net/",
+      "title": "eBid Homepage",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://www.ebid.net"
+    },
+    {
+      "url": "https://t.ebid.net/uk/perl/main.cgi?mo=main",
+      "original_url": "https://t.ebid.net/uk/perl/main.cgi?mo=main",
+      "title": "eBid Test Homepage",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://t.ebid.net/uk/perl/main.cgi?mo=main"
+    },
+    {
+      "url": "http://forums.ebid.net/showthread.php?goto=newpost&t=83614",
+      "original_url": "http://forums.ebid.net/showthread.php?goto=newpost&t=83614",
+      "title": "Forum Todo (Website)",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://forums.ebid.net/showthread.php?goto=newpost&t=83614"
+    },
+    {
+      "url": "http://www.impressionz.com/wp-admin/index.php",
+      "original_url": "http://www.impressionz.com/wp-admin/index.php",
+      "title": "ComVen @ Impressionz \u2014 WordPress",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://www.impressionz.com/wp-admin/index.php"
+    },
+    {
+      "url": "http://forums.ebid.net/showthread.php?goto=newpost&t=164377",
+      "original_url": "http://forums.ebid.net/showthread.php?goto=newpost&t=164377",
+      "title": "Forum Todo (App)",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://forums.ebid.net/showthread.php?goto=newpost&t=164377"
+    },
+    {
+      "url": "https://adwords.google.com",
+      "original_url": "https://adwords.google.com/",
+      "title": "G AdWords",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://adwords.google.com"
+    },
+    {
+      "url": "https://www.google.com/adsense",
+      "original_url": "https://www.google.com/adsense/",
+      "title": "G AdSense",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.google.com/adsense"
+    },
+    {
+      "url": "https://analytics.google.com/analytics",
+      "original_url": "https://analytics.google.com/analytics/",
+      "title": "G Analytics",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://analytics.google.com/analytics"
+    },
+    {
+      "url": "https://console.developers.google.com/project",
+      "original_url": "https://console.developers.google.com/project",
+      "title": "G Developers (APIs)",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://console.developers.google.com/project"
+    },
+    {
+      "url": "https://merchants.google.com/mc/mcadiagnostics?a=5648069&tab&hl=en&fmp=1&utm_id=gfr&mcsubid=us-en-z-g-mc-gfr",
+      "original_url": "https://merchants.google.com/mc/mcadiagnostics?a=5648069&tab&hl=en&fmp=1&utm_id=gfr&mcsubid=us-en-z-g-mc-gfr",
+      "title": "G Merchant Center",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://merchants.google.com/mc/mcadiagnostics?a=5648069&tab&hl=en&fmp=1&utm_id=gfr&mcsubid=us-en-z-g-mc-gfr"
+    },
+    {
+      "url": "https://www.google.com/webmasters/tools/home",
+      "original_url": "https://www.google.com/webmasters/tools/home",
+      "title": "G Webmaster Tools",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.google.com/webmasters/tools/home"
+    },
+    {
+      "url": "https://ui.ads.microsoft.com/campaign/campaigns?cid=17049&aid=15804&uid=21753#customer/17049/account/15804/campaign",
+      "original_url": "https://ui.ads.microsoft.com/campaign/campaigns?cid=17049&aid=15804&uid=21753#customer/17049/account/15804/campaign",
+      "title": "Bing Ads",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://ui.ads.microsoft.com/campaign/campaigns?cid=17049&aid=15804&uid=21753#customer/17049/account/15804/campaign"
+    },
+    {
+      "url": "https://ui.ads.microsoft.com/campaign/campaigns?cid=17049&uid=21753&aid=15804#customer/17049/account/15804/bing_merchant_center",
+      "original_url": "https://ui.ads.microsoft.com/Campaign/Campaigns?cid=17049&uid=21753&aid=15804#customer/17049/account/15804/bing_merchant_center",
+      "title": "Bing Merchant Center",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://ui.ads.microsoft.com/campaign/campaigns?cid=17049&uid=21753&aid=15804#customer/17049/account/15804/bing_merchant_center"
+    },
+    {
+      "url": "https://www.bing.com/webmaster/home/mysites",
+      "original_url": "https://www.bing.com/webmaster/home/mysites",
+      "title": "My Sites - Bing Webmaster Tools",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.bing.com/webmaster/home/mysites"
+    },
+    {
+      "url": "http://www.ebid.net/perlc/zadmin/zadmin.cgi",
+      "original_url": "http://www.ebid.net/perlc/zadmin/zadmin.cgi",
+      "title": "Zadmin",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://www.ebid.net/perlc/zadmin/zadmin.cgi"
+    },
+    {
+      "url": "https://t.ebid.net/perl/zadmin/zadmin.cgi",
+      "original_url": "https://t.ebid.net/perl/zadmin/zadmin.cgi",
+      "title": "TZadmin",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://t.ebid.net/perl/zadmin/zadmin.cgi"
+    },
+    {
+      "url": "http://t.ebid.net/uk/perl/translate.cgi",
+      "original_url": "http://t.ebid.net/uk/perl/translate.cgi",
+      "title": "Translate",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://t.ebid.net/uk/perl/translate.cgi"
+    },
+    {
+      "url": "https://console.uk-london-1.oraclecloud.com",
+      "original_url": "https://console.uk-london-1.oraclecloud.com/",
+      "title": "Home | Oracle Cloud Infrastructure",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://console.uk-london-1.oraclecloud.com"
+    },
+    {
+      "url": "https://ebid.cerb.me/login",
+      "original_url": "https://ebid.cerb.me/login",
+      "title": "Cerberus",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://ebid.cerb.me/login"
+    },
+    {
+      "url": "http://webmail.ebid.net/?_task=mail&_mbox=junk mail",
+      "original_url": "http://webmail.ebid.net/?_task=mail&_mbox=Junk%20Mail",
+      "title": "Webmail :: Junk Mail",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://webmail.ebid.net/?_task=mail&_mbox=junk mail"
+    },
+    {
+      "url": "https://reqbin.com",
+      "original_url": "https://reqbin.com/",
+      "title": "Online API Testing Tool | Test Your API Online",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://reqbin.com"
+    },
+    {
+      "url": "https://ebid.3scale.net",
+      "original_url": "https://ebid.3scale.net/",
+      "title": "eBid Developer Center 3Scale",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://ebid.3scale.net"
+    },
+    {
+      "url": "https://ebid-admin.3scale.net/p/admin/dashboard",
+      "original_url": "https://ebid-admin.3scale.net/p/admin/dashboard",
+      "title": "eBid 3Scale Admin",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://ebid-admin.3scale.net/p/admin/dashboard"
+    },
+    {
+      "url": "https://www.frooition.com/ebay-category-feature-finder-tool.html",
+      "original_url": "https://www.frooition.com/ebay-category-feature-finder-tool.html",
+      "title": "Free eBay Category feature lookup tool",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.frooition.com/ebay-category-feature-finder-tool.html"
+    },
+    {
+      "url": "https://developer.apple.com/membercenter/index.action",
+      "original_url": "https://developer.apple.com/membercenter/index.action",
+      "title": "Apple Developer",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://developer.apple.com/membercenter/index.action"
+    },
+    {
+      "url": "http://freepngimages.com/category/antiques-collectables",
+      "original_url": "http://freepngimages.com/category/antiques-collectables/",
+      "title": "Antiques and collectables free png images with transparent background",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://freepngimages.com/category/antiques-collectables"
+    },
+    {
+      "url": "https://www.enom.com/login.asp?",
+      "original_url": "https://www.enom.com/Login.asp?",
+      "title": "eNom - log in to your account",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.enom.com/login.asp?"
+    },
+    {
+      "url": "https://web.na.bambora.com/admin/sdefault.asp",
+      "original_url": "https://web.na.bambora.com/admin/sDefault.asp",
+      "title": "Bambora | Member Login",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://web.na.bambora.com/admin/sdefault.asp"
+    },
+    {
+      "url": "https://www.secpay.com/secnet/app?service=page/home",
+      "original_url": "https://www.secpay.com/secnet/app?service=page/Home",
+      "title": "Secpay",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.secpay.com/secnet/app?service=page/home"
+    },
+    {
+      "url": "http://www.odesk.com/dashboard",
+      "original_url": "http://www.odesk.com/dashboard",
+      "title": "Upwork",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://www.odesk.com/dashboard"
+    },
+    {
+      "url": "https://email.dynect.net/index.php?page=login",
+      "original_url": "https://email.dynect.net/index.php?Page=Login",
+      "title": "DynECT",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://email.dynect.net/index.php?page=login"
+    },
+    {
+      "url": "https://console.uk-london-1.oraclecloud.com/messaging/email/configuration",
+      "original_url": "https://console.uk-london-1.oraclecloud.com/messaging/email/configuration",
+      "title": "Email Delivery | Oracle Cloud Infrastructure",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://console.uk-london-1.oraclecloud.com/messaging/email/configuration"
+    },
+    {
+      "url": "https://control.softlayer.com",
+      "original_url": "https://control.softlayer.com/",
+      "title": "SoftLayer Support (login with IBMID first)",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://control.softlayer.com"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheet/ccc?key=0at8gvmievulpdfdlsmnkmu10ajrwrflxtvlaaktnbke&usp=drive_web#gid=0",
+      "original_url": "https://docs.google.com/spreadsheet/ccc?key=0At8gvmIeVULPdFdlSmNKMU10ajRwRFlXTVlaaktnbkE&usp=drive_web#gid=0",
+      "title": "Amex Point Transfers",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://docs.google.com/spreadsheet/ccc?key=0at8gvmievulpdfdlsmnkmu10ajrwrflxtvlaaktnbke&usp=drive_web#gid=0"
+    },
+    {
+      "url": "https://businessapp.b2b.trustpilot.com/#/reviews",
+      "original_url": "https://businessapp.b2b.trustpilot.com/#/reviews/",
+      "title": "Trustpilot Admin",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://businessapp.b2b.trustpilot.com/#/reviews"
+    },
+    {
+      "url": "https://uk.trustpilot.com/review/www.ebid.net",
+      "original_url": "https://uk.trustpilot.com/review/www.ebid.net",
+      "title": "Trustpilot Public",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://uk.trustpilot.com/review/www.ebid.net"
+    },
+    {
+      "url": "http://ebid.net/cdn-cgi/trace",
+      "original_url": "http://ebid.net/cdn-cgi/trace",
+      "title": "Cloudflare info",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://ebid.net/cdn-cgi/trace"
+    },
+    {
+      "url": "https://sharingbuttons.io",
+      "original_url": "https://sharingbuttons.io/",
+      "title": "Social Media Sharing Buttons. No JavaScript. No tracking. Super fast and easy.",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|https://sharingbuttons.io"
+    },
+    {
+      "url": "http://www.alibris.com/search/search.cfm?qtit=the lord of the rings&qauth=&mtype=v&qsort=r",
+      "original_url": "http://www.alibris.com/search/search.cfm?qtit=The%20Lord%20of%20the%20Rings&qauth=&mtype=V&qsort=r",
+      "title": "Alibris: The Lord of the Rings",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://www.alibris.com/search/search.cfm?qtit=the lord of the rings&qauth=&mtype=v&qsort=r"
+    },
+    {
+      "url": "http://www.azubo.de/index.cfm",
+      "original_url": "http://www.azubo.de/index.cfm",
+      "title": "AZUBO.DE - HAPPY ONLINE DEALS",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://www.azubo.de/index.cfm"
+    },
+    {
+      "url": "http://www.ebcalc.com",
+      "original_url": "http://www.ebcalc.com/",
+      "title": "eBay Fees Calculator",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://www.ebcalc.com"
+    },
+    {
+      "url": "http://www.taobao.com/new.php",
+      "original_url": "http://www.taobao.com/new.php",
+      "title": "\u6dd8\u5b9d\u7f51 -- \u6dd8\u4f60\u559c\u6b22\uff01",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://www.taobao.com/new.php"
+    },
+    {
+      "url": "http://hometheaterinfo.com/dvdlist.htm",
+      "original_url": "http://hometheaterinfo.com/dvdlist.htm",
+      "title": "Download the most complete DVD list on the Web",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://hometheaterinfo.com/dvdlist.htm"
+    },
+    {
+      "url": "http://www.upcdatabase.com",
+      "original_url": "http://www.upcdatabase.com/",
+      "title": "UPC Database",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://www.upcdatabase.com"
+    },
+    {
+      "url": "http://www.hood.de",
+      "original_url": "http://www.hood.de/",
+      "title": "Hood.de - Online Auktionen kostenlos",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://www.hood.de"
+    },
+    {
+      "url": "http://www.volusion.com",
+      "original_url": "http://www.volusion.com/",
+      "title": "Shopping Cart Software by Volusion Ecommerce Solutions",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://www.volusion.com"
+    },
+    {
+      "url": "http://online-auction-sites.toptenreviews.com",
+      "original_url": "http://online-auction-sites.toptenreviews.com/",
+      "title": "Online Auction Sites Review 2009 - TopTenREVIEWS",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas|http://online-auction-sites.toptenreviews.com"
+    },
+    {
+      "url": "https://www.onbuy.com/gb",
+      "original_url": "https://www.onbuy.com/gb/",
+      "title": "OnBuy - Nice layout, nice blog",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Ideas/eBid Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ideas/ebid ideas|https://www.onbuy.com/gb"
+    },
+    {
+      "url": "http://www.viglink.com",
+      "original_url": "http://www.viglink.com/",
+      "title": "Affiliate Every Link on the Web with VigLink",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Affiliate",
+      "dedupe_key": "bookmarks bar/reselec/ebid/affiliate|http://www.viglink.com"
+    },
+    {
+      "url": "https://www.tradera.com/item/340796/361669795/lego-batman-minifigures-minifigurer-lego-batman-the-movie-",
+      "original_url": "https://www.tradera.com/item/340796/361669795/lego-batman-minifigures-minifigurer-lego-batman-the-movie-",
+      "title": "Lego Batman Minifigures / Minifigurer / Lego Ba.. (361669795) \u1408 K\u00f6p p\u00e5 Tradera",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Competitors",
+      "dedupe_key": "bookmarks bar/reselec/ebid/competitors|https://www.tradera.com/item/340796/361669795/lego-batman-minifigures-minifigurer-lego-batman-the-movie-"
+    },
+    {
+      "url": "https://www.hood.de",
+      "original_url": "https://www.hood.de/",
+      "title": "Hood.de - Auktionen & Online Shopping",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Competitors",
+      "dedupe_key": "bookmarks bar/reselec/ebid/competitors|https://www.hood.de"
+    },
+    {
+      "url": "https://www.webretailer.com/lean-commerce/online-marketplaces",
+      "original_url": "https://www.webretailer.com/lean-commerce/online-marketplaces/",
+      "title": "The World's Top Online Marketplaces 2019",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Competitors",
+      "dedupe_key": "bookmarks bar/reselec/ebid/competitors|https://www.webretailer.com/lean-commerce/online-marketplaces"
+    },
+    {
+      "url": "https://www.inc.com/minda-zetlin/patent-trolls-target-small-businesses-with-lawsuit-threats-heres-how-one-startup-fought-back.html",
+      "original_url": "https://www.inc.com/minda-zetlin/patent-trolls-target-small-businesses-with-lawsuit-threats-heres-how-one-startup-fought-back.html",
+      "title": "Patent Trolls Target Small Businesses With Lawsuit Threats. Here's How One Startup Fought Back | Inc.com",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Fraud",
+      "dedupe_key": "bookmarks bar/reselec/ebid/fraud|https://www.inc.com/minda-zetlin/patent-trolls-target-small-businesses-with-lawsuit-threats-heres-how-one-startup-fought-back.html"
+    },
+    {
+      "url": "http://64.233.183.104/search?q=cache:cgsk8zb0afmj:msnbc.msn.com/id/6030048/+a+spokesman+for+ebay+fraud&hl=en&client=firefox-a",
+      "original_url": "http://64.233.183.104/search?q=cache:CgSK8zb0AfMJ:msnbc.msn.com/id/6030048/+a+spokesman+for+eBay+fraud&hl=en&client=firefox-a",
+      "title": "MSNBC - EBay fights its toughest legal battle",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Fraud",
+      "dedupe_key": "bookmarks bar/reselec/ebid/fraud|http://64.233.183.104/search?q=cache:cgsk8zb0afmj:msnbc.msn.com/id/6030048/+a+spokesman+for+ebay+fraud&hl=en&client=firefox-a"
+    },
+    {
+      "url": "http://64.233.183.104/search?q=cache:-itmx0zmn2uj:news.com.com/fraud+lingers+despite+ebay+efforts/2100-1017_3-940427.html+a+spokesman+for+ebay+fraud&hl=en&client=firefox-a",
+      "original_url": "http://64.233.183.104/search?q=cache:-iTmX0zmn2UJ:news.com.com/Fraud%2Blingers%2Bdespite%2BeBay%2Befforts/2100-1017_3-940427.html+a+spokesman+for+eBay+fraud&hl=en&client=firefox-a",
+      "title": "Fraud lingers despite eBay efforts | CNET News.com",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Fraud",
+      "dedupe_key": "bookmarks bar/reselec/ebid/fraud|http://64.233.183.104/search?q=cache:-itmx0zmn2uj:news.com.com/fraud+lingers+despite+ebay+efforts/2100-1017_3-940427.html+a+spokesman+for+ebay+fraud&hl=en&client=firefox-a"
+    },
+    {
+      "url": "http://64.233.183.104/search?q=cache:3pmc8fetinmj:www.internetnews.com/bus-news/article.php/1031241+a+spokesman+for+ebay+fraud&hl=en&client=firefox-a",
+      "original_url": "http://64.233.183.104/search?q=cache:3pmC8fetInMJ:www.internetnews.com/bus-news/article.php/1031241+a+spokesman+for+eBay+fraud&hl=en&client=firefox-a",
+      "title": "FTC Settles Online Auction Fraud Case",
+      "folder_path": "Bookmarks bar/ResElec/eBid/Fraud",
+      "dedupe_key": "bookmarks bar/reselec/ebid/fraud|http://64.233.183.104/search?q=cache:3pmc8fetinmj:www.internetnews.com/bus-news/article.php/1031241+a+spokesman+for+ebay+fraud&hl=en&client=firefox-a"
+    },
+    {
+      "url": "http://www.guardian.co.uk/technology/2009/jun/09/iphone-o2-pricing",
+      "original_url": "http://www.guardian.co.uk/technology/2009/jun/09/iphone-o2-pricing",
+      "title": "breadcrumb style",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://www.guardian.co.uk/technology/2009/jun/09/iphone-o2-pricing"
+    },
+    {
+      "url": "http://www.webdesignerwall.com/demo/jquery",
+      "original_url": "http://www.webdesignerwall.com/demo/jquery/",
+      "title": "jQuery Tutorials for Designers",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://www.webdesignerwall.com/demo/jquery"
+    },
+    {
+      "url": "http://www.holiday-rentals.co.uk/p94917",
+      "original_url": "http://www.holiday-rentals.co.uk/p94917",
+      "title": "tabs",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://www.holiday-rentals.co.uk/p94917"
+    },
+    {
+      "url": "http://nettuts.s3.amazonaws.com/042_jqueryuitabs/demo/index.html#",
+      "original_url": "http://nettuts.s3.amazonaws.com/042_jQueryUITabs/demo/index.html#",
+      "title": "jQuery UI Tabs Demo",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://nettuts.s3.amazonaws.com/042_jqueryuitabs/demo/index.html#"
+    },
+    {
+      "url": "http://net.tutsplus.com/tutorials/javascript-ajax/making-a-content-slider-with-jquery-ui",
+      "original_url": "http://net.tutsplus.com/tutorials/javascript-ajax/making-a-content-slider-with-jquery-ui/",
+      "title": "Making a Content Slider with jQuery UI - Nettuts+",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://net.tutsplus.com/tutorials/javascript-ajax/making-a-content-slider-with-jquery-ui"
+    },
+    {
+      "url": "http://cherne.net/brian/resources/jquery.hoverintent.html",
+      "original_url": "http://cherne.net/brian/resources/jquery.hoverIntent.html",
+      "title": "hoverIntent jQuery Plug-in",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://cherne.net/brian/resources/jquery.hoverintent.html"
+    },
+    {
+      "url": "http://sandbox.leigeber.com/slideshow",
+      "original_url": "http://sandbox.leigeber.com/slideshow/",
+      "title": "AJAX Photo Gallery",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://sandbox.leigeber.com/slideshow"
+    },
+    {
+      "url": "http://pxtoem.com",
+      "original_url": "http://pxtoem.com/",
+      "title": "PXtoEM.com: PX to EM conversion made simple.",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://pxtoem.com"
+    },
+    {
+      "url": "http://www.filamentgroup.com/lab/jquery_ipod_style_and_flyout_menus",
+      "original_url": "http://www.filamentgroup.com/lab/jquery_ipod_style_and_flyout_menus/",
+      "title": "jQuery Menu: Dropdown, iPod Drilldown, and Flyout styles with ARIA Support and ThemeRoller Ready | Filament Group, Inc., Boston, MA",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://www.filamentgroup.com/lab/jquery_ipod_style_and_flyout_menus"
+    },
+    {
+      "url": "http://www.jingproject.com/pro",
+      "original_url": "http://www.jingproject.com/pro/",
+      "title": "footers",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://www.jingproject.com/pro"
+    },
+    {
+      "url": "http://blog.themeforest.net/resources/20-jquery-plugins-worth-implementing-into-your-themes",
+      "original_url": "http://blog.themeforest.net/resources/20-jquery-plugins-worth-implementing-into-your-themes/",
+      "title": "In the Woods \u2013 20 jQuery Plugins Worth Implementing into your Themes",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas|http://blog.themeforest.net/resources/20-jquery-plugins-worth-implementing-into-your-themes"
+    },
+    {
+      "url": "http://www.johnlewis.com/men/men's-knitwear/c600001516?intcmp=hp_textlink_4_mensknitwear_200913",
+      "original_url": "http://www.johnlewis.com/men/men's-knitwear/c600001516?intcmp=HP_textlink_4_mensknitwear_200913",
+      "title": "http://www.johnlewis.com/men/men's-knitwear/c600001516?intcmp=HP_textlink_4_mensknitwear_200913",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.johnlewis.com/men/men's-knitwear/c600001516?intcmp=hp_textlink_4_mensknitwear_200913"
+    },
+    {
+      "url": "https://www.origin.com/en-gb/store/browse",
+      "original_url": "https://www.origin.com/en-gb/store/browse",
+      "title": "https://www.origin.com/en-gb/store/browse",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|https://www.origin.com/en-gb/store/browse"
+    },
+    {
+      "url": "http://www.etsy.com/uk/shop/oldvintagegoodies?ref=listing-shop-header-item-count",
+      "original_url": "http://www.etsy.com/uk/shop/OldVintageGoodies?ref=listing-shop-header-item-count",
+      "title": "http://www.etsy.com/uk/shop/OldVintageGoodies?ref=listing-shop-header-item-count",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.etsy.com/uk/shop/oldvintagegoodies?ref=listing-shop-header-item-count"
+    },
+    {
+      "url": "http://www.barnesandnoble.com",
+      "original_url": "http://www.barnesandnoble.com/",
+      "title": "Barnes & Noble - Books, Textbooks, eBooks, Toys, Games & More",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.barnesandnoble.com"
+    },
+    {
+      "url": "http://www.crateandbarrel.com/outdoor-furniture/outdoor-seating/1",
+      "original_url": "http://www.crateandbarrel.com/outdoor-furniture/outdoor-seating/1",
+      "title": "Outdoor Chairs, Sofas & Outdoor Benches | Crate and Barrel",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.crateandbarrel.com/outdoor-furniture/outdoor-seating/1"
+    },
+    {
+      "url": "http://www.inspirationalshops.com",
+      "original_url": "http://www.inspirationalshops.com/",
+      "title": "Inspirational Shops - The Best eCommerce Web Designs",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.inspirationalshops.com"
+    },
+    {
+      "url": "http://www.mujjo.com/the-sleeves-collection",
+      "original_url": "http://www.mujjo.com/the-sleeves-collection",
+      "title": "Mujjo Online Store",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.mujjo.com/the-sleeves-collection"
+    },
+    {
+      "url": "http://www.debenhams.com/webapp/wcs/stores/servlet/prod_10701_10001_61845+harcho_-1",
+      "original_url": "http://www.debenhams.com/webapp/wcs/stores/servlet/prod_10701_10001_61845+HARCHO_-1",
+      "title": "How Not to do it",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.debenhams.com/webapp/wcs/stores/servlet/prod_10701_10001_61845+harcho_-1"
+    },
+    {
+      "url": "http://www.anthropologie.eu/anthro/category/all+shoes/shoes-all.jsp?cm_sp=topnav-_-shoes-_-shoes-all",
+      "original_url": "http://www.anthropologie.eu/anthro/category/all+shoes/shoes-all.jsp?cm_sp=TOPNAV-_-SHOES-_-SHOES-ALL",
+      "title": "Shop All Shoes at Anthropologie.eu",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.anthropologie.eu/anthro/category/all+shoes/shoes-all.jsp?cm_sp=topnav-_-shoes-_-shoes-all"
+    },
+    {
+      "url": "http://www.shoplet.com/bottled+water/category/ol555/srch",
+      "original_url": "http://www.shoplet.com/bottled+water/category/ol555/srch",
+      "title": "Too busy",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.shoplet.com/bottled+water/category/ol555/srch"
+    },
+    {
+      "url": "http://www.staples.co.uk/envelopes-labels-mailing/postal-scales",
+      "original_url": "http://www.staples.co.uk/envelopes-labels-mailing/postal-scales",
+      "title": "Bog standard",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.staples.co.uk/envelopes-labels-mailing/postal-scales"
+    },
+    {
+      "url": "https://www.schooloutfitters.com/catalog/default/cpath/cat502_cat516",
+      "original_url": "https://www.schooloutfitters.com/catalog/default/cPath/CAT502_CAT516",
+      "title": "Same same",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|https://www.schooloutfitters.com/catalog/default/cpath/cat502_cat516"
+    },
+    {
+      "url": "http://www.stellaservice.com/business",
+      "original_url": "http://www.stellaservice.com/business/",
+      "title": "Big",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.stellaservice.com/business"
+    },
+    {
+      "url": "http://www.stellaservice.com/profile/schooloutfitters.com",
+      "original_url": "http://www.stellaservice.com/profile/schooloutfitters.com/",
+      "title": "Grey back modular",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.stellaservice.com/profile/schooloutfitters.com"
+    },
+    {
+      "url": "http://www.designrazzi.com/2013/flat-websites-examples",
+      "original_url": "http://www.designrazzi.com/2013/flat-websites-examples/",
+      "title": "75+ Best Flat Web Design Examples Inspiration | Designrazzi",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|http://www.designrazzi.com/2013/flat-websites-examples"
+    },
+    {
+      "url": "https://www.ebay.co.uk/itm/325629100898?mkevt=1&mkpid=0&emsid=e11021.m43.l3160&mkcid=7&ch=osgood&euid=04e1498c1ce4454da4372a4912f95d03&bu=43179082526&ut=ru&exe=0&ext=0&osub=-1~1&crd=20230424012248&segname=11021",
+      "original_url": "https://www.ebay.co.uk/itm/325629100898?mkevt=1&mkpid=0&emsid=e11021.m43.l3160&mkcid=7&ch=osgood&euid=04e1498c1ce4454da4372a4912f95d03&bu=43179082526&ut=RU&exe=0&ext=0&osub=-1%7E1&crd=20230424012248&segname=11021",
+      "title": "Franke-3 in 1 Instant Boiling Water Tank In Ex-Condiyion,Will Post,Buyer's Labe | eBay",
+      "folder_path": "Bookmarks bar/ResElec/eBid/eBid Redeisng Ideas/Sept2013",
+      "dedupe_key": "bookmarks bar/reselec/ebid/ebid redeisng ideas/sept2013|https://www.ebay.co.uk/itm/325629100898?mkevt=1&mkpid=0&emsid=e11021.m43.l3160&mkcid=7&ch=osgood&euid=04e1498c1ce4454da4372a4912f95d03&bu=43179082526&ut=ru&exe=0&ext=0&osub=-1~1&crd=20230424012248&segname=11021"
+    },
+    {
+      "url": "http://51.89.225.93:33133/hideaway",
+      "original_url": "http://51.89.225.93:33133/hideaway",
+      "title": "Apache Status",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://51.89.225.93:33133/hideaway"
+    },
+    {
+      "url": "http://51.75.169.242:33133/hideaway",
+      "original_url": "http://51.75.169.242:33133/hideaway",
+      "title": "Apache Status",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://51.75.169.242:33133/hideaway"
+    },
+    {
+      "url": "http://64.5.39.43:33133/hideaway",
+      "original_url": "http://64.5.39.43:33133/hideaway",
+      "title": "ebid08 server status",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://64.5.39.43:33133/hideaway"
+    },
+    {
+      "url": "http://64.5.39.42:33133/hideaway",
+      "original_url": "http://64.5.39.42:33133/hideaway",
+      "title": "Apache Status ebid07.ebid.net",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://64.5.39.42:33133/hideaway"
+    },
+    {
+      "url": "http://auctiondatawizard.imagoscape.com",
+      "original_url": "http://auctiondatawizard.imagoscape.com/",
+      "title": "Imagoscape\u00ae Enterprise - Auction Data Wizard",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://auctiondatawizard.imagoscape.com"
+    },
+    {
+      "url": "http://64.5.39.52:33133/statusaway",
+      "original_url": "http://64.5.39.52:33133/statusaway",
+      "title": "Apache Status 17",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://64.5.39.52:33133/statusaway"
+    },
+    {
+      "url": "http://64.5.39.52:33133/perlaway",
+      "original_url": "http://64.5.39.52:33133/perlaway",
+      "title": "Apache 17 Perl Status",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://64.5.39.52:33133/perlaway"
+    },
+    {
+      "url": "http://64.5.39.53/perlaway",
+      "original_url": "http://64.5.39.53/perlaway",
+      "title": "ebid18 perl status",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://64.5.39.53/perlaway"
+    },
+    {
+      "url": "http://64.5.39.53/statusaway",
+      "original_url": "http://64.5.39.53/statusaway",
+      "title": "ebid18 pache Status",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://64.5.39.53/statusaway"
+    },
+    {
+      "url": "https://www.facebook.com/ebid.net",
+      "original_url": "https://www.facebook.com/eBid.net",
+      "title": "eBid Facebook Page",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.facebook.com/ebid.net"
+    },
+    {
+      "url": "http://www.facebook.com/pages/ebid/150107279532",
+      "original_url": "http://www.facebook.com/pages/eBid/150107279532",
+      "title": "Facebook eBid Page",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://www.facebook.com/pages/ebid/150107279532"
+    },
+    {
+      "url": "http://www.facebook.com/ads/manage/campaigns.php?act=53863982",
+      "original_url": "http://www.facebook.com/ads/manage/campaigns.php?act=53863982",
+      "title": "eBid Facebook Ads",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|http://www.facebook.com/ads/manage/campaigns.php?act=53863982"
+    },
+    {
+      "url": "file:///e:/sites/send/xxstuffxx/canvas5.9.1/html/intro.html",
+      "original_url": "file:///E:/Sites/send/XxstuffxX/Canvas5.9.1/HTML/intro.html",
+      "title": "Canvas5.9.1 | Demos",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|file:///e:/sites/send/xxstuffxx/canvas5.9.1/html/intro.html"
+    },
+    {
+      "url": "file:///e:/sites/send/xxstuffxx/canvas5.9.1/html/index.html",
+      "original_url": "file:///E:/Sites/send/XxstuffxX/Canvas5.9.1/HTML/index.html",
+      "title": "Canvas5.9.1 | The Multi-Purpose HTML5 Template",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|file:///e:/sites/send/xxstuffxx/canvas5.9.1/html/index.html"
+    },
+    {
+      "url": "file:///e:/sites/send/xxstuffxx/canvas5.9.1/documentation/index.html",
+      "original_url": "file:///E:/Sites/send/XxstuffxX/Canvas5.9.1/Documentation/index.html",
+      "title": "Canvas5.9.1 | Documentation",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|file:///e:/sites/send/xxstuffxx/canvas5.9.1/documentation/index.html"
+    },
+    {
+      "url": "file:///e:/sites/send/xxstuffxx/canvas4.0.1/documentation/index.html",
+      "original_url": "file:///E:/Sites/send/XxstuffxX/Canvas4.0.1/Documentation/index.html",
+      "title": "Canvas4.0.1 | Documentation",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|file:///e:/sites/send/xxstuffxx/canvas4.0.1/documentation/index.html"
+    },
+    {
+      "url": "file:///e:/sites/send/xxstuffxx/canvas4.0.1/html/index.html",
+      "original_url": "file:///E:/Sites/send/XxstuffxX/Canvas4.0.1/HTML/index.html",
+      "title": "Canvas4.0.1 | The Multi-Purpose HTML5 Template",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|file:///e:/sites/send/xxstuffxx/canvas4.0.1/html/index.html"
+    },
+    {
+      "url": "https://www.isoldwhat.com/?1=1&rootid=1&l2c=907#907",
+      "original_url": "https://www.isoldwhat.com/?1=1&RootID=1&L2C=907#907",
+      "title": "Easy eBay Category Numbers | I Sold What",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.isoldwhat.com/?1=1&rootid=1&l2c=907#907"
+    },
+    {
+      "url": "https://www.skysports.com/watch",
+      "original_url": "https://www.skysports.com/watch",
+      "title": "Xky Sports",
+      "folder_path": "Bookmarks bar/ResElec/eBid",
+      "dedupe_key": "bookmarks bar/reselec/ebid|https://www.skysports.com/watch"
+    },
+    {
+      "url": "http://localhost:8080",
+      "original_url": "http://localhost:8080/",
+      "title": "gasdigital-dreamfactory",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/GasDigital Labs",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/gasdigital labs|http://localhost:8080"
+    },
+    {
+      "url": "http://localhost:3010",
+      "original_url": "http://localhost:3010/",
+      "title": "NiceDeals Local Dev",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|http://localhost:3010"
+    },
+    {
+      "url": "https://developers.facebook.com/tools/debug",
+      "original_url": "https://developers.facebook.com/tools/debug/",
+      "title": "Sharing Debugger - Meta for Developers",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://developers.facebook.com/tools/debug"
+    },
+    {
+      "url": "https://logo.com/dashboard/brand-kit",
+      "original_url": "https://logo.com/dashboard/brand-kit",
+      "title": "Nicedeals Logo Generator",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://logo.com/dashboard/brand-kit"
+    },
+    {
+      "url": "https://ui.awin.com/dashboard/awin/publisher/773531/gb",
+      "original_url": "https://ui.awin.com/dashboard/awin/publisher/773531/gb",
+      "title": "Awin | Gary Sewell | GasDigital Ltd | Dashboard |",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://ui.awin.com/dashboard/awin/publisher/773531/gb"
+    },
+    {
+      "url": "https://partnernetwork.ebay.com",
+      "original_url": "https://partnernetwork.ebay.com/",
+      "title": "eBay Partner Network",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://partnernetwork.ebay.com"
+    },
+    {
+      "url": "https://console.partnerize.com/v2/overview/overview",
+      "original_url": "https://console.partnerize.com/v2/overview/overview",
+      "title": "AO.com Partnerize",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://console.partnerize.com/v2/overview/overview"
+    },
+    {
+      "url": "https://uk.camelcamelcamel.com/top_drops",
+      "original_url": "https://uk.camelcamelcamel.com/top_drops",
+      "title": "Top Amazon Price Drops | camelcamelcamel.com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://uk.camelcamelcamel.com/top_drops"
+    },
+    {
+      "url": "https://members.cj.com/member/login/#/forgotpassword?null",
+      "original_url": "https://members.cj.com/member/login/#/forgotPassword?null",
+      "title": "CJ.com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://members.cj.com/member/login/#/forgotpassword?null"
+    },
+    {
+      "url": "https://ads.twitter.com/ads_manager/18ce54qhyhq/campaigns/?enddate=2020-09-29&lang=en&startdate=2020-09-23",
+      "original_url": "https://ads.twitter.com/ads_manager/18ce54qhyhq/campaigns/?endDate=2020-09-29&lang=en&startDate=2020-09-23",
+      "title": "Twitter Ads",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://ads.twitter.com/ads_manager/18ce54qhyhq/campaigns/?enddate=2020-09-29&lang=en&startdate=2020-09-23"
+    },
+    {
+      "url": "https://www.hotukdeals.com",
+      "original_url": "https://www.hotukdeals.com/",
+      "title": "hotukdeals - Best Deals & Discounts \u00bb Your Shopping Community",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://www.hotukdeals.com"
+    },
+    {
+      "url": "https://hub.skimlinks.com/login",
+      "original_url": "https://hub.skimlinks.com/login",
+      "title": "Hub | Skimlinks",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://hub.skimlinks.com/login"
+    },
+    {
+      "url": "https://platform.sovrn.com/account/signin?path=commerce/analytics&session_expired=true",
+      "original_url": "https://platform.sovrn.com/account/signin?path=commerce/analytics&session_expired=true",
+      "title": "Sovrn Accounts",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|https://platform.sovrn.com/account/signin?path=commerce/analytics&session_expired=true"
+    },
+    {
+      "url": "http://localhost:3011/app",
+      "original_url": "http://localhost:3011/app",
+      "title": "Spread The Word",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Nicedeals",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/nicedeals|http://localhost:3011/app"
+    },
+    {
+      "url": "http://localhost:5000",
+      "original_url": "http://localhost:5000/",
+      "title": "Impressionz Local Dev",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Impressionz",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/impressionz|http://localhost:5000"
+    },
+    {
+      "url": "https://tolt.io/platform/dashboard",
+      "original_url": "https://tolt.io/platform/dashboard",
+      "title": "An Affiliate Marketing Dashboard That Works - Tolt",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Impressionz",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/impressionz|https://tolt.io/platform/dashboard"
+    },
+    {
+      "url": "https://refgrow.com",
+      "original_url": "https://refgrow.com/",
+      "title": "Refgrow \u2014 Native Affiliate Software for SaaS",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Impressionz",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/impressionz|https://refgrow.com"
+    },
+    {
+      "url": "https://app.improvmx.com",
+      "original_url": "https://app.improvmx.com/",
+      "title": "ImprovMX \u2014 Free email forwarding",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital|https://app.improvmx.com"
+    },
+    {
+      "url": "https://dcc.godaddy.com/manage/hamiltons-care.co.uk/dns",
+      "original_url": "https://dcc.godaddy.com/manage/hamiltons-care.co.uk/dns",
+      "title": "Domain Manager",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Hamiltons-care.co.uk",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/hamiltons-care.co.uk|https://dcc.godaddy.com/manage/hamiltons-care.co.uk/dns"
+    },
+    {
+      "url": "https://www.hamiltons-care.co.uk/indexa.htm",
+      "original_url": "https://www.hamiltons-care.co.uk/indexa.htm",
+      "title": "Hamiltons Residential Home",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Hamiltons-care.co.uk",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/hamiltons-care.co.uk|https://www.hamiltons-care.co.uk/indexa.htm"
+    },
+    {
+      "url": "https://app.improvmx.com/domains/hamiltons-care.co.uk/aliases",
+      "original_url": "https://app.improvmx.com/domains/hamiltons-care.co.uk/aliases",
+      "title": "ImprovMX .. login via gary@hamiltons-care.co.uk -> gas@gasdigital.co.uk",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Hamiltons-care.co.uk",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/hamiltons-care.co.uk|https://app.improvmx.com/domains/hamiltons-care.co.uk/aliases"
+    },
+    {
+      "url": "http://blog.gleam.io/google-analytics",
+      "original_url": "http://blog.gleam.io/google-analytics/",
+      "title": "The Complete Guide to Setting up Google Analytics",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/SEO",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/seo|http://blog.gleam.io/google-analytics"
+    },
+    {
+      "url": "http://www.digg.com/programming/want_your_own_digg_website_",
+      "original_url": "http://www.digg.com/programming/Want_your_own_Digg_Website_",
+      "title": "Digg - Want your own Digg Website?",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://www.digg.com/programming/want_your_own_digg_website_"
+    },
+    {
+      "url": "http://www.wikio.com/technology",
+      "original_url": "http://www.wikio.com/technology",
+      "title": "Technology news & Internet",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://www.wikio.com/technology"
+    },
+    {
+      "url": "http://www.solutionwatch.com/501/tracking-the-web-with-single-page-aggregators",
+      "original_url": "http://www.solutionwatch.com/501/tracking-the-web-with-single-page-aggregators/",
+      "title": "Tracking the web with Single Page Aggregators",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://www.solutionwatch.com/501/tracking-the-web-with-single-page-aggregators"
+    },
+    {
+      "url": "http://theweblist.net",
+      "original_url": "http://theweblist.net/",
+      "title": "THEWEBLIST.net | what people are clicking on today",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://theweblist.net"
+    },
+    {
+      "url": "http://simplepie.org",
+      "original_url": "http://simplepie.org/",
+      "title": "SimplePie: Super-fast, easy-to-use, RSS and Atom Parsing.",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://simplepie.org"
+    },
+    {
+      "url": "http://sourceforge.net/project/screenshots.php?group_id=163231",
+      "original_url": "http://sourceforge.net/project/screenshots.php?group_id=163231",
+      "title": "SourceForge.net: Screenshots",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://sourceforge.net/project/screenshots.php?group_id=163231"
+    },
+    {
+      "url": "http://feedonfeeds.com/weblog/2007/01/01/new-year-new-code",
+      "original_url": "http://feedonfeeds.com/weblog/2007/01/01/new-year-new-code/",
+      "title": "good css for reader",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://feedonfeeds.com/weblog/2007/01/01/new-year-new-code"
+    },
+    {
+      "url": "http://code.google.com/p/feed-on-feeds/wiki/quickinstall",
+      "original_url": "http://code.google.com/p/feed-on-feeds/wiki/QuickInstall",
+      "title": "Final choice to go with",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://code.google.com/p/feed-on-feeds/wiki/quickinstall"
+    },
+    {
+      "url": "http://svenellingen.com/stream",
+      "original_url": "http://svenellingen.com/stream/",
+      "title": "/stream",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://svenellingen.com/stream"
+    },
+    {
+      "url": "http://www.programmersresource.com/forum/showthread.php?t=264",
+      "original_url": "http://www.programmersresource.com/forum/showthread.php?t=264",
+      "title": "Programmers Resource - The Pop-Up Menu (JavaScript)",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Digg",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/digg|http://www.programmersresource.com/forum/showthread.php?t=264"
+    },
+    {
+      "url": "http://webhosting24.co.uk/?ref=google",
+      "original_url": "http://webhosting24.co.uk/?ref=google",
+      "title": "webhosting24.co.uk - domains, webspace, webhosting and eCommerce at unbeatable rates!",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Hostupa",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/hostupa|http://webhosting24.co.uk/?ref=google"
+    },
+    {
+      "url": "http://www.whmautopilot.com/partners.php",
+      "original_url": "http://www.whmautopilot.com/partners.php",
+      "title": "<< WHM AutoPilot >> - Partners and Clients",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Hostupa",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/hostupa|http://www.whmautopilot.com/partners.php"
+    },
+    {
+      "url": "http://www.simply.com/services/domain_names/jargon_domains.shtml",
+      "original_url": "http://www.simply.com/services/domain_names/jargon_domains.shtml",
+      "title": "Simply.Com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Hostupa",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/hostupa|http://www.simply.com/services/domain_names/jargon_domains.shtml"
+    },
+    {
+      "url": "http://www.names.co.uk",
+      "original_url": "http://www.names.co.uk/",
+      "title": "Domain Names and Hosting :: Namesco Limited Domain Names, Hosting and Dedicated Server Solutions",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Hostupa",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/hostupa|http://www.names.co.uk"
+    },
+    {
+      "url": "http://www.gamefly.com",
+      "original_url": "http://www.gamefly.com/",
+      "title": "Gamefly.com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/DVD Rental",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/dvd rental|http://www.gamefly.com"
+    },
+    {
+      "url": "http://ukvd.moviezone.co.uk",
+      "original_url": "http://ukvd.moviezone.co.uk/",
+      "title": "UK Video Dealers - UKVD",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/DVD Rental",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/dvd rental|http://ukvd.moviezone.co.uk"
+    },
+    {
+      "url": "http://www.avforums.com",
+      "original_url": "http://www.avforums.com/",
+      "title": "AV Forums. Home Cinema Forums discussing audio/visual home consumer electronics.",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/DVD Rental",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/dvd rental|http://www.avforums.com"
+    },
+    {
+      "url": "http://dvd-rent-test.dreamhost.com",
+      "original_url": "http://dvd-rent-test.dreamhost.com/",
+      "title": "An Analysis of Netflix's DVD Allocation System",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/DVD Rental",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/dvd rental|http://dvd-rent-test.dreamhost.com"
+    },
+    {
+      "url": "http://www.zopa.com/zopaweb/default.aspx",
+      "original_url": "http://www.zopa.com/ZopaWeb/default.aspx",
+      "title": "Welcome to Zopa (UK) - The first lending and borrowing exchange",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/givemedough|http://www.zopa.com/zopaweb/default.aspx"
+    },
+    {
+      "url": "http://www.kiva.org/app.php",
+      "original_url": "http://www.kiva.org/app.php",
+      "title": "Kiva.org - Loans that change lives",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/givemedough|http://www.kiva.org/app.php"
+    },
+    {
+      "url": "http://prosper.com",
+      "original_url": "http://prosper.com/",
+      "title": "Prosper: The online marketplace for people-to-people lending - Prosper",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/givemedough|http://prosper.com"
+    },
+    {
+      "url": "http://www.fundable.com",
+      "original_url": "http://www.fundable.com/",
+      "title": "Fundable Online Fundraising \u2014 Welcome",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/givemedough|http://www.fundable.com"
+    },
+    {
+      "url": "http://www.chipin.com",
+      "original_url": "http://www.chipin.com/",
+      "title": "ChipIn",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/givemedough|http://www.chipin.com"
+    },
+    {
+      "url": "http://www.killerstartups.com/social-networking/40billion-com-find-new-business-funding",
+      "original_url": "http://www.killerstartups.com/Social-Networking/40billion-com-find-new-business-funding",
+      "title": "40billion.com - Find New Business Funding | Visit 40billion....",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/givemedough|http://www.killerstartups.com/social-networking/40billion-com-find-new-business-funding"
+    },
+    {
+      "url": "http://cmypitch.com",
+      "original_url": "http://cmypitch.com/",
+      "title": "cmypitch.com: community and networking for entrepreneurs, business owners, investors and service providers",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites/Givemedough",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites/givemedough|http://cmypitch.com"
+    },
+    {
+      "url": "http://money.cnn.com/galleries/2007/biz2/0702/gallery.nextnet.biz2/16.html",
+      "original_url": "http://money.cnn.com/galleries/2007/biz2/0702/gallery.nextnet.biz2/16.html",
+      "title": "Startups to watch | 16 | Business 2.0",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites|http://money.cnn.com/galleries/2007/biz2/0702/gallery.nextnet.biz2/16.html"
+    },
+    {
+      "url": "http://www.alstrasoft.com/index.htm",
+      "original_url": "http://www.alstrasoft.com/index.htm",
+      "title": "AlstraSoft - The Leading Business Software Provider. Start Your Own Turnkey Web Sites With AlstraSoft PHP Scripts. Solutions For Video Sharing, AJAX Desktop Startpage, Social Networking, Affiliate Network, Anti-Spam and Classifieds",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Sites",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/sites|http://www.alstrasoft.com/index.htm"
+    },
+    {
+      "url": "https://trello.com/c/mshcicqg/19-web-development",
+      "original_url": "https://trello.com/c/msHciCqG/19-web-development",
+      "title": "Web Development on Compounding Ventures | Trello",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital|https://trello.com/c/mshcicqg/19-web-development"
+    },
+    {
+      "url": "https://uptime.com/pricing",
+      "original_url": "https://uptime.com/pricing",
+      "title": "Pricing - Uptime.com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/pingmakers",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pingmakers|https://uptime.com/pricing"
+    },
+    {
+      "url": "https://uptime.com",
+      "original_url": "https://uptime.com/",
+      "title": "Website Uptime Monitoring Service For Free - Uptime.com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/pingmakers",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pingmakers|https://uptime.com"
+    },
+    {
+      "url": "http://phpwatch.net",
+      "original_url": "http://phpwatch.net/",
+      "title": "phpWatch :: The open-source service monitor",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/pingmakers",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pingmakers|http://phpwatch.net"
+    },
+    {
+      "url": "https://github.com/gunmetal313-nodejs/uptime2",
+      "original_url": "https://github.com/gunmetal313-nodejs/uptime2",
+      "title": "gunmetal313-nodejs/uptime2: A remote monitoring application using Node.js, MongoDB, and Twitter Bootstrap.",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/pingmakers",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pingmakers|https://github.com/gunmetal313-nodejs/uptime2"
+    },
+    {
+      "url": "https://www.siteuptime.com/compare.php",
+      "original_url": "https://www.siteuptime.com/compare.php",
+      "title": "SiteUptime - Website and Server Monitoring Service",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/pingmakers",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pingmakers|https://www.siteuptime.com/compare.php"
+    },
+    {
+      "url": "http://pppay.com/cdn-cgi/trace",
+      "original_url": "http://pppay.com/cdn-cgi/trace",
+      "title": "pppay.com/cdn-cgi/trace",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/PPPay",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pppay|http://pppay.com/cdn-cgi/trace"
+    },
+    {
+      "url": "https://www.pppay.com",
+      "original_url": "https://www.pppay.com/",
+      "title": "www.pppay.com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/PPPay",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pppay|https://www.pppay.com"
+    },
+    {
+      "url": "http://www.pppay.com/zadministration/zadmin.php",
+      "original_url": "http://www.pppay.com/zadministration/zadmin.php",
+      "title": "PPPay.com Admin",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/PPPay",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pppay|http://www.pppay.com/zadministration/zadmin.php"
+    },
+    {
+      "url": "http://www.pppay.com/cerb4/index.php/login?url=display/bmt-82678-417",
+      "original_url": "http://www.pppay.com/cerb4/index.php/login?url=display%2FBMT-82678-417",
+      "title": "PPPay Cerb",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/PPPay",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pppay|http://www.pppay.com/cerb4/index.php/login?url=display/bmt-82678-417"
+    },
+    {
+      "url": "https://secure.metacharge.com/extranet",
+      "original_url": "https://secure.metacharge.com/extranet/",
+      "title": "Metacharge Extranet",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/PPPay",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pppay|https://secure.metacharge.com/extranet"
+    },
+    {
+      "url": "http://www.pppay.com/cerb4/index.php/login?url=display/bmt-82678-417",
+      "original_url": "http://www.pppay.com/cerb4/index.php/login?url=display%2FBMT-82678-417",
+      "title": "PPPay Cerberus Helpdesk",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/PPPay",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/pppay|http://www.pppay.com/cerb4/index.php/login?url=display/bmt-82678-417"
+    },
+    {
+      "url": "http://www.datingsoftware.biz/pricing.html",
+      "original_url": "http://www.datingsoftware.biz/pricing.html",
+      "title": "Dating Software Scripts from DatingSoftware.biz.",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/LovePepper.com/Software",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/lovepepper.com/software|http://www.datingsoftware.biz/pricing.html"
+    },
+    {
+      "url": "http://www.aewebworks.com/aedating.htm",
+      "original_url": "http://www.aewebworks.com/aedating.htm",
+      "title": "Matchmaking Software Script for Your Own Dating Website - aeDating",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/LovePepper.com/Software",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/lovepepper.com/software|http://www.aewebworks.com/aedating.htm"
+    },
+    {
+      "url": "http://onlinepersonalswatch.typepad.com/rankings",
+      "original_url": "http://onlinepersonalswatch.typepad.com/rankings/",
+      "title": "Online Personals Rankings",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/LovePepper.com",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/lovepepper.com|http://onlinepersonalswatch.typepad.com/rankings"
+    },
+    {
+      "url": "https://www.snapagogo.com/dashboard",
+      "original_url": "https://www.snapagogo.com/dashboard",
+      "title": "Snapagogo Admin",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Snapagogo",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/snapagogo|https://www.snapagogo.com/dashboard"
+    },
+    {
+      "url": "https://www.snapagogo.com",
+      "original_url": "https://www.snapagogo.com/",
+      "title": "Snapagogo.com Home",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital/Snapagogo",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital/snapagogo|https://www.snapagogo.com"
+    },
+    {
+      "url": "https://dashboard.clerk.com/apps/app_2owxzmjpttamxtmqkjzkvjxrxan/instances/ins_2ozuounmobqf0hvvimd78yevtrg",
+      "original_url": "https://dashboard.clerk.com/apps/app_2owxZMjptTAmxTMQkJzkVJXrXAn/instances/ins_2ozUoUNMoBQf0hVvIMd78Yevtrg",
+      "title": "Dashboard | Clerk.com",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital|https://dashboard.clerk.com/apps/app_2owxzmjpttamxtmqkjzkvjxrxan/instances/ins_2ozuounmobqf0hvvimd78yevtrg"
+    },
+    {
+      "url": "https://vercel.com/gazzetta1s-projects",
+      "original_url": "https://vercel.com/gazzetta1s-projects",
+      "title": "Vercel",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital|https://vercel.com/gazzetta1s-projects"
+    },
+    {
+      "url": "https://themeforest.net",
+      "original_url": "https://themeforest.net/",
+      "title": "ThemeForest",
+      "folder_path": "Bookmarks bar/ResElec/GasDigital",
+      "dedupe_key": "bookmarks bar/reselec/gasdigital|https://themeforest.net"
+    },
+    {
+      "url": "https://www.searchenginejournal.com/google-reasons-site-traffic-declines/351436/#close",
+      "original_url": "https://www.searchenginejournal.com/google-reasons-site-traffic-declines/351436/#close",
+      "title": "Google Explains Gradual Declines in Ranking - Search Engine Journal",
+      "folder_path": "Bookmarks bar/ResElec/Tech",
+      "dedupe_key": "bookmarks bar/reselec/tech|https://www.searchenginejournal.com/google-reasons-site-traffic-declines/351436/#close"
+    },
+    {
+      "url": "https://stackoverflow.com/questions/60229863/print-json-objects-using-perl",
+      "original_url": "https://stackoverflow.com/questions/60229863/print-json-objects-using-perl",
+      "title": "print JSON objects using perl - Stack Overflo",
+      "folder_path": "Bookmarks bar/ResElec/Tech",
+      "dedupe_key": "bookmarks bar/reselec/tech|https://stackoverflow.com/questions/60229863/print-json-objects-using-perl"
+    },
+    {
+      "url": "http://www.distrowatch.com/table.php?distribution=redhat",
+      "original_url": "http://www.distrowatch.com/table.php?distribution=redhat",
+      "title": "DistroWatch.com: Put the fun back into computing. Use Linux.",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.distrowatch.com/table.php?distribution=redhat"
+    },
+    {
+      "url": "https://www.ssllabs.com/ssltest/analyze.html?d=pppay.com&hideresults=on",
+      "original_url": "https://www.ssllabs.com/ssltest/analyze.html?d=pppay.com&hideResults=on",
+      "title": "Qualys SSL Labs - Projects / SSL Server Test / pppay.com",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|https://www.ssllabs.com/ssltest/analyze.html?d=pppay.com&hideresults=on"
+    },
+    {
+      "url": "http://www.ubuntugeek.com/ubuntu-networking-configuration-using-command-line.html",
+      "original_url": "http://www.ubuntugeek.com/ubuntu-networking-configuration-using-command-line.html",
+      "title": "Debian IP Address Change",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.ubuntugeek.com/ubuntu-networking-configuration-using-command-line.html"
+    },
+    {
+      "url": "http://www.cs.hmc.edu/qref/sed.html",
+      "original_url": "http://www.cs.hmc.edu/qref/sed.html",
+      "title": "Sed tips",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.cs.hmc.edu/qref/sed.html"
+    },
+    {
+      "url": "http://www.cyberciti.biz/tips/how-do-i-find-out-linux-cpu-utilization.html",
+      "original_url": "http://www.cyberciti.biz/tips/how-do-i-find-out-linux-cpu-utilization.html",
+      "title": "How do I find out Linux CPU utilization? | nixCraft",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.cyberciti.biz/tips/how-do-i-find-out-linux-cpu-utilization.html"
+    },
+    {
+      "url": "http://distrowatch.serve-you.net/table.php?distribution=debian",
+      "original_url": "http://distrowatch.serve-you.net/table.php?distribution=debian",
+      "title": "DistroWatch.com: Debian GNU/Linux",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://distrowatch.serve-you.net/table.php?distribution=debian"
+    },
+    {
+      "url": "http://www.pixelbeat.org/cmdline.html",
+      "original_url": "http://www.pixelbeat.org/cmdline.html",
+      "title": "Linux command line tips",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.pixelbeat.org/cmdline.html"
+    },
+    {
+      "url": "http://support.dell.com/support/edocs/storage/raid/raidbk0.pdf",
+      "original_url": "http://support.dell.com/support/edocs/storage/RAID/RAIDbk0.pdf",
+      "title": "RAID Getting Started DELL PDF",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://support.dell.com/support/edocs/storage/raid/raidbk0.pdf"
+    },
+    {
+      "url": "http://tldp.org/howto/html_single/software-raid-howto/#ss5.6",
+      "original_url": "http://tldp.org/HOWTO/html_single/Software-RAID-HOWTO/#ss5.6",
+      "title": "Software-RAID-HOWTO",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://tldp.org/howto/html_single/software-raid-howto/#ss5.6"
+    },
+    {
+      "url": "http://www.redhat.com/docs/manuals/linux/rhl-8.0-manual/getting-started-guide/s1-managing-compressing-archiving.html",
+      "original_url": "http://www.redhat.com/docs/manuals/linux/RHL-8.0-Manual/getting-started-guide/s1-managing-compressing-archiving.html",
+      "title": "Tar and Gzip Instructions",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.redhat.com/docs/manuals/linux/rhl-8.0-manual/getting-started-guide/s1-managing-compressing-archiving.html"
+    },
+    {
+      "url": "http://laurel.datsi.fi.upm.es/~rpons/poweredge",
+      "original_url": "http://laurel.datsi.fi.upm.es/~rpons/poweredge/",
+      "title": "Statss for Dell PowerEdge 2650",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://laurel.datsi.fi.upm.es/~rpons/poweredge"
+    },
+    {
+      "url": "http://www.debian-administration.org/articles/31",
+      "original_url": "http://www.debian-administration.org/articles/31",
+      "title": "Debian Administration :: Setting up a secure server with Apache and mod-ssl",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.debian-administration.org/articles/31"
+    },
+    {
+      "url": "http://www.instantcocoa.com/products/pterm",
+      "original_url": "http://www.instantcocoa.com/products/pTerm/",
+      "title": "Instant Cocoa - pTerm",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.instantcocoa.com/products/pterm"
+    },
+    {
+      "url": "http://jbrink.net/touchterm/index.html",
+      "original_url": "http://jbrink.net/touchterm/index.html",
+      "title": "TouchTerm",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://jbrink.net/touchterm/index.html"
+    },
+    {
+      "url": "http://snippets.dzone.com",
+      "original_url": "http://snippets.dzone.com/",
+      "title": "DZone Snippets: Store, sort and share source code, with tag goodness",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://snippets.dzone.com"
+    },
+    {
+      "url": "http://www.commandlinefu.com/commands/view/2245/skip-over-.svn-directories-when-using-the-find-command.",
+      "original_url": "http://www.commandlinefu.com/commands/view/2245/skip-over-.svn-directories-when-using-the-find-command.",
+      "title": "Skip over .svn directories when using the \\\"find\\\" command. | commandlinefu.com",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.commandlinefu.com/commands/view/2245/skip-over-.svn-directories-when-using-the-find-command."
+    },
+    {
+      "url": "http://www.pontikis.net/blog/debian-wheezy-web-server-setup",
+      "original_url": "http://www.pontikis.net/blog/debian-wheezy-web-server-setup",
+      "title": "Server Setup Tut",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Linux",
+      "dedupe_key": "bookmarks bar/reselec/tech/linux|http://www.pontikis.net/blog/debian-wheezy-web-server-setup"
+    },
+    {
+      "url": "http://www.faqs.org/docs/ppbook/x5504.htm",
+      "original_url": "http://www.faqs.org/docs/ppbook/x5504.htm",
+      "title": "MYSQL Adding Data with INSERT and COPY",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|http://www.faqs.org/docs/ppbook/x5504.htm"
+    },
+    {
+      "url": "http://www.faemalia.net/mysqlutils",
+      "original_url": "http://www.faemalia.net/mysqlUtils/",
+      "title": "Useful MySQL Stuff",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|http://www.faemalia.net/mysqlutils"
+    },
+    {
+      "url": "http://www.webmasterworld.com/forum88/5179.htm",
+      "original_url": "http://www.webmasterworld.com/forum88/5179.htm",
+      "title": "How to export MySql data results output to MS Excel file",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|http://www.webmasterworld.com/forum88/5179.htm"
+    },
+    {
+      "url": "http://jpipes.com",
+      "original_url": "http://jpipes.com/",
+      "title": "Jay Pipes",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|http://jpipes.com"
+    },
+    {
+      "url": "http://www.haqthegibson.com/article/34",
+      "original_url": "http://www.haqthegibson.com/article/34",
+      "title": "haqthegibson.com - MySQL error #1135: Can't create a new thread (errno 11).",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|http://www.haqthegibson.com/article/34"
+    },
+    {
+      "url": "http://www.mkdoc.org/docs/howto/server-tuning",
+      "original_url": "http://www.mkdoc.org/docs/howto/server-tuning/",
+      "title": "Mysql memory tips",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|http://www.mkdoc.org/docs/howto/server-tuning"
+    },
+    {
+      "url": "https://www.percona.com/doc/percona-xtrabackup/1.6/howtos/recipes_ibkx_stream.html",
+      "original_url": "https://www.percona.com/doc/percona-xtrabackup/1.6/howtos/recipes_ibkx_stream.html",
+      "title": "Make a Streaming Backup \u2014 Percona XtraBackup Documentation",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|https://www.percona.com/doc/percona-xtrabackup/1.6/howtos/recipes_ibkx_stream.html"
+    },
+    {
+      "url": "https://i3l0g.wordpress.com/2014/12/04/streaming-mysql-backups-with-innobackupex",
+      "original_url": "https://i3l0g.wordpress.com/2014/12/04/streaming-mysql-backups-with-innobackupex/",
+      "title": "Streaming MySQL backups with innobackupex | addy's Blog",
+      "folder_path": "Bookmarks bar/ResElec/Tech/mySql",
+      "dedupe_key": "bookmarks bar/reselec/tech/mysql|https://i3l0g.wordpress.com/2014/12/04/streaming-mysql-backups-with-innobackupex"
+    },
+    {
+      "url": "https://www.ovh.com/ca/en",
+      "original_url": "https://www.ovh.com/ca/en/",
+      "title": "OVH Cloud computing and dedicated servers",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Hosting",
+      "dedupe_key": "bookmarks bar/reselec/tech/hosting|https://www.ovh.com/ca/en"
+    },
+    {
+      "url": "http://www.linuxjournal.com/article/7451",
+      "original_url": "http://www.linuxjournal.com/article/7451",
+      "title": "Distributed Caching with Memcached | Linux Journal",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Memcached",
+      "dedupe_key": "bookmarks bar/reselec/tech/memcached|http://www.linuxjournal.com/article/7451"
+    },
+    {
+      "url": "http://linuxtravels.blogspot.com/2007/10/nagios-installation.html",
+      "original_url": "http://linuxtravels.blogspot.com/2007/10/nagios-installation.html",
+      "title": "Travels Through Linux: Nagios - Installation",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Nagios",
+      "dedupe_key": "bookmarks bar/reselec/tech/nagios|http://linuxtravels.blogspot.com/2007/10/nagios-installation.html"
+    },
+    {
+      "url": "http://www.sql-und-xml.de/unicode-database/sc.html",
+      "original_url": "http://www.sql-und-xml.de/unicode-database/sc.html",
+      "title": "Unicode-Kategorie Symbol, Currency",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Cloud/HTML",
+      "dedupe_key": "bookmarks bar/reselec/tech/cloud/html|http://www.sql-und-xml.de/unicode-database/sc.html"
+    },
+    {
+      "url": "https://www.tlc-direct.co.uk/tcl/search?query=vlgrid3&submit=search",
+      "original_url": "https://www.tlc-direct.co.uk/tcl/search?query=VLGRID3&Submit=Search",
+      "title": "4",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Cloud",
+      "dedupe_key": "bookmarks bar/reselec/tech/cloud|https://www.tlc-direct.co.uk/tcl/search?query=vlgrid3&submit=search"
+    },
+    {
+      "url": "https://calomel.org/nginx.html",
+      "original_url": "https://calomel.org/nginx.html",
+      "title": "Nginx \"how to\" - The Fast and Secure Web Server (nginx.conf) @ Calomel.org - Open Source Research and Reference",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Nginx",
+      "dedupe_key": "bookmarks bar/reselec/tech/nginx|https://calomel.org/nginx.html"
+    },
+    {
+      "url": "http://tumblelog.jauderho.com/post/27655495/gzip-compression-with-nginx",
+      "original_url": "http://tumblelog.jauderho.com/post/27655495/gzip-compression-with-nginx",
+      "title": "gzip compression with nginx - Jauder Ho - links and things",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Nginx",
+      "dedupe_key": "bookmarks bar/reselec/tech/nginx|http://tumblelog.jauderho.com/post/27655495/gzip-compression-with-nginx"
+    },
+    {
+      "url": "http://www.stepwise.com/articles/workbench/eart.1.3.2.html",
+      "original_url": "http://www.stepwise.com/Articles/Workbench/eart.1.3.2.html",
+      "title": "Email Servers and Mac OS X",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Postifx",
+      "dedupe_key": "bookmarks bar/reselec/tech/postifx|http://www.stepwise.com/articles/workbench/eart.1.3.2.html"
+    },
+    {
+      "url": "http://www.port25.com/domainkeys",
+      "original_url": "http://www.port25.com/domainkeys/",
+      "title": "Port25: E-mail Authentication",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Postifx",
+      "dedupe_key": "bookmarks bar/reselec/tech/postifx|http://www.port25.com/domainkeys"
+    },
+    {
+      "url": "http://www.postfix.com/qshape_readme.html",
+      "original_url": "http://www.postfix.com/QSHAPE_README.html",
+      "title": "Postfix Bottleneck Analysis",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Postifx",
+      "dedupe_key": "bookmarks bar/reselec/tech/postifx|http://www.postfix.com/qshape_readme.html"
+    },
+    {
+      "url": "http://www.logicalwebhost.com/cheatsheet/index.php/postfix_hacks",
+      "original_url": "http://www.logicalwebhost.com/cheatsheet/index.php/Postfix_hacks",
+      "title": "Postfix hacks - Cheatsheet",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Postifx",
+      "dedupe_key": "bookmarks bar/reselec/tech/postifx|http://www.logicalwebhost.com/cheatsheet/index.php/postfix_hacks"
+    },
+    {
+      "url": "http://serverfault.com/questions/58957/why-does-yahoo-block-the-emails-we-send",
+      "original_url": "http://serverfault.com/questions/58957/why-does-yahoo-block-the-emails-we-send",
+      "title": "Why does yahoo block the emails we send ? - Server Fault",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Postifx",
+      "dedupe_key": "bookmarks bar/reselec/tech/postifx|http://serverfault.com/questions/58957/why-does-yahoo-block-the-emails-we-send"
+    },
+    {
+      "url": "http://www.espcoalition.org/senderid",
+      "original_url": "http://www.espcoalition.org/senderid/",
+      "title": "Email Service Provider Coalition",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Postifx",
+      "dedupe_key": "bookmarks bar/reselec/tech/postifx|http://www.espcoalition.org/senderid"
+    },
+    {
+      "url": "http://staff.blog.ui.ac.id/jp/2009/04/07/creating-dkim-on-debian-50",
+      "original_url": "http://staff.blog.ui.ac.id/jp/2009/04/07/creating-dkim-on-debian-50/",
+      "title": "Wannabe Exceptional \u00bb Blog Archive \u00bb Creating DKIM on Debian 5.0",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Email",
+      "dedupe_key": "bookmarks bar/reselec/tech/email|http://staff.blog.ui.ac.id/jp/2009/04/07/creating-dkim-on-debian-50"
+    },
+    {
+      "url": "https://app.improvmx.com",
+      "original_url": "https://app.improvmx.com/",
+      "title": "ImprovMX \u2014 Free email forwarding",
+      "folder_path": "Bookmarks bar/ResElec/Tech/Email",
+      "dedupe_key": "bookmarks bar/reselec/tech/email|https://app.improvmx.com"
+    },
+    {
+      "url": "http://gskinner.com/regexr",
+      "original_url": "http://gskinner.com/RegExr/",
+      "title": "RegExr: Online Regular Expression Testing Tool",
+      "folder_path": "Bookmarks bar/ResElec/Tech/RegExp",
+      "dedupe_key": "bookmarks bar/reselec/tech/regexp|http://gskinner.com/regexr"
+    },
+    {
+      "url": "http://greatestmovies.quora.com/10-greatest-westerns",
+      "original_url": "http://greatestmovies.quora.com/10-Greatest-Westerns",
+      "title": "10 Greatest Westerns - Quora",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Film",
+      "dedupe_key": "bookmarks bar/reselec/personal/film|http://greatestmovies.quora.com/10-greatest-westerns"
+    },
+    {
+      "url": "https://www.independent.co.uk/arts-entertainment/films/news/best-films-no-oscars-nominations-b1766274.html",
+      "original_url": "https://www.independent.co.uk/arts-entertainment/films/news/best-films-no-oscars-nominations-b1766274.html",
+      "title": "47 brilliant films that didn\u2019t receive an Oscar nomination, from Heat to Zodiac | The Independent | The Independent",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Film",
+      "dedupe_key": "bookmarks bar/reselec/personal/film|https://www.independent.co.uk/arts-entertainment/films/news/best-films-no-oscars-nominations-b1766274.html"
+    },
+    {
+      "url": "https://www.poynter.org/business-work/2019/there-are-a-surprising-amount-of-great-journalism-movies-here-are-our-top-25",
+      "original_url": "https://www.poynter.org/business-work/2019/there-are-a-surprising-amount-of-great-journalism-movies-here-are-our-top-25/",
+      "title": "There are a lot of great journalism movies. Here are our top 25. \u2013 Poynter",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Film",
+      "dedupe_key": "bookmarks bar/reselec/personal/film|https://www.poynter.org/business-work/2019/there-are-a-surprising-amount-of-great-journalism-movies-here-are-our-top-25"
+    },
+    {
+      "url": "https://www.vulture.com/2016/11/best-movies-over-three-hours-long.html",
+      "original_url": "https://www.vulture.com/2016/11/best-movies-over-three-hours-long.html",
+      "title": "The 33 Best Movies Over 3 Hours Long",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Film",
+      "dedupe_key": "bookmarks bar/reselec/personal/film|https://www.vulture.com/2016/11/best-movies-over-three-hours-long.html"
+    },
+    {
+      "url": "https://www.wired.co.uk/article/best-shows-netflix",
+      "original_url": "https://www.wired.co.uk/article/best-shows-netflix",
+      "title": "68 of the best Netflix series to binge watch right now | WIRED UK",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Film",
+      "dedupe_key": "bookmarks bar/reselec/personal/film|https://www.wired.co.uk/article/best-shows-netflix"
+    },
+    {
+      "url": "https://www.wired.co.uk/article/best-shows-netflix",
+      "original_url": "https://www.wired.co.uk/article/best-shows-netflix",
+      "title": "https://www.wired.co.uk/article/best-shows-netflix",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Film",
+      "dedupe_key": "bookmarks bar/reselec/personal/film|https://www.wired.co.uk/article/best-shows-netflix"
+    },
+    {
+      "url": "https://trader.degiro.nl/trader/#!/market",
+      "original_url": "https://trader.degiro.nl/trader/#!/market",
+      "title": "DeGiro",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Money",
+      "dedupe_key": "bookmarks bar/reselec/personal/money|https://trader.degiro.nl/trader/#!/market"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheets/d/1rhwovo_hlhlpeqsgdam-5jfgcutn-y6mlnvjzqjcixu/edit#gid=0",
+      "original_url": "https://docs.google.com/spreadsheets/d/1rHWovO_hlHlPEQsgDaM-5jFGCUtN-y6MLnvjZQjciXU/edit#gid=0",
+      "title": "Pay",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Money",
+      "dedupe_key": "bookmarks bar/reselec/personal/money|https://docs.google.com/spreadsheets/d/1rhwovo_hlhlpeqsgdam-5jfgcutn-y6mlnvjzqjcixu/edit#gid=0"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheets/d/1rchoyxmji3fwstmfvtqdzdjwayctkjgi5sri_iiy7y8/edit#gid=0",
+      "original_url": "https://docs.google.com/spreadsheets/d/1rchOYXmJI3FwSTMFvTQDzDJwAyCTKJgI5srI_IiY7y8/edit#gid=0",
+      "title": "Tax",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Money",
+      "dedupe_key": "bookmarks bar/reselec/personal/money|https://docs.google.com/spreadsheets/d/1rchoyxmji3fwstmfvtqdzdjwayctkjgi5sri_iiy7y8/edit#gid=0"
+    },
+    {
+      "url": "https://www.ebid.net/uk/for-sale/two-hot-selling-razor-sharp-barber-scissors-blades-style-1005-6-carry-pouch-196416936.htm",
+      "original_url": "https://www.ebid.net/uk/for-sale/two-hot-selling-razor-sharp-barber-scissors-blades-style-1005-6-carry-pouch-196416936.htm",
+      "title": "TWO HOT SELLING RAZOR SHARP BARBER SCISSORS BLADES STYLE 1005 - 6\" & CARRY POUCH on eBid United Kingdom | 196416936",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.ebid.net/uk/for-sale/two-hot-selling-razor-sharp-barber-scissors-blades-style-1005-6-carry-pouch-196416936.htm"
+    },
+    {
+      "url": "https://www.lebara.co.uk/en/mylebara.html?gclid=cj0kcqiay8k8bhczarisakj8sfrhdgnq2rbedixx6ls6yu6l5ksbpim-xvwd2sgdydyuvgsft5qatt0aahk0ealw_wcb",
+      "original_url": "https://www.lebara.co.uk/en/mylebara.html?gclid=Cj0KCQiAy8K8BhCZARIsAKJ8sfRhDgnq2rbediXX6lS6yU6L5KSbpIM-xVwD2sgDyDYUvGSfT5qAtT0aAhk0EALw_wcB",
+      "title": "MyLebara",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.lebara.co.uk/en/mylebara.html?gclid=cj0kcqiay8k8bhczarisakj8sfrhdgnq2rbedixx6ls6yu6l5ksbpim-xvwd2sgdydyuvgsft5qatt0aahk0ealw_wcb"
+    },
+    {
+      "url": "https://recyclingservices.bromley.gov.uk/property/100020370506",
+      "original_url": "https://recyclingservices.bromley.gov.uk/property/100020370506",
+      "title": "Bin Dates",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://recyclingservices.bromley.gov.uk/property/100020370506"
+    },
+    {
+      "url": "https://www.justwatch.com",
+      "original_url": "https://www.justwatch.com/",
+      "title": "JustWatch",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.justwatch.com"
+    },
+    {
+      "url": "https://www.amazon.co.uk/gp/video/storefront",
+      "original_url": "https://www.amazon.co.uk/gp/video/storefront",
+      "title": "Amazon.co.uk: Prime Video",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.amazon.co.uk/gp/video/storefront"
+    },
+    {
+      "url": "https://www.skysports.com/watch",
+      "original_url": "https://www.skysports.com/watch",
+      "title": "Sky Sports",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.skysports.com/watch"
+    },
+    {
+      "url": "https://virgintvgo.virginmedia.com/en.html",
+      "original_url": "https://virgintvgo.virginmedia.com/en.html",
+      "title": "TV Go",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://virgintvgo.virginmedia.com/en.html"
+    },
+    {
+      "url": "https://www.bbc.co.uk/iplayer/categories/films/featured",
+      "original_url": "https://www.bbc.co.uk/iplayer/categories/films/featured",
+      "title": "BBC iPlayer - Films",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.bbc.co.uk/iplayer/categories/films/featured"
+    },
+    {
+      "url": "https://www.itv.com/hub/itv",
+      "original_url": "https://www.itv.com/hub/itv",
+      "title": "ITV HUB - ITV Live",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.itv.com/hub/itv"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=9auq9myxfee",
+      "original_url": "https://www.youtube.com/watch?v=9Auq9mYxFEE",
+      "title": "Sky News - Live - YouTube",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.youtube.com/watch?v=9auq9myxfee"
+    },
+    {
+      "url": "https://tunein.com/radio/radio-jackie-1078-s9070",
+      "original_url": "https://tunein.com/radio/Radio-Jackie-1078-s9070/",
+      "title": "Tune In - Radio Jackie, 107.8 FM, London",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://tunein.com/radio/radio-jackie-1078-s9070"
+    },
+    {
+      "url": "https://www.netflix.com/browse",
+      "original_url": "https://www.netflix.com/browse",
+      "title": "Netflix",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.netflix.com/browse"
+    },
+    {
+      "url": "https://music.amazon.co.uk/home?_encoding=utf8&ref=dm_ws_lnd_ups_pm_wp_xx_171f9546-74e8-4618-b2b1-30851495cb28",
+      "original_url": "https://music.amazon.co.uk/home?_encoding=UTF8&ref=dm_ws_lnd_ups_pm_wp_xx_171f9546-74e8-4618-b2b1-30851495cb28",
+      "title": "Amazon Music",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://music.amazon.co.uk/home?_encoding=utf8&ref=dm_ws_lnd_ups_pm_wp_xx_171f9546-74e8-4618-b2b1-30851495cb28"
+    },
+    {
+      "url": "https://www.amazon.co.uk",
+      "original_url": "https://www.amazon.co.uk/",
+      "title": "Amazon.co.uk: Low Prices in Electronics, Books, Sports Equipment & more",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.amazon.co.uk"
+    },
+    {
+      "url": "https://www.hotukdeals.com",
+      "original_url": "https://www.hotukdeals.com/",
+      "title": "hotukdeals - Best Deals & Discounts \u00bb Your Shopping Community",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.hotukdeals.com"
+    },
+    {
+      "url": "http://www.freshwaterinformer.com/index.php",
+      "original_url": "http://www.freshwaterinformer.com/index.php",
+      "title": "FreshWater Informer website",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|http://www.freshwaterinformer.com/index.php"
+    },
+    {
+      "url": "https://www.failory.com",
+      "original_url": "https://www.failory.com/",
+      "title": "Failory",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.failory.com"
+    },
+    {
+      "url": "https://gazzettax.ddns.net:8213",
+      "original_url": "https://gazzettax.ddns.net:8213/",
+      "title": "ASUS External",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://gazzettax.ddns.net:8213"
+    },
+    {
+      "url": "http://router.asus.com/main_login.asp",
+      "original_url": "http://router.asus.com/Main_Login.asp",
+      "title": "ASUS Local",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|http://router.asus.com/main_login.asp"
+    },
+    {
+      "url": "http://192.168.100.1",
+      "original_url": "http://192.168.100.1/",
+      "title": "Virgin Hub 3.0 @ Modem Mode a24618769A",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|http://192.168.100.1"
+    },
+    {
+      "url": "http://www.live-footballontv.com",
+      "original_url": "http://www.live-footballontv.com/",
+      "title": "Footie",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|http://www.live-footballontv.com"
+    },
+    {
+      "url": "https://liveonsat.com/uk-england-all-football.php",
+      "original_url": "https://liveonsat.com/uk-england-all-football.php",
+      "title": "LJ",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://liveonsat.com/uk-england-all-football.php"
+    },
+    {
+      "url": "https://f8lure.mouselike.org/index.asp?doaction=viewhost&hostname=82.10.162.15",
+      "original_url": "https://f8lure.mouselike.org/index.asp?DoAction=ViewHost&HostName=82.10.162.15",
+      "title": "f8lure latency",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://f8lure.mouselike.org/index.asp?doaction=viewhost&hostname=82.10.162.15"
+    },
+    {
+      "url": "https://flippa.com/websites/most-active",
+      "original_url": "https://flippa.com/websites/most-active",
+      "title": "Flippa Most Active",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://flippa.com/websites/most-active"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheet/ccc?key=0amy1py8_prkrdgjvntn6bxk5sggynzvmcudkdhlgcwc#gid=0",
+      "original_url": "https://docs.google.com/spreadsheet/ccc?key=0Amy1pY8_prkRdGJvNTN6bXk5SGgyNzVmcUdKdHlGcWc#gid=0",
+      "title": "usa summer holiday 2015",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Holidays/USA 2015",
+      "dedupe_key": "bookmarks bar/reselec/personal/holidays/usa 2015|https://docs.google.com/spreadsheet/ccc?key=0amy1py8_prkrdgjvntn6bxk5sggynzvmcudkdhlgcwc#gid=0"
+    },
+    {
+      "url": "http://www.vrbo.com/477105#rates",
+      "original_url": "http://www.vrbo.com/477105#rates",
+      "title": "POSSIBLE - Woodland Hills",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Holidays/USA 2015",
+      "dedupe_key": "bookmarks bar/reselec/personal/holidays/usa 2015|http://www.vrbo.com/477105#rates"
+    },
+    {
+      "url": "http://www.homeaway.com/vacation-rental/p591631vb#ratesanchor",
+      "original_url": "http://www.homeaway.com/vacation-rental/p591631vb#ratesAnchor",
+      "title": "POSSIBLE - Oxnard",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Holidays/USA 2015",
+      "dedupe_key": "bookmarks bar/reselec/personal/holidays/usa 2015|http://www.homeaway.com/vacation-rental/p591631vb#ratesanchor"
+    },
+    {
+      "url": "http://www.homeaway.com/vacation-rental/p3520372#ratesanchor",
+      "original_url": "http://www.homeaway.com/vacation-rental/p3520372#ratesAnchor",
+      "title": "POSSIBLE - Oxnard",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Holidays/USA 2015",
+      "dedupe_key": "bookmarks bar/reselec/personal/holidays/usa 2015|http://www.homeaway.com/vacation-rental/p3520372#ratesanchor"
+    },
+    {
+      "url": "http://www.homeaway.com/vacation-rental/p182532#ratesanchor",
+      "original_url": "http://www.homeaway.com/vacation-rental/p182532#ratesAnchor",
+      "title": "POSSIBLE - Oxnard",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Holidays/USA 2015",
+      "dedupe_key": "bookmarks bar/reselec/personal/holidays/usa 2015|http://www.homeaway.com/vacation-rental/p182532#ratesanchor"
+    },
+    {
+      "url": "https://awardnexus.com/collage/view/5784cf4b0e93123f3d000d1d",
+      "original_url": "https://awardnexus.com/collage/view/5784cf4b0e93123f3d000d1d",
+      "title": "Award Nexus Avios Search",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Holidays",
+      "dedupe_key": "bookmarks bar/reselec/personal/holidays|https://awardnexus.com/collage/view/5784cf4b0e93123f3d000d1d"
+    },
+    {
+      "url": "http://www.flyerboy.com",
+      "original_url": "http://www.flyerboy.com/",
+      "title": "Full Colour Flyer Printing. Flyerboy Flyer Printers Brighton",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Promotion",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/promotion|http://www.flyerboy.com"
+    },
+    {
+      "url": "http://www.postersonwheels.com/index.asp",
+      "original_url": "http://www.postersonwheels.com/index.asp",
+      "title": "Advans, Mobile Advertising, Outdoor Posters, Billboards & Ad Vans Advertising UK",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Promotion",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/promotion|http://www.postersonwheels.com/index.asp"
+    },
+    {
+      "url": "http://www.seomoz.org/web2.0",
+      "original_url": "http://www.seomoz.org/web2.0/",
+      "title": "Ideas - SEOmoz's Web 2.0 Awards",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Promotion",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/promotion|http://www.seomoz.org/web2.0"
+    },
+    {
+      "url": "http://www.tv-add.com",
+      "original_url": "http://www.tv-add.com/",
+      "title": "Add TV with TV-Add! TV advertising creative, production and media packages to suit your budget",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Promotion",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/promotion|http://www.tv-add.com"
+    },
+    {
+      "url": "http://schoolperformancemaps.com/ca/#33.622339,-117.60006,12,1",
+      "original_url": "http://schoolperformancemaps.com/ca/#33.622339%2C-117.60006%2C12%2C1",
+      "title": "California School Performance Maps",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Move",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/move|http://schoolperformancemaps.com/ca/#33.622339,-117.60006,12,1"
+    },
+    {
+      "url": "https://www.snapnames.com/apps/search.jsp",
+      "original_url": "https://www.snapnames.com/apps/search.jsp",
+      "title": "Search and purchase expired domain names",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Investment",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/investment|https://www.snapnames.com/apps/search.jsp"
+    },
+    {
+      "url": "http://forums.digitalpoint.com",
+      "original_url": "http://forums.digitalpoint.com/",
+      "title": "Webmaster Forum - Internet Marketing & Search Engine Forums",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Investment",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/investment|http://forums.digitalpoint.com"
+    },
+    {
+      "url": "http://thefunded.com",
+      "original_url": "http://thefunded.com/",
+      "title": "TheFunded.com: The Resource for Entrepreneurs.",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Investment",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/investment|http://thefunded.com"
+    },
+    {
+      "url": "http://marketplace.sitepoint.com",
+      "original_url": "http://marketplace.sitepoint.com/",
+      "title": "SitePoint Marketplace - Buy & sell established web sites, startup and turnkey websites and more",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Ideas/Investment",
+      "dedupe_key": "bookmarks bar/reselec/personal/ideas/investment|http://marketplace.sitepoint.com"
+    },
+    {
+      "url": "javascript:$.getscript('//repod.github.io/psdle/psdle.min.js');void(0);",
+      "original_url": "javascript:$.getScript('//repod.github.io/psdle/psdle.min.js');void(0);",
+      "title": "Run PSDLE",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Gaming",
+      "dedupe_key": "bookmarks bar/reselec/personal/gaming|javascript:$.getscript('//repod.github.io/psdle/psdle.min.js');void(0);"
+    },
+    {
+      "url": "http://doperoms.com",
+      "original_url": "http://doperoms.com/",
+      "title": "Roms and Emulators - DopeROMs - NDS Roms, GBA Roms, SNES Roms, N64 Roms, Playstation Roms, PSX Roms, NES Roms, GB Roms, GBC Roms, MAME Roms,",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Gaming",
+      "dedupe_key": "bookmarks bar/reselec/personal/gaming|http://doperoms.com"
+    },
+    {
+      "url": "http://coolrom.com",
+      "original_url": "http://coolrom.com/",
+      "title": "CoolROM.com - N64 ROMs GBA ROMs SNES ROMs NDS ROMs GBC ROMs NES ROMs MAME ROMs PSX ROMs Gamecube ROMs ISOs and Emulators",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Gaming/Roms",
+      "dedupe_key": "bookmarks bar/reselec/personal/gaming/roms|http://coolrom.com"
+    },
+    {
+      "url": "https://www.emuparadise.me",
+      "original_url": "https://www.emuparadise.me/",
+      "title": "NDS ROMS PSP ROMS PSX ROMS NES ROMS SNES ROMS GBA ROMS | Emuparadise",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Gaming/Roms",
+      "dedupe_key": "bookmarks bar/reselec/personal/gaming/roms|https://www.emuparadise.me"
+    },
+    {
+      "url": "https://vimm.net/vault/1039",
+      "original_url": "https://vimm.net/vault/1039",
+      "title": "Vimms Lair",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Gaming",
+      "dedupe_key": "bookmarks bar/reselec/personal/gaming|https://vimm.net/vault/1039"
+    },
+    {
+      "url": "https://www.doorsofdistinction.co.uk/exterior_doors/external-oak-doorsets3/oak-siena-glazed-doorset.html",
+      "original_url": "https://www.doorsofdistinction.co.uk/exterior_doors/External-Oak-DoorSets3/Oak-Siena-Glazed-DoorSet.html",
+      "title": "Pre-finished Oak Pre-hung Door set",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Build/Front Door",
+      "dedupe_key": "bookmarks bar/reselec/personal/build/front door|https://www.doorsofdistinction.co.uk/exterior_doors/external-oak-doorsets3/oak-siena-glazed-doorset.html"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheets/d/1jbclc7fv-uhnyehirpspxfntg_c7dmw4nj7nbi1m3xe/edit#gid=225241105",
+      "original_url": "https://docs.google.com/spreadsheets/d/1jbclc7Fv-uHNyEhirpsPXFnTg_c7dMw4NJ7nbI1m3XE/edit#gid=225241105",
+      "title": "13 BWW Build 2018",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Build",
+      "dedupe_key": "bookmarks bar/reselec/personal/build|https://docs.google.com/spreadsheets/d/1jbclc7fv-uhnyehirpspxfntg_c7dmw4nj7nbi1m3xe/edit#gid=225241105"
+    },
+    {
+      "url": "https://inspireinsurance.co.uk/services/insurance_backed_guarantee_for_roofers.aspx",
+      "original_url": "https://inspireinsurance.co.uk/services/insurance_backed_guarantee_for_roofers.aspx",
+      "title": "Insurance Backed Guarantee for Roofers - Inspire Insurance",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Build",
+      "dedupe_key": "bookmarks bar/reselec/personal/build|https://inspireinsurance.co.uk/services/insurance_backed_guarantee_for_roofers.aspx"
+    },
+    {
+      "url": "https://www.safelincs.co.uk/fire-door-seals-surface-mounted-intumescent-fire-and-smoke-seal-kit-product-1",
+      "original_url": "https://www.safelincs.co.uk/fire-door-seals-surface-mounted-intumescent-fire-and-smoke-seal-kit-product-1/",
+      "title": "Surface-mounted Fire Door Seal Kits - 60 minute - Fire and Smoke",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Build",
+      "dedupe_key": "bookmarks bar/reselec/personal/build|https://www.safelincs.co.uk/fire-door-seals-surface-mounted-intumescent-fire-and-smoke-seal-kit-product-1"
+    },
+    {
+      "url": "https://dms.stroma.com:8443/build-zone/bz-visit/bz-remediation?var1=30e239fc-8347-478e-b547-f99ddfad4e99",
+      "original_url": "https://dms.stroma.com:8443/build-zone/bz-visit/bz-remediation?var1=30e239fc-8347-478e-b547-f99ddfad4e99",
+      "title": "STROMA - BC System",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Build",
+      "dedupe_key": "bookmarks bar/reselec/personal/build|https://dms.stroma.com:8443/build-zone/bz-visit/bz-remediation?var1=30e239fc-8347-478e-b547-f99ddfad4e99"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheets/d/1egkqyap16bic4mhny5mwoia9s5rouxoeomz0m0bkejy/edit#gid=0",
+      "original_url": "https://docs.google.com/spreadsheets/d/1egKQyaP16BiC4mHNY5mWoia9s5rOUXOeoMZ0m0bkEJY/edit#gid=0",
+      "title": "13BWR Landscaping - Google Sheets",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Build",
+      "dedupe_key": "bookmarks bar/reselec/personal/build|https://docs.google.com/spreadsheets/d/1egkqyap16bic4mhny5mwoia9s5rouxoeomz0m0bkejy/edit#gid=0"
+    },
+    {
+      "url": "https://hashflare.io/panel/redeem",
+      "original_url": "https://hashflare.io/panel/redeem",
+      "title": "HF",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://hashflare.io/panel/redeem"
+    },
+    {
+      "url": "https://crypterra.net/account",
+      "original_url": "https://crypterra.net/account",
+      "title": "CT",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://crypterra.net/account"
+    },
+    {
+      "url": "https://www.genesis-mining.com/payouts",
+      "original_url": "https://www.genesis-mining.com/payouts",
+      "title": "GM",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://www.genesis-mining.com/payouts"
+    },
+    {
+      "url": "https://simplemining.net",
+      "original_url": "https://simplemining.net/",
+      "title": "SM",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://simplemining.net"
+    },
+    {
+      "url": "http://192.168.1.162/cgi-bin/minerconfiguration.cgi",
+      "original_url": "http://192.168.1.162/cgi-bin/minerConfiguration.cgi",
+      "title": "L3",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|http://192.168.1.162/cgi-bin/minerconfiguration.cgi"
+    },
+    {
+      "url": "https://www.nicehash.com/workers?show=active",
+      "original_url": "https://www.nicehash.com/workers?show=active",
+      "title": "NH",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://www.nicehash.com/workers?show=active"
+    },
+    {
+      "url": "https://bittrex.com/manage#sectionenhancedverification",
+      "original_url": "https://bittrex.com/Manage#sectionEnhancedVerification",
+      "title": "BR",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://bittrex.com/manage#sectionenhancedverification"
+    },
+    {
+      "url": "https://www.coindesk.com",
+      "original_url": "https://www.coindesk.com/",
+      "title": "CDK",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://www.coindesk.com"
+    },
+    {
+      "url": "https://coinmarketcap.com",
+      "original_url": "https://coinmarketcap.com/",
+      "title": "CMC",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining|https://coinmarketcap.com"
+    },
+    {
+      "url": "https://www.reddit.com/r/zec/comments/7jv1nq/overclocking_gtx_1070ti",
+      "original_url": "https://www.reddit.com/r/zec/comments/7jv1nq/overclocking_gtx_1070ti/",
+      "title": "Overclocking GTX 1070ti : zec",
+      "folder_path": "Bookmarks bar/ResElec/Personal/Mining/Mining Rig Ideas",
+      "dedupe_key": "bookmarks bar/reselec/personal/mining/mining rig ideas|https://www.reddit.com/r/zec/comments/7jv1nq/overclocking_gtx_1070ti"
+    },
+    {
+      "url": "https://www.owlintuition.com",
+      "original_url": "https://www.owlintuition.com/",
+      "title": "OWL Intuition - Home Dashboard",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.owlintuition.com"
+    },
+    {
+      "url": "http://manage-virgintvgo.virginmedia.com/skydevices",
+      "original_url": "http://manage-virgintvgo.virginmedia.com/skydevices",
+      "title": "VirginMedia - Sky Devices",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|http://manage-virgintvgo.virginmedia.com/skydevices"
+    },
+    {
+      "url": "https://virgintvgo.virginmedia.com/en/settings/device-management.html",
+      "original_url": "https://virgintvgo.virginmedia.com/en/settings/device-management.html",
+      "title": "VirginMedia - TvGo Devices",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://virgintvgo.virginmedia.com/en/settings/device-management.html"
+    },
+    {
+      "url": "https://mail2.virginmedia.com/appsuite/#!!&app=io.ox/mail&folder=flhawlw01qoksz",
+      "original_url": "https://mail2.virginmedia.com/appsuite/#!!&app=io.ox/mail&folder=flhawlw01QOKSZ",
+      "title": "VirginMedia Webmail",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://mail2.virginmedia.com/appsuite/#!!&app=io.ox/mail&folder=flhawlw01qoksz"
+    },
+    {
+      "url": "https://glllibraries.overdrive.com",
+      "original_url": "https://glllibraries.overdrive.com/",
+      "title": "Bromley Library eBook Audibooks - Libby OverDrive",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://glllibraries.overdrive.com"
+    },
+    {
+      "url": "https://www.rbdigital.com/bromley/service/magazines/landing?",
+      "original_url": "https://www.rbdigital.com/bromley/service/magazines/landing?",
+      "title": "Bromley Library eMagazines",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.rbdigital.com/bromley/service/magazines/landing?"
+    },
+    {
+      "url": "https://capitadiscovery.co.uk/bromley/home",
+      "original_url": "https://capitadiscovery.co.uk/bromley/home",
+      "title": "Bromley Library",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://capitadiscovery.co.uk/bromley/home"
+    },
+    {
+      "url": "https://lh5.googleusercontent.com/p/af1qipo6_ucn1ky6qhgnobdt2koijddz3pzl6x1fd-gf=w328-h130-p-k-no",
+      "original_url": "https://lh5.googleusercontent.com/p/AF1QipO6_UCn1Ky6QhGnobDt2koIjDDZ3pzl6X1FD-gf=w328-h130-p-k-no",
+      "title": "Photo",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://lh5.googleusercontent.com/p/af1qipo6_ucn1ky6qhgnobdt2koijddz3pzl6x1fd-gf=w328-h130-p-k-no"
+    },
+    {
+      "url": "https://www.cursor.com/changelog",
+      "original_url": "https://www.cursor.com/changelog",
+      "title": "Changelog | Cursor - The AI Code Editor",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.cursor.com/changelog"
+    },
+    {
+      "url": "https://us.community.sony.com/s/question/0d50b00004tklka/going-to-crutchfield-ca-site-i-tagged-4-k-video-upscaling-the-strdh-790-does-not-support-it-only-the-strdh1080-supports-this?language=en_us",
+      "original_url": "https://us.community.sony.com/s/question/0D50B00004tKLKA/going-to-crutchfield-ca-site-i-tagged-4-k-video-upscaling-the-strdh-790-does-not-support-it-only-the-strdh1080-supports-this?language=en_US",
+      "title": "going to crutchfield .ca site i tagged 4 k video upscaling. the strdh 790 does not support it only the strdh1080 supports this",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://us.community.sony.com/s/question/0d50b00004tklka/going-to-crutchfield-ca-site-i-tagged-4-k-video-upscaling-the-strdh-790-does-not-support-it-only-the-strdh1080-supports-this?language=en_us"
+    },
+    {
+      "url": "https://www.thetimes.co.uk",
+      "original_url": "https://www.thetimes.co.uk/",
+      "title": "The Times & The Sunday Times",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.thetimes.co.uk"
+    },
+    {
+      "url": "https://www.bbc.co.uk/iplayer/live/bbcnews",
+      "original_url": "https://www.bbc.co.uk/iplayer/live/bbcnews",
+      "title": "BBC iPlayer - BBC News live",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.bbc.co.uk/iplayer/live/bbcnews"
+    },
+    {
+      "url": "https://www.bbc.co.uk/iplayer/live/bbctwo",
+      "original_url": "https://www.bbc.co.uk/iplayer/live/bbctwo",
+      "title": "BBC iPlayer - BBC Two live",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.bbc.co.uk/iplayer/live/bbctwo"
+    },
+    {
+      "url": "https://www.bbc.co.uk/iplayer/live/bbcone",
+      "original_url": "https://www.bbc.co.uk/iplayer/live/bbcone",
+      "title": "BBC iPlayer - BBC One live",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.bbc.co.uk/iplayer/live/bbcone"
+    },
+    {
+      "url": "https://redeem.microsoft.com",
+      "original_url": "https://redeem.microsoft.com/",
+      "title": "Microsoft account | Redeem",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://redeem.microsoft.com"
+    },
+    {
+      "url": "https://www.amazon.co.uk/amazon-video/b/?ie=utf8&node=3010085031&ref_=nav_cs_prime_video",
+      "original_url": "https://www.amazon.co.uk/Amazon-Video/b/?ie=UTF8&node=3010085031&ref_=nav_cs_prime_video",
+      "title": "Amazon.co.uk: Prime Video",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.amazon.co.uk/amazon-video/b/?ie=utf8&node=3010085031&ref_=nav_cs_prime_video"
+    },
+    {
+      "url": "http://192.168.8.1/html/index.html",
+      "original_url": "http://192.168.8.1/html/index.html",
+      "title": "Three 4G Huawei Router",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|http://192.168.8.1/html/index.html"
+    },
+    {
+      "url": "https://gazzetta.myvnc.com:8213",
+      "original_url": "https://gazzetta.myvnc.com:8213/",
+      "title": "ASUS External",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://gazzetta.myvnc.com:8213"
+    },
+    {
+      "url": "https://www.thinkbroadband.com/my-profile#bqm",
+      "original_url": "https://www.thinkbroadband.com/my-profile#bqm",
+      "title": "Broadband Quality Monitor | thinkbroadband",
+      "folder_path": "Bookmarks bar/ResElec/Personal",
+      "dedupe_key": "bookmarks bar/reselec/personal|https://www.thinkbroadband.com/my-profile#bqm"
+    },
+    {
+      "url": "https://app.k1m6a.tv/en/dashboard",
+      "original_url": "https://app.k1m6a.tv/en/dashboard",
+      "title": "K1m6a.tv | Dashboard",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://app.k1m6a.tv/en/dashboard"
+    },
+    {
+      "url": "https://sassto.webflow.io",
+      "original_url": "https://sassto.webflow.io/",
+      "title": "Sassto - Webflow Ecommerce website template",
+      "folder_path": "Bookmarks bar/ResElec/2024 Designs",
+      "dedupe_key": "bookmarks bar/reselec/2024 designs|https://sassto.webflow.io"
+    },
+    {
+      "url": "https://land-book.com",
+      "original_url": "https://land-book.com/",
+      "title": "Landbook - website design inspiration gallery",
+      "folder_path": "Bookmarks bar/ResElec/2024 Designs",
+      "dedupe_key": "bookmarks bar/reselec/2024 designs|https://land-book.com"
+    },
+    {
+      "url": "https://www.landingfolio.com",
+      "original_url": "https://www.landingfolio.com/",
+      "title": "The Best Landing Page Design Inspiration, Templates and More | Landingfolio",
+      "folder_path": "Bookmarks bar/ResElec/2024 Designs",
+      "dedupe_key": "bookmarks bar/reselec/2024 designs|https://www.landingfolio.com"
+    },
+    {
+      "url": "https://www.curated.design",
+      "original_url": "https://www.curated.design/",
+      "title": "Curated web design inspiration catalog",
+      "folder_path": "Bookmarks bar/ResElec/2024 Designs",
+      "dedupe_key": "bookmarks bar/reselec/2024 designs|https://www.curated.design"
+    },
+    {
+      "url": "https://www.supahero.io",
+      "original_url": "https://www.supahero.io/",
+      "title": "Supahero - Website hero section library",
+      "folder_path": "Bookmarks bar/ResElec/2024 Designs",
+      "dedupe_key": "bookmarks bar/reselec/2024 designs|https://www.supahero.io"
+    },
+    {
+      "url": "https://www.photopea.com",
+      "original_url": "https://www.photopea.com/",
+      "title": "Photopea | Online Photo Editor",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://www.photopea.com"
+    },
+    {
+      "url": "https://www.heropatterns.com",
+      "original_url": "https://www.heropatterns.com/",
+      "title": "Hero Patterns | Free repeatable SVG background patterns for your web projects",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://www.heropatterns.com"
+    },
+    {
+      "url": "https://www.transparenttextures.com",
+      "original_url": "https://www.transparenttextures.com/",
+      "title": "Transparent Textures",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://www.transparenttextures.com"
+    },
+    {
+      "url": "https://fontsinuse.com",
+      "original_url": "https://fontsinuse.com/",
+      "title": "Fonts In Use \u2013 Type at work in the real world.",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://fontsinuse.com"
+    },
+    {
+      "url": "https://github.com/ghosh/uigradients",
+      "original_url": "https://github.com/ghosh/uiGradients",
+      "title": "GitHub - ghosh/uiGradients: \ud83d\udd34 Beautiful colour gradients for design and code",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://github.com/ghosh/uigradients"
+    },
+    {
+      "url": "https://land-book.com",
+      "original_url": "https://land-book.com/",
+      "title": "Land-book - the finest hand-picked website inspirations",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://land-book.com"
+    },
+    {
+      "url": "https://unsplash.com",
+      "original_url": "https://unsplash.com/",
+      "title": "Beautiful Free Images & Pictures | Unsplash",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://unsplash.com"
+    },
+    {
+      "url": "https://www.flaticon.com",
+      "original_url": "https://www.flaticon.com/",
+      "title": "Free vector icons - SVG, PSD, PNG, EPS & Icon Font - Thousands of free icons",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://www.flaticon.com"
+    },
+    {
+      "url": "https://undraw.co",
+      "original_url": "https://undraw.co/",
+      "title": "unDraw",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://undraw.co"
+    },
+    {
+      "url": "https://www.youzign.com",
+      "original_url": "https://www.youzign.com/",
+      "title": "Youzign | You are the designer",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://www.youzign.com"
+    },
+    {
+      "url": "https://www.canva.com",
+      "original_url": "https://www.canva.com/",
+      "title": "Your Designs \u2013 Canva",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://www.canva.com"
+    },
+    {
+      "url": "https://tophatters.co/collections/newdeals",
+      "original_url": "https://tophatters.co/collections/newdeals",
+      "title": "\u26df Free Shipping!",
+      "folder_path": "Bookmarks bar/ResElec/Design/Design2",
+      "dedupe_key": "bookmarks bar/reselec/design/design2|https://tophatters.co/collections/newdeals"
+    },
+    {
+      "url": "https://codepen.io",
+      "original_url": "https://codepen.io/",
+      "title": "CodePen - Front End Developer Playground & Code Editor in the Browser",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://codepen.io"
+    },
+    {
+      "url": "https://medium.freecodecamp.org/the-portfolio-hack-that-will-make-everyone-want-to-hire-you-58079cfed0b",
+      "original_url": "https://medium.freecodecamp.org/the-portfolio-hack-that-will-make-everyone-want-to-hire-you-58079cfed0b",
+      "title": "The portfolio hack that will make everyone want to hire you",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://medium.freecodecamp.org/the-portfolio-hack-that-will-make-everyone-want-to-hire-you-58079cfed0b"
+    },
+    {
+      "url": "file:///c:/coding/upwork/reselecv4/index.html",
+      "original_url": "file:///C:/CODING/upwork/reselecv4/index.html",
+      "title": "Company Name | Your Business Solutions",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|file:///c:/coding/upwork/reselecv4/index.html"
+    },
+    {
+      "url": "https://mail.google.com/mail/u/0/#inbox",
+      "original_url": "https://mail.google.com/mail/u/0/#inbox",
+      "title": "Inbox (434) - gazzetta2@gmail.com - Gmail",
+      "folder_path": "Bookmarks bar/ResElec/Design",
+      "dedupe_key": "bookmarks bar/reselec/design|https://mail.google.com/mail/u/0/#inbox"
+    },
+    {
+      "url": "http://localhost:4200",
+      "original_url": "http://localhost:4200/",
+      "title": "UdemyMax",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|http://localhost:4200"
+    },
+    {
+      "url": "https://www.lookintobitcoin.com/charts/bitcoin-investor-tool",
+      "original_url": "https://www.lookintobitcoin.com/charts/bitcoin-investor-tool/",
+      "title": "Bitcoin Investor Tool: 2-Year MA Multiplier | LookIntoBitcoin",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://www.lookintobitcoin.com/charts/bitcoin-investor-tool"
+    },
+    {
+      "url": "https://bridge.evodefi.com/?sn=0&tn=6&st=usdt&tt=usdt",
+      "original_url": "https://bridge.evodefi.com/?sn=0&tn=6&st=USDT&tt=USDT",
+      "title": "EVODeFi BRIDGE good for avax",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bridge.evodefi.com/?sn=0&tn=6&st=usdt&tt=usdt"
+    },
+    {
+      "url": "https://cbridge.celer.network/#/transfer",
+      "original_url": "https://cbridge.celer.network/#/transfer",
+      "title": "The Best Crypto & Binance Bridge | cBridge",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://cbridge.celer.network/#/transfer"
+    },
+    {
+      "url": "https://howmuchismylp.com",
+      "original_url": "https://howmuchismylp.com/",
+      "title": "How much is my LP worth? \u2728",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://howmuchismylp.com"
+    },
+    {
+      "url": "https://changenow.io",
+      "original_url": "https://changenow.io/",
+      "title": "ChangeNow",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://changenow.io"
+    },
+    {
+      "url": "https://simpleswap.io",
+      "original_url": "https://simpleswap.io/",
+      "title": "SimpleSwap | Cryptocurrency Exchange | Easy way to swap BTC to ETH, XRP, LTC, EOS, XLM",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://simpleswap.io"
+    },
+    {
+      "url": "https://cryptobubbles.net",
+      "original_url": "https://cryptobubbles.net/",
+      "title": "Crypto Bubbles | Interactive bubble chart for crypto currencies",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://cryptobubbles.net"
+    },
+    {
+      "url": "https://rugdoc.io/lp-breaker",
+      "original_url": "https://rugdoc.io/lp-breaker/",
+      "title": "LP Breaker - RugDoc",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://rugdoc.io/lp-breaker"
+    },
+    {
+      "url": "https://app.bitsgap.com/bot",
+      "original_url": "https://app.bitsgap.com/bot",
+      "title": "Bitsgap - Best Crypto Trading Bot | Smart Bitcoin and Altcoin Trading Platform",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://app.bitsgap.com/bot"
+    },
+    {
+      "url": "https://masternodes.online",
+      "original_url": "https://masternodes.online/",
+      "title": "MasterNodes.Online",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://masternodes.online"
+    },
+    {
+      "url": "https://accounts.hetzner.com/login",
+      "original_url": "https://accounts.hetzner.com/login",
+      "title": "Log In - Hetzner Online",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://accounts.hetzner.com/login"
+    },
+    {
+      "url": "https://bscscan.com/tx/0x1baf43482f569e502d54f6c116fab40978df0fdf071e5a1209aebabcd6d070a1",
+      "original_url": "https://bscscan.com/tx/0x1baf43482f569e502d54f6c116fab40978df0fdf071e5a1209aebabcd6d070a1",
+      "title": "Pulsechain BSC USDT $1500 Sacrifice 19Jul2020",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bscscan.com/tx/0x1baf43482f569e502d54f6c116fab40978df0fdf071e5a1209aebabcd6d070a1"
+    },
+    {
+      "url": "https://docs.google.com/spreadsheets/d/1hvpetmq7pt9qltr_ycvwxjhi6q3j5to6cqcyflvjniw/edit#gid=641553415",
+      "original_url": "https://docs.google.com/spreadsheets/d/1HvPETMQ7PT9Qltr_YCVWxJhI6q3J5to6CqcyFLVjNiw/edit#gid=641553415",
+      "title": "WH DCA Calculator - Google Sheets",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://docs.google.com/spreadsheets/d/1hvpetmq7pt9qltr_ycvwxjhi6q3j5to6cqcyflvjniw/edit#gid=641553415"
+    },
+    {
+      "url": "https://www.tradingview.com/chart/ncqpp7u5",
+      "original_url": "https://www.tradingview.com/chart/nCQpp7u5/",
+      "title": "XBTUSD 57093.0 \u25b2 +0.8% BTC Bitmex VWAP 1 YEAR",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://www.tradingview.com/chart/ncqpp7u5"
+    },
+    {
+      "url": "https://swapspace.co/?to=eth&amount=0.1",
+      "original_url": "https://swapspace.co/?to=eth&amount=0.1",
+      "title": "Cryptocurrency Exchange Aggregator | SwapSpace",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://swapspace.co/?to=eth&amount=0.1"
+    },
+    {
+      "url": "https://bscscan.com/address/0xa3de52e9336e841324444404aee03945f8e00545",
+      "original_url": "https://bscscan.com/address/0xa3de52e9336e841324444404aee03945f8e00545",
+      "title": "StakerMakers (YT) Wallet",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bscscan.com/address/0xa3de52e9336e841324444404aee03945f8e00545"
+    },
+    {
+      "url": "https://bscscan.com/tx/0x91e1707fc46a7856167d44c338ece79d41dab474adf258c79e228b1801237046",
+      "original_url": "https://bscscan.com/tx/0x91e1707fc46a7856167d44c338ece79d41dab474adf258c79e228b1801237046",
+      "title": "DRIP purchase",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bscscan.com/tx/0x91e1707fc46a7856167d44c338ece79d41dab474adf258c79e228b1801237046"
+    },
+    {
+      "url": "https://bscscan.com/address/0x5db9c1a9d1983069b9a3a3a60f7986892700494e",
+      "original_url": "https://bscscan.com/address/0x5Db9C1a9d1983069b9A3A3A60f7986892700494E",
+      "title": "Binanex Contract",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bscscan.com/address/0x5db9c1a9d1983069b9a3a3a60f7986892700494e"
+    },
+    {
+      "url": "https://www.dextools.io/app/uniswap/pair-explorer/0x73a86455888902108bc88f5831919e23098b9b04",
+      "original_url": "https://www.dextools.io/app/uniswap/pair-explorer/0x73a86455888902108bc88f5831919e23098b9b04",
+      "title": "Pair Explorer - DEXTools",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://www.dextools.io/app/uniswap/pair-explorer/0x73a86455888902108bc88f5831919e23098b9b04"
+    },
+    {
+      "url": "https://3commas.io/bots/analytics",
+      "original_url": "https://3commas.io/bots/analytics",
+      "title": "3Commas - Crypto Trading Bot | Automated Altcoin and Bitcoin Trading Platform",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://3commas.io/bots/analytics"
+    },
+    {
+      "url": "https://pro.coinbase.com",
+      "original_url": "https://pro.coinbase.com/",
+      "title": "Coinbase Pro | Digital Asset Exchange",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://pro.coinbase.com"
+    },
+    {
+      "url": "https://global.bittrex.com",
+      "original_url": "https://global.bittrex.com/",
+      "title": "Bittrex.com - The Next Generation Crypto-Currency Exchange - Upgrade to Bittrex Global",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://global.bittrex.com"
+    },
+    {
+      "url": "https://defipulse.com",
+      "original_url": "https://defipulse.com/",
+      "title": "DeFi - The Decentralized Finance Leaderboard at DeFi Pulse",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://defipulse.com"
+    },
+    {
+      "url": "https://cryptorank.io",
+      "original_url": "https://cryptorank.io/",
+      "title": "Cryptocurrency prices, Token rates and Altcoin charts ranked by Market Capitalization and Volume | CryptoRank.io",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://cryptorank.io"
+    },
+    {
+      "url": "https://goswappcharts.web.app/?isbsc=true&tokenid=0xa41497122bb9b9eb2eb1c5c872551e145bc3166b",
+      "original_url": "https://goswappcharts.web.app/?isbsc=true&tokenId=0xa41497122BB9B9EB2EB1c5c872551e145bC3166B",
+      "title": "Goswapp",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://goswappcharts.web.app/?isbsc=true&tokenid=0xa41497122bb9b9eb2eb1c5c872551e145bc3166b"
+    },
+    {
+      "url": "https://ethplorer.io/address/0xc4848e12e3a9168b78b351ba227338f1891bdab5",
+      "original_url": "https://ethplorer.io/address/0xc4848e12e3a9168b78b351ba227338f1891bdab5",
+      "title": "0xc4848e12e3a9168B78B351bA227338F1891BDAB5 - ethereum address history, charts and balances explorer - Ethplorer",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://ethplorer.io/address/0xc4848e12e3a9168b78b351ba227338f1891bdab5"
+    },
+    {
+      "url": "https://eclipcityglobal.io/#ref=tygeelsmw3rxebr4c2enjk47kctbiwxgsj",
+      "original_url": "https://eclipcityglobal.io/#ref=TYgEELsMw3rXEBR4c2eNJk47KctBiwXGSJ",
+      "title": "Eclipcity Global",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://eclipcityglobal.io/#ref=tygeelsmw3rxebr4c2enjk47kctbiwxgsj"
+    },
+    {
+      "url": "https://goswapp-bsc.web.app",
+      "original_url": "https://goswapp-bsc.web.app/",
+      "title": "Goswapp : For BSC Traders",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://goswapp-bsc.web.app"
+    },
+    {
+      "url": "https://koffeeswap.exchange/#/pro",
+      "original_url": "https://koffeeswap.exchange/#/pro",
+      "title": "KoffeeSwap Exchange",
+      "folder_path": "Bookmarks bar/ResElec/Crypto/KCC",
+      "dedupe_key": "bookmarks bar/reselec/crypto/kcc|https://koffeeswap.exchange/#/pro"
+    },
+    {
+      "url": "https://kuswap.finance/#/swap",
+      "original_url": "https://kuswap.finance/#/swap",
+      "title": "KuSwap - The Kucoin Community Swap",
+      "folder_path": "Bookmarks bar/ResElec/Crypto/KCC",
+      "dedupe_key": "bookmarks bar/reselec/crypto/kcc|https://kuswap.finance/#/swap"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=_vlhzr1fnvs",
+      "original_url": "https://www.youtube.com/watch?v=_VLHzR1FnVs",
+      "title": "(364) How to Install Hetzner VPS with Remote Desktop for Leverage Trapper Bot - YouTube",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://www.youtube.com/watch?v=_vlhzr1fnvs"
+    },
+    {
+      "url": "https://discord.com/channels/781359499645550602/818645474160279592",
+      "original_url": "https://discord.com/channels/781359499645550602/818645474160279592",
+      "title": "pairs-list",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://discord.com/channels/781359499645550602/818645474160279592"
+    },
+    {
+      "url": "https://unidexbeta.app/bsccharting?token=0x3b831d36ed418e893f42d46ff308c326c239429f",
+      "original_url": "https://unidexbeta.app/bscCharting?token=0x3b831d36ed418e893f42d46ff308c326c239429f",
+      "title": "UniDex",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://unidexbeta.app/bsccharting?token=0x3b831d36ed418e893f42d46ff308c326c239429f"
+    },
+    {
+      "url": "https://bscscan.com/address/0x63f06788670d8fe1e8994f88029b611b7a63821a",
+      "original_url": "https://bscscan.com/address/0x63F06788670D8FE1e8994f88029b611B7A63821A",
+      "title": "Ray Conlomerate Wallet",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bscscan.com/address/0x63f06788670d8fe1e8994f88029b611b7a63821a"
+    },
+    {
+      "url": "https://www.twitch.tv/xpod78",
+      "original_url": "https://www.twitch.tv/xpod78",
+      "title": "xpod78 - Twitch",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://www.twitch.tv/xpod78"
+    },
+    {
+      "url": "https://changenow.io",
+      "original_url": "https://changenow.io/",
+      "title": "Best Crypto Exchange | Top Cryptocurrency Rates and Fees | ChangeNOW",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://changenow.io"
+    },
+    {
+      "url": "https://localbitcoins.com",
+      "original_url": "https://localbitcoins.com/",
+      "title": "LocalBitcoins.com: Fastest and easiest way to buy and sell bitcoins - LocalBitcoins",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://localbitcoins.com"
+    },
+    {
+      "url": "https://kanga.exchange",
+      "original_url": "https://kanga.exchange/",
+      "title": "Kanga Exchange \u2013 Trade Cryptocurrencies \u2013 Kanga Exchange is a platform of modern financial services, a network of stationary exchange offices and a set of unique tools for trading cryptocurrencies",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://kanga.exchange"
+    },
+    {
+      "url": "https://app.unrekt.net",
+      "original_url": "https://app.unrekt.net/",
+      "title": "Smart Contract Allowance Checker",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://app.unrekt.net"
+    },
+    {
+      "url": "https://bscscan.com/address/0x5db9c1a9d1983069b9a3a3a60f7986892700494e#code",
+      "original_url": "https://bscscan.com/address/0x5Db9C1a9d1983069b9A3A3A60f7986892700494E#code",
+      "title": "Binanex",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bscscan.com/address/0x5db9c1a9d1983069b9a3a3a60f7986892700494e#code"
+    },
+    {
+      "url": "https://dpr.deeper.network/claim",
+      "original_url": "https://dpr.deeper.network/claim",
+      "title": "Deeper Network",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://dpr.deeper.network/claim"
+    },
+    {
+      "url": "https://www.youtube.com/watch?v=6cme68dkjju",
+      "original_url": "https://www.youtube.com/watch?v=6CmE68dKJjU",
+      "title": "Pi Cycle Predictor",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://www.youtube.com/watch?v=6cme68dkjju"
+    },
+    {
+      "url": "https://bnbbusiness.org/0xdd84e09fee6ee82bcf2ece6e006abb1ec7c0167e",
+      "original_url": "https://bnbbusiness.org/0xDD84e09FEe6eE82bCf2Ece6e006AbB1Ec7c0167e",
+      "title": "BNBbusiness",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://bnbbusiness.org/0xdd84e09fee6ee82bcf2ece6e006abb1ec7c0167e"
+    },
+    {
+      "url": "http://email.so-li.cn/wf/unsubscribe?upn=vjstlwqtukgpcyr1l0cls0yfffibljooxl2cbouxrn4aquopue0g2jzlxgmimcdulrxzqc9miho0hccxvzjuwaiphay3-2f25vo-2f0necfciina2zt7kv6141smf7pjq2t2bqi1vxnuyaaeqrichlan-2bex4oopa3q3cmwuo6kiplpemy3og8ljvlabif5jbwj6pobi6xv7-2fsmap-2be1i2-2fdlbrfjt8ob8o7ibipsr4bz2gu-3d",
+      "original_url": "http://email.so-li.cn/wf/unsubscribe?upn=vjstLWqtuKGpCYR1L0Cls0yFFFibLjooxl2cbOUxRN4aQUopuE0G2JZLXgMIMcdUlrxZqC9MIHo0hcCXVZjUwaIPHAY3-2F25vo-2F0NeCFcIiNA2zT7kV6141smF7pjq2T2Bqi1VxNUYAAeqrichlan-2BeX4ooPA3q3cMWuo6KIplpEmY3Og8LJVLabif5JBwj6PobI6xV7-2FsmAp-2Be1I2-2FDLbRfjT8OB8o7ibIpsR4Bz2GU-3D",
+      "title": "Unsubscribe successful",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|http://email.so-li.cn/wf/unsubscribe?upn=vjstlwqtukgpcyr1l0cls0yfffibljooxl2cbouxrn4aquopue0g2jzlxgmimcdulrxzqc9miho0hccxvzjuwaiphay3-2f25vo-2f0necfciina2zt7kv6141smf7pjq2t2bqi1vxnuyaaeqrichlan-2bex4oopa3q3cmwuo6kiplpemy3og8ljvlabif5jbwj6pobi6xv7-2fsmap-2be1i2-2fdlbrfjt8ob8o7ibipsr4bz2gu-3d"
+    },
+    {
+      "url": "https://www.binance.com/en/my/dashboard",
+      "original_url": "https://www.binance.com/en/my/dashboard",
+      "title": "Dashboard - Binance",
+      "folder_path": "Bookmarks bar/ResElec/Crypto",
+      "dedupe_key": "bookmarks bar/reselec/crypto|https://www.binance.com/en/my/dashboard"
+    },
+    {
+      "url": "https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard",
+      "original_url": "https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard",
+      "title": "Chatbot Arena Leaderboard - a Hugging Face Space by lmarena-ai",
+      "folder_path": "Bookmarks bar/ResElec/AI tooling",
+      "dedupe_key": "bookmarks bar/reselec/ai tooling|https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard"
+    },
+    {
+      "url": "https://chatgpt.com",
+      "original_url": "https://chatgpt.com/",
+      "title": "ChatGPT",
+      "folder_path": "Bookmarks bar/ResElec/AI tooling",
+      "dedupe_key": "bookmarks bar/reselec/ai tooling|https://chatgpt.com"
+    },
+    {
+      "url": "https://www.val.town",
+      "original_url": "https://www.val.town/",
+      "title": "Val Town",
+      "folder_path": "Bookmarks bar/ResElec/AI tooling",
+      "dedupe_key": "bookmarks bar/reselec/ai tooling|https://www.val.town"
+    },
+    {
+      "url": "https://github.com/features/copilot",
+      "original_url": "https://github.com/features/copilot",
+      "title": "GitHub Copilot \u00b7 Your AI pair programmer",
+      "folder_path": "Bookmarks bar/ResElec/AI tooling",
+      "dedupe_key": "bookmarks bar/reselec/ai tooling|https://github.com/features/copilot"
+    },
+    {
+      "url": "https://ideogram.ai/login",
+      "original_url": "https://ideogram.ai/login",
+      "title": "Ideogram",
+      "folder_path": "Bookmarks bar/ResElec/AI tooling",
+      "dedupe_key": "bookmarks bar/reselec/ai tooling|https://ideogram.ai/login"
+    },
+    {
+      "url": "https://app.tempolabs.ai/project-create/ai-new",
+      "original_url": "https://app.tempolabs.ai/project-create/ai-new",
+      "title": "Tempo",
+      "folder_path": "Bookmarks bar/ResElec/AI tooling",
+      "dedupe_key": "bookmarks bar/reselec/ai tooling|https://app.tempolabs.ai/project-create/ai-new"
+    },
+    {
+      "url": "https://onlook.com",
+      "original_url": "https://onlook.com/",
+      "title": "Onlook \u2013 Cursor for Designers",
+      "folder_path": "Bookmarks bar/ResElec/AI tooling",
+      "dedupe_key": "bookmarks bar/reselec/ai tooling|https://onlook.com"
+    },
+    {
+      "url": "file:///c:/users/gazza/documents/skype parser/index.html",
+      "original_url": "file:///C:/Users/Gazza/Documents/Skype%20Parser/index.html",
+      "title": "Skype History",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|file:///c:/users/gazza/documents/skype parser/index.html"
+    },
+    {
+      "url": "https://www.paywallscreens.com",
+      "original_url": "https://www.paywallscreens.com/",
+      "title": "9137+ Paywall examples, designs & UX for mobile apps",
+      "folder_path": "Bookmarks bar/ResElec/Tester Test",
+      "dedupe_key": "bookmarks bar/reselec/tester test|https://www.paywallscreens.com"
+    },
+    {
+      "url": "https://smarkets.com",
+      "original_url": "https://smarkets.com/",
+      "title": "Smarkets",
+      "folder_path": "Bookmarks bar/ResElec/Tester Test",
+      "dedupe_key": "bookmarks bar/reselec/tester test|https://smarkets.com"
+    },
+    {
+      "url": "https://web.lmarena.ai/leaderboard",
+      "original_url": "https://web.lmarena.ai/leaderboard",
+      "title": "Leaderboard | WebDev Arena",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://web.lmarena.ai/leaderboard"
+    },
+    {
+      "url": "https://www.betvictor.com/en-gb/live-casino/games/1014081-betvictor-sports-roulette/launch",
+      "original_url": "https://www.betvictor.com/en-gb/live-casino/games/1014081-betvictor-sports-roulette/launch",
+      "title": "Pragmatic Games",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://www.betvictor.com/en-gb/live-casino/games/1014081-betvictor-sports-roulette/launch"
+    },
+    {
+      "url": "https://www.live-footballontv.com",
+      "original_url": "https://www.live-footballontv.com/",
+      "title": "Live Football On TV | Football On Television In The UK",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://www.live-footballontv.com"
+    },
+    {
+      "url": "https://app.koinly.io/p/transactions?currency_id=545895&order=date&page=2&perpage=100",
+      "original_url": "https://app.koinly.io/p/transactions?currency_id=545895&order=date&page=2&perPage=100",
+      "title": "Transactions | Koinly App",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://app.koinly.io/p/transactions?currency_id=545895&order=date&page=2&perpage=100"
+    },
+    {
+      "url": "https://www.stockinformer.co.uk/checker-ps5-playstation-5-console",
+      "original_url": "https://www.stockinformer.co.uk/checker-ps5-playstation-5-console",
+      "title": "Stock Informer",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://www.stockinformer.co.uk/checker-ps5-playstation-5-console"
+    },
+    {
+      "url": "https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard",
+      "original_url": "https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard",
+      "title": "Chatbot Arena Leaderboard - a Hugging Face Space by lmarena-ai",
+      "folder_path": "Bookmarks bar/ResElec",
+      "dedupe_key": "bookmarks bar/reselec|https://huggingface.co/spaces/lmarena-ai/chatbot-arena-leaderboard"
+    },
+    {
+      "url": "https://etherscan.io/address/0x2bde3b9c0129be4689e245ba689b9b0ae4ac666d",
+      "original_url": "https://etherscan.io/address/0x2BDE3b9C0129be4689E245Ba689b9b0Ae4AC666D",
+      "title": "ERC20 Whale 666D",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://etherscan.io/address/0x2bde3b9c0129be4689e245ba689b9b0ae4ac666d"
+    },
+    {
+      "url": "http://www.tvfootie.com",
+      "original_url": "http://www.tvfootie.com/",
+      "title": "Live Football Matches on TV in the United Kingdom",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|http://www.tvfootie.com"
+    },
+    {
+      "url": "http://www.thetoptens.com",
+      "original_url": "http://www.thetoptens.com/",
+      "title": "Top Ten Lists at TheTopTens.com",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|http://www.thetoptens.com"
+    },
+    {
+      "url": "https://www.genesis-mining.com/dashboard",
+      "original_url": "https://www.genesis-mining.com/dashboard",
+      "title": "GM",
+      "folder_path": "Bookmarks bar",
+      "dedupe_key": "bookmarks bar|https://www.genesis-mining.com/dashboard"
+    }
+  ]
+}

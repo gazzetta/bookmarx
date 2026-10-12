@@ -20,7 +20,7 @@ export interface AuthenticatedUser {
 
 // Emails that are always treated as premium (e.g. admin/test accounts)
 const ALWAYS_PREMIUM_EMAILS = [
-    'gas@gasdigital.co.uk',
+    'qa@bookmarx.cc',
 ];
 
 const isAlwaysPremiumEmail = (email: string): boolean =>

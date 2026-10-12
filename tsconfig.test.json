@@ -1,0 +1,24 @@
+{
+  // Type-checking layout for the root test harness. Tests reference app code
+  // under src/website which has its own tsconfig (with "moduleResolution"/
+  // "target" tuned for tsx/Next), so we extend that to keep imports resolving
+  // identically. `npm run typecheck` runs `tsc -p tsconfig.test.json --noEmit`.
+  "extends": "./src/website/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    "src/website/backend/**/*.ts"
+  ]
+}

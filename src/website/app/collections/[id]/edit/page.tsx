@@ -8,6 +8,8 @@ import { api, Collection } from '@/lib/api'
 import { useEditorStore, TreeItem } from '@/lib/editor-store'
 import DashboardLayout from '@/components/DashboardLayout'
 import SourceCollectionPanel from '@/components/SourceCollectionPanel'
+import ConfirmDialog from '@/components/ConfirmDialog'
+import AlertDialog from '@/components/AlertDialog'
 import {
   DndContext,
   DragOverlay,
@@ -35,6 +37,7 @@ interface SortableItemProps {
   isExpanded: boolean
   isSelected: boolean
   isDropTarget: boolean
+  isActiveFolder: boolean
   onToggleFolder: () => void
   onToggleSelect: () => void
   onRename: (newTitle: string) => void
@@ -48,6 +51,7 @@ function SortableItem({
   isExpanded,
   isSelected,
   isDropTarget,
+  isActiveFolder,
   onToggleFolder,
   onToggleSelect,
   onRename,
@@ -95,9 +99,11 @@ function SortableItem({
         className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all border ${
           isDropTarget
             ? 'bg-emerald-50/80 dark:bg-emerald-500/10 border-emerald-400 dark:border-emerald-500/40 ring-2 ring-emerald-400/50 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
-            : isSelected
-              ? 'bg-primary-50/50 dark:bg-terra-500/10 border-primary-200 dark:border-terra-500/20 shadow-sm'
-              : 'hover:bg-slate-50 dark:hover:bg-white/5 border-transparent hover:border-slate-100 dark:hover:border-white/5'
+            : isActiveFolder
+              ? 'bg-amber-50/80 dark:bg-amber-500/10 border-amber-400 dark:border-amber-500/40 shadow-sm'
+              : isSelected
+                ? 'bg-primary-50/50 dark:bg-terra-500/10 border-primary-200 dark:border-terra-500/20 shadow-sm'
+                : 'hover:bg-slate-50 dark:hover:bg-white/5 border-transparent hover:border-slate-100 dark:hover:border-white/5'
           } ${isDragging ? 'shadow-2xl brightness-95' : ''}`}
         style={{ paddingLeft: `${depth * 28 + 16}px` }}
       >
@@ -281,6 +287,9 @@ export default function CollectionEditorPage() {
   const [importNotice, setImportNotice] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [sourceCollectionIdRef, setSourceCollectionIdRef] = useState<string>('')
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; title: string; masterIds: string[] }>({ isOpen: false, title: '', masterIds: [] })
+  const [saveErrorDialog, setSaveErrorDialog] = useState<{ isOpen: boolean; message: string }>({ isOpen: false, message: '' })
 
   const showImportPanel = searchParams.get('import') === 'true'
 
@@ -343,7 +352,19 @@ export default function CollectionEditorPage() {
   const loadCollection = async () => {
     if (!token) return
     try {
-      const data = await api.getCollection(token, collectionId)
+      // Handle "default" alias - resolve to actual default collection ID
+      let actualCollectionId = collectionId
+      if (collectionId === 'default') {
+        const collections = await api.getCollections(token)
+        const defaultCollection = collections.collections.find(c => c.isDefault === 1)
+        if (defaultCollection) {
+          actualCollectionId = defaultCollection.id
+          // Update URL to actual ID without reloading
+          router.replace(`/collections/${actualCollectionId}/edit`, undefined)
+        }
+      }
+
+      const data = await api.getCollection(token, actualCollectionId)
       setCollection(data.collection)
       loadData(data.folders, data.bookmarks)
     } catch (error) {
@@ -364,7 +385,7 @@ export default function CollectionEditorPage() {
       await loadCollection()
     } catch (error) {
       console.error('Failed to save changes:', error)
-      alert('Failed to save changes. Please try again.')
+      setSaveErrorDialog({ isOpen: true, message: 'Failed to save changes. Please try again.' })
     } finally {
       setSaving(false)
     }
@@ -375,9 +396,9 @@ export default function CollectionEditorPage() {
     if (!newItemTitle.trim()) return
 
     if (showAddModal === 'folder') {
-      addFolder(null, newItemTitle.trim())
+      addFolder(activeFolderId, newItemTitle.trim())
     } else if (showAddModal === 'bookmark' && newItemUrl.trim()) {
-      addBookmark(null, newItemTitle.trim(), newItemUrl.trim())
+      addBookmark(activeFolderId, newItemTitle.trim(), newItemUrl.trim())
     }
 
     setShowAddModal(null)
@@ -387,15 +408,22 @@ export default function CollectionEditorPage() {
 
   const handleBulkDelete = () => {
     if (selectedItems.size === 0) return
-    if (!confirm(`Delete ${selectedItems.size} selected item(s)?`)) return
+    setDeleteConfirm({
+      isOpen: true,
+      title: `Delete ${selectedItems.size} selected item${selectedItems.size === 1 ? '' : 's'}?`,
+      masterIds: Array.from(selectedItems)
+    })
+  }
 
-    selectedItems.forEach(masterId => {
+  const executeDelete = () => {
+    deleteConfirm.masterIds.forEach(masterId => {
       const item = findItemByMasterId(tree, masterId)
       if (item) {
         deleteItem(masterId, item.type)
       }
     })
     clearSelection()
+    setDeleteConfirm({ isOpen: false, title: '', masterIds: [] })
   }
 
   const findItemByMasterId = (items: TreeItem[], masterId: string): TreeItem | null => {
@@ -435,13 +463,11 @@ export default function CollectionEditorPage() {
         setDropTargetId(over.data?.current?.targetFolderId || null)
         return
       }
-      // For source drags, also highlight when hovering over a destination folder's SortableItem
-      if (isSourceDrag) {
-        const overItem = findItemByMasterId(tree, over.id)
-        if (overItem && overItem.type === 'folder') {
-          setDropTargetId(overItem.masterId)
-          return
-        }
+      // For both source drags and internal drags, highlight when hovering over a folder
+      const overItem = findItemByMasterId(tree, over.id)
+      if (overItem && overItem.type === 'folder') {
+        setDropTargetId(overItem.masterId)
+        return
       }
     }
     setDropTargetId(null)
@@ -490,12 +516,26 @@ export default function CollectionEditorPage() {
       return
     }
 
-    // Internal reorder (existing behavior)
+    // Internal drag and drop
     if (active.id === over.id) return
 
     const activeItem = findItemByMasterId(tree, active.id as string)
     if (!activeItem) return
 
+    const overId = over.id as string
+    const overItem = findItemByMasterId(tree, overId)
+
+    // Check if dropping onto a folder
+    if (overItem && overItem.type === 'folder' && overItem.masterId !== activeItem.masterId) {
+      // Move item into the folder (append to end)
+      // Find the folder's current children count to determine position
+      const targetFolder = findItemByMasterId(tree, overItem.masterId)
+      const newPosition = targetFolder?.children?.length || 0
+      moveItem(active.id as string, activeItem.type, overItem.masterId, newPosition)
+      return
+    }
+
+    // Otherwise, handle root-level reordering
     const oldIndex = tree.findIndex(item => item.masterId === active.id)
     const newIndex = tree.findIndex(item => item.masterId === over.id)
 
@@ -507,6 +547,7 @@ export default function CollectionEditorPage() {
   const renderItem = (item: TreeItem, depth: number = 0): React.ReactNode => {
     const isExpanded = expandedFolders.has(item.masterId)
     const isSelected = selectedItems.has(item.masterId)
+    const isActiveFolder = activeFolderId === item.masterId
 
     const itemContent = (
       <div key={item.masterId}>
@@ -516,14 +557,22 @@ export default function CollectionEditorPage() {
           isExpanded={isExpanded}
           isSelected={isSelected}
           isDropTarget={item.type === 'folder' && dropTargetId === item.masterId}
+          isActiveFolder={isActiveFolder}
           onToggleFolder={() => toggleFolder(item.masterId)}
-          onToggleSelect={() => toggleSelect(item.masterId)}
+          onToggleSelect={() => {
+            toggleSelect(item.masterId)
+            if (item.type === 'folder') {
+              setActiveFolderId(item.masterId)
+            }
+          }}
           onRename={(newTitle) => renameItem(item.masterId, item.type, newTitle)}
           onUpdateUrl={item.type === 'bookmark' ? (newUrl) => updateBookmarkUrl(item.masterId, newUrl) : undefined}
           onDelete={() => {
-            if (confirm(`Delete "${item.title}"${item.type === 'folder' ? ' and all its contents' : ''}?`)) {
-              deleteItem(item.masterId, item.type)
-            }
+            setDeleteConfirm({
+              isOpen: true,
+              title: `Delete "${item.title}"${item.type === 'folder' ? ' and all its contents' : ''}?`,
+              masterIds: [item.masterId]
+            })
           }}
         />
         {item.type === 'folder' && isExpanded && item.children && (
@@ -534,8 +583,8 @@ export default function CollectionEditorPage() {
       </div>
     )
 
-    // Wrap folders in DroppableFolder when import panel is active
-    if (showImportPanel && item.type === 'folder') {
+    // Always wrap folders in DroppableFolder for internal drag and drop
+    if (item.type === 'folder') {
       return (
         <DroppableFolder key={item.masterId} masterId={item.masterId}>
           {itemContent}
@@ -652,6 +701,21 @@ export default function CollectionEditorPage() {
               {showImportPanel ? 'Close Import' : 'Import from Collection'}
             </button>
           </div>
+          {activeFolderId && (
+            <div className="flex items-center gap-4 w-full sm:w-auto bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 px-5 py-2.5 rounded-xl animate-in zoom-in-95 duration-200">
+              <span className="text-xs font-black uppercase tracking-widest border-r border-amber-300 dark:border-amber-500/30 pr-4">Active Folder</span>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold truncate max-w-[150px]">{findItemByMasterId(tree, activeFolderId)?.title || 'Unknown'}</span>
+                <button
+                  onClick={() => setActiveFolderId(null)}
+                  className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 font-bold text-xs"
+                  title="Clear active folder"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
           {selectedItems.size > 0 && (
             <div className="flex items-center gap-4 w-full sm:w-auto bg-slate-900 text-white px-5 py-2.5 rounded-xl animate-in zoom-in-95 duration-200">
               <span className="text-xs font-black uppercase tracking-widest border-r border-white/20 pr-4">{selectedItems.size} Selected</span>
@@ -853,6 +917,25 @@ export default function CollectionEditorPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        title="Confirm Delete"
+        message={deleteConfirm.title}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, title: '', masterIds: [] })}
+      />
+
+      <AlertDialog
+        isOpen={saveErrorDialog.isOpen}
+        title="Save Failed"
+        message={saveErrorDialog.message}
+        variant="error"
+        onClose={() => setSaveErrorDialog({ isOpen: false, message: '' })}
+      />
     </DashboardLayout>
   )
 }

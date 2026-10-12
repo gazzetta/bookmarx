@@ -1,5 +1,5 @@
 export interface BrowserInfo {
-    browser: 'chrome' | 'brave' | 'edge' | 'firefox' | 'opera' | 'vivaldi' | 'unknown';
+    browser: 'chrome' | 'brave' | 'edge' | 'firefox' | 'opera' | 'vivaldi' | 'arc' | 'helium' | 'unknown';
     browserVersion: string;
     os: 'windows' | 'macos' | 'linux' | 'android' | 'ios' | 'unknown';
     osVersion: string;
@@ -40,6 +40,20 @@ export async function detectBrowser(): Promise<BrowserInfo> {
         browser = 'vivaldi';
         isChromium = true;
         const match = userAgent.match(/Vivaldi\/(\d+\.\d+\.\d+\.\d+)/);
+        browserVersion = match ? match[1] : '';
+    }
+    // Arc browser (Chromium-based, check before generic Chrome)
+    else if (userAgent.includes('Arc/') || (userAgent.includes('Chrome/') && userAgent.includes('Arc'))) {
+        browser = 'arc';
+        isChromium = true;
+        const match = userAgent.match(/Chrome\/(\d+\.\d+\.\d+\.\d+)/);
+        browserVersion = match ? match[1] : '';
+    }
+    // Helium browser (Chromium-based, lightweight)
+    else if (userAgent.includes('Helium/') || (userAgent.includes('Chrome/') && userAgent.includes('Helium'))) {
+        browser = 'helium';
+        isChromium = true;
+        const match = userAgent.match(/Chrome\/(\d+\.\d+\.\d+\.\d+)/);
         browserVersion = match ? match[1] : '';
     }
     // Firefox
@@ -113,6 +127,8 @@ export function getBrowserDisplayName(browser: BrowserInfo['browser']): string {
         firefox: 'Mozilla Firefox',
         opera: 'Opera',
         vivaldi: 'Vivaldi',
+        arc: 'Arc Browser',
+        helium: 'Helium Browser',
         unknown: 'Unknown Browser'
     };
     return names[browser];

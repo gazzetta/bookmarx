@@ -220,7 +220,7 @@ export default function BrowserHistoryPage() {
                             </div>
                             <h3 className="text-xl font-bold text-slate-900 dark:text-cream-100 mb-2">No history yet</h3>
                             <p className="text-slate-500 dark:text-white/50 max-w-xs mx-auto text-lg">
-                                This browser hasn't performed any sync operations yet.
+                                This browser hasn&apos;t performed any sync operations yet.
                             </p>
                         </div>
                     ) : (

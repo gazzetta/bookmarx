@@ -100,7 +100,7 @@ export default function TermsPage() {
                 <p className="text-ink-500 leading-relaxed">
                   Offers expanded limits and additional features. Premium subscriptions are billed 
                   according to the plan selected at signup. Prices are subject to change with 
-                  30 days&apos; notice. Payments are processed through our payment partner, Polar.
+                  30 days&apos; notice. Payments are processed through our payment partner, PayPal.
                 </p>
               </div>
             </section>
@@ -203,8 +203,8 @@ export default function TermsPage() {
               <h2 className="font-display text-2xl font-bold text-ink mb-4">12. Contact</h2>
               <p className="text-ink-500 leading-relaxed">
                 For questions about these Terms, please contact us at{' '}
-                <a href="mailto:bookmarx@gasdigital.co.uk" className="text-terra-500 hover:text-terra-600 font-medium">
-                  bookmarx@gasdigital.co.uk
+                <a href="mailto:support@bookmarks.cc" className="text-terra-500 hover:text-terra-600 font-medium">
+                  support@bookmarks.cc
                 </a>.
               </p>
             </section>

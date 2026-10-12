@@ -6,7 +6,7 @@
 //   2. In manifest.json → "host_permissions", replace:
 //        "http://localhost:*/*"  and  "http://127.0.0.1:*/*"
 //      with:
-//        "https://bookmarx.gasdigital.co.uk/*"
+//        "https://www.bookmarx.cc/*"
 //   3. Rebuild the extension:  npm run build
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -15,5 +15,5 @@ export const API_BASE_URL     = 'http://localhost:3005';
 export const WEBSITE_BASE_URL = 'http://localhost:3005';
 
 // ── PRODUCTION – uncomment this block (and comment out LOCAL above) ───────────
-// export const API_BASE_URL     = 'https://bookmarx.gasdigital.co.uk';
-// export const WEBSITE_BASE_URL = 'https://bookmarx.gasdigital.co.uk';
+// export const API_BASE_URL     = 'https://www.bookmarx.cc';
+// export const WEBSITE_BASE_URL = 'https://www.bookmarx.cc';

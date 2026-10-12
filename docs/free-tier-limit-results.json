@@ -1,0 +1,38 @@
+[
+  {
+    "Section": "2.6",
+    "Test": "Free user with 11>10 bookmarks gets BOOKMARK_LIMIT_REACHED",
+    "Status": "PASS",
+    "Detail": "limit=10 attemptedToAdd=11"
+  },
+  {
+    "Section": "2.6",
+    "Test": "Error message includes upgrade link",
+    "Status": "PASS",
+    "Detail": "upgradeUrl=https://www.bookmarx.cc/upgrade"
+  },
+  {
+    "Section": "2.6",
+    "Test": "Free user with 10 bookmarks (at limit) succeeds",
+    "Status": "PASS",
+    "Detail": "Status=200"
+  },
+  {
+    "Section": "2.6",
+    "Test": "Adding 1 more when already at limit returns BOOKMARK_LIMIT_REACHED",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "2.6",
+    "Test": "Free 3rd browser registration returns BROWSER_LIMIT_REACHED",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "2.6",
+    "Test": "Browser-limit error includes upgrade link",
+    "Status": "PASS",
+    "Detail": ""
+  }
+]

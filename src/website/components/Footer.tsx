@@ -111,7 +111,7 @@ export default function Footer() {
                   <li><Link href="/register" className="text-white/60 hover:text-white transition-colors text-[15px]">Register</Link></li>
                 </>
               )}
-              <li><Link href="mailto:bookmarx@gasdigital.co.uk" className="text-white/60 hover:text-white transition-colors text-[15px]">Contact Us</Link></li>
+              <li><Link href="mailto:support@bookmarks.cc" className="text-white/60 hover:text-white transition-colors text-[15px]">Contact Us</Link></li>
             </ul>
           </div>
 
@@ -136,8 +136,8 @@ export default function Footer() {
           <p className="text-sm text-white/30">
             &copy; {new Date().getFullYear()} {config.branding.appName}. All rights reserved.
           </p>
-          <Link href="https://gasdigital.co.uk" target="_blank" className="text-sm text-white/30 hover:text-white/60 transition-colors">
-            Made by GAS Digital
+          <Link href="https://bookmarx.cc" target="_blank" className="text-sm text-white/30 hover:text-white/60 transition-colors">
+            Made by BookMarx
           </Link>
         </div>
       </div>

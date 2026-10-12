@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { api } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
+import AlertDialog from '@/components/AlertDialog'
 
 export default function SubscriptionPage() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function SubscriptionPage() {
   }, [isLoading, user, router])
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'error' })
 
   const handleUpgrade = async (plan: 'monthly' | 'yearly' | 'lifetime') => {
     if (!token) return
@@ -27,15 +29,20 @@ export default function SubscriptionPage() {
       window.open(result.checkoutUrl, '_blank')
     } catch (err) {
       console.error('Failed to create checkout:', err)
-      alert('Failed to start checkout. Please try again.')
+      setAlertDialog({
+        isOpen: true,
+        title: 'Checkout Failed',
+        message: 'Failed to start checkout. Please try again.',
+        variant: 'error'
+      })
     } finally {
       setCheckoutLoading(null)
     }
   }
 
   const handleManageSubscription = () => {
-    // Redirect to Polar customer portal
-    window.open('https://polar.sh/gasdigital-ltd/portal', '_blank')
+    // PayPal doesn't offer a customer portal — users manage subscriptions from their PayPal account
+    window.open('https://www.paypal.com/myaccount/autopay/', '_blank')
   }
 
   const formatDate = (timestamp: number | null) => {
@@ -241,7 +248,7 @@ export default function SubscriptionPage() {
             <div className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-100 dark:hover:border-terra-500/20 transition-all">
               <h3 className="text-lg font-bold text-slate-900 dark:text-cream-100 group-hover:text-primary-600 dark:group-hover:text-terra-400 transition-colors">What payment methods do you accept?</h3>
               <p className="text-slate-600 dark:text-cream-500 mt-4 leading-relaxed font-medium">
-                We utilize <span className="font-bold text-slate-800 dark:text-cream-200">Polar</span> for secure processing, accepting all major global credit cards, Apple Pay, and Google Pay.
+                We utilize <span className="font-bold text-slate-800 dark:text-cream-200">PayPal</span> for secure processing, accepting all major global credit cards, PayPal balance, Apple Pay, and Google Pay.
               </p>
             </div>
             <div className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-100 dark:hover:border-terra-500/20 transition-all">
@@ -253,7 +260,7 @@ export default function SubscriptionPage() {
             <div className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-100 dark:hover:border-terra-500/20 transition-all">
               <h3 className="text-lg font-bold text-slate-900 dark:text-cream-100 group-hover:text-primary-600 dark:group-hover:text-terra-400 transition-colors">What if I exceed limits after downgrading?</h3>
               <p className="text-slate-600 dark:text-cream-500 mt-4 leading-relaxed font-medium">
-                Your data is <span className="text-primary-600 dark:text-terra-400 font-bold">never deleted</span>. You just won't be able to sync new bookmarks until you either free up space or reactivate Premium.
+                Your data is <span className="text-primary-600 dark:text-terra-400 font-bold">never deleted</span>. You just won&apos;t be able to sync new bookmarks until you either free up space or reactivate Premium.
               </p>
             </div>
             <div className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-100 dark:hover:border-terra-500/20 transition-all">
@@ -277,6 +284,14 @@ export default function SubscriptionPage() {
             Recently upgraded? Refresh your account status
           </button>
         </div>
+
+        <AlertDialog
+          isOpen={alertDialog.isOpen}
+          title={alertDialog.title}
+          message={alertDialog.message}
+          variant={alertDialog.variant}
+          onClose={() => setAlertDialog({ ...alertDialog, isOpen: false })}
+        />
       </div>
     </DashboardLayout>
   )

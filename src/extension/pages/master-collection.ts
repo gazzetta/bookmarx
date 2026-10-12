@@ -11,6 +11,8 @@ interface BookmarkNode {
     updatedAt?: number;
     sourceBrowser?: string;
     sessionId?: string;
+    type?: 'folder' | 'bookmark';
+    browserId?: string;
 }
 
 interface ApiResponse {
@@ -106,27 +108,64 @@ class MasterCollectionView {
 
     private async fetchMasterCollection(userId: string, token: string): Promise<BookmarkNode[]> {
         try {
-            const apiUrl = `${API_BASE_URL}/api/v1/bookmarks/tree/${userId}`;
-            console.log('Fetching from:', apiUrl);
+            // Get current collection ID from storage
+            const collectionId = await new Promise<string | null>((resolve) => {
+                chrome.runtime.sendMessage({ action: 'getCurrentCollection' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Error getting collection ID:', chrome.runtime.lastError);
+                        resolve(null);
+                        return;
+                    }
+                    resolve(response?.data?.collectionId || null);
+                });
+            });
+
+            // Get device ID from storage
+            const deviceId = await new Promise<string | null>((resolve) => {
+                chrome.runtime.sendMessage({ action: 'getDeviceId' }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Error getting device ID:', chrome.runtime.lastError);
+                        resolve(null);
+                        return;
+                    }
+                    resolve(response?.data?.deviceId || null);
+                });
+            });
+
+            const apiUrl = `${API_BASE_URL}/api/v1/sync/master-collection`;
+            console.log('Fetching from:', apiUrl, 'with collection ID:', collectionId, 'device ID:', deviceId);
+
+            const headers: { [key: string]: string } = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'X-User-ID': userId
+            };
+
+            // Add device ID header if available (required by API)
+            if (deviceId) {
+                headers['X-Device-ID'] = deviceId;
+            }
+
+            // Add collection ID header if available
+            if (collectionId) {
+                headers['X-Collection-ID'] = collectionId;
+            }
 
             const response = await fetch(apiUrl, {
                 method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers,
                 credentials: 'include'
             });
 
             console.log('Response status:', response.status);
 
             // Log headers in a TypeScript-friendly way
-            const headers: { [key: string]: string } = {};
+            const responseHeaders: { [key: string]: string } = {};
             response.headers.forEach((value, key) => {
-                headers[key] = value;
+                responseHeaders[key] = value;
             });
-            console.log('Response headers:', headers);
+            console.log('Response headers:', responseHeaders);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -151,12 +190,70 @@ class MasterCollectionView {
                 throw new Error(responseData.error?.message || 'API returned error status');
             }
 
-            if (!Array.isArray(responseData.data)) {
-                console.error('Unexpected data format:', responseData.data);
+            // API returns {folders, bookmarks, timestamp} - need to convert to tree
+            const apiData = responseData.data;
+            if (!apiData || typeof apiData !== 'object') {
+                console.error('Unexpected data format:', apiData);
                 throw new Error('Server returned invalid data format');
             }
 
-            return responseData.data;
+            const { folders, bookmarks } = apiData as { folders?: any[], bookmarks?: any[] };
+            if (!Array.isArray(folders) || !Array.isArray(bookmarks)) {
+                console.error('Expected folders and bookmarks arrays:', apiData);
+                throw new Error('Server returned invalid data format');
+            }
+
+            // Convert to tree structure
+            const tree: BookmarkNode[] = [];
+            
+            // Create folder map
+            const folderMap = new Map<string, BookmarkNode>();
+            for (const folder of folders) {
+                const node: BookmarkNode = {
+                    id: folder.masterId,
+                    title: folder.title,
+                    dateAdded: folder.createdAt,
+                    children: [],
+                    type: 'folder'
+                };
+                folderMap.set(folder.masterId, node);
+            }
+
+            // Add bookmarks to their parent folders
+            for (const bookmark of bookmarks) {
+                const node: BookmarkNode = {
+                    id: bookmark.masterId,
+                    title: bookmark.title,
+                    url: bookmark.url,
+                    dateAdded: bookmark.createdAt,
+                    type: 'bookmark',
+                    browserId: bookmark.browserId
+                };
+                
+                const parentFolder = folderMap.get(bookmark.masterParentId || '');
+                if (parentFolder) {
+                    parentFolder.children!.push(node);
+                } else {
+                    // Root-level bookmark
+                    tree.push(node);
+                }
+            }
+
+            // Build folder hierarchy
+            for (const folder of folders) {
+                const node = folderMap.get(folder.masterId);
+                if (!node) continue;
+
+                const parentId = folder.masterParentId;
+                if (parentId && folderMap.has(parentId)) {
+                    folderMap.get(parentId)!.children!.push(node);
+                } else {
+                    // Root-level folder
+                    tree.push(node);
+                }
+            }
+
+            return tree;
         } catch (error) {
             console.error('Fetch error:', error);
             throw new Error(error instanceof Error ? error.message : 'Failed to fetch bookmarks');
@@ -236,7 +333,6 @@ class MasterCollectionView {
                     meta.appendChild(document.createElement('br'));
                 }
 
-                const chromeAdded = this.formatDate(node.dateAdded);
                 const dbAdded = this.formatDate(node.createdAt);
 
                 const dateInfo = document.createElement('span');

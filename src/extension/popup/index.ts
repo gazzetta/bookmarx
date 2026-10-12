@@ -1,19 +1,18 @@
-import { SyncConfirmDialog, SyncSummary } from '../components/SyncConfirmDialog';
-import { OnboardingDialog, OnboardingChoice, OnboardingInfo } from '../components/OnboardingDialog';
-import { API_BASE_URL } from '../config';
+import { SyncConfirmDialog } from '../components/SyncConfirmDialog';
+import { OnboardingDialog, OnboardingInfo, CollectionInfo, OnboardingResult } from '../components/OnboardingDialog';
+import { SwitchConfirmDialog } from '../components/SwitchConfirmDialog';
+import { API_BASE_URL, WEBSITE_BASE_URL } from '../config';
 
 class PopupManager {
     private syncUpButton: HTMLButtonElement;
     private syncDownButton: HTMLButtonElement;
     private lastSyncElement: HTMLElement;
-    private pendingBookmarksCountElement: HTMLElement;
-    private pendingFoldersCountElement: HTMLElement;
     private localBookmarksCountElement: HTMLElement;
     private localFoldersCountElement: HTMLElement;
-    private remoteChangeBookmarksCountElement: HTMLElement;
-    private remoteChangeFoldersCountElement: HTMLElement;
     private remoteBookmarksCountElement: HTMLElement;
     private remoteFoldersCountElement: HTMLElement;
+    private pendingUpCountElement: HTMLElement;
+    private pendingDownCountElement: HTMLElement;
     private initialSyncNoticeElement: HTMLElement;
     private statsContainerElement: HTMLElement;
     private actionsContainerElement: HTMLElement;
@@ -21,6 +20,7 @@ class PopupManager {
     private errorContainer: HTMLElement;
     private syncConfirmDialog: SyncConfirmDialog;
     private onboardingDialog: OnboardingDialog;
+    private switchConfirmDialog: SwitchConfirmDialog;
     private authLoggedOut: HTMLElement;
     private authLoggedIn: HTMLElement;
     private authUserEmail: HTMLElement;
@@ -30,15 +30,20 @@ class PopupManager {
     private logoutButton: HTMLButtonElement;
     private emailInput: HTMLInputElement;
     private passwordInput: HTMLInputElement;
+    private togglePasswordButton: HTMLButtonElement;
     private overwriteButton: HTMLButtonElement;
     private openManagerButton: HTMLButtonElement;
-    private browserLimitElement: HTMLElement;
     private collectionUsageElement: HTMLElement;
     private collectionLimitElement: HTMLElement;
-    private upgradeCtaElement: HTMLElement;
-    private upgradeButtonElement: HTMLButtonElement;
+    private collectionTrigger: HTMLButtonElement;
+    private collectionDropdown: HTMLElement;
+    private collectionNameElement: HTMLElement;
+    private themeToggle: HTMLButtonElement;
+    private userAvatar: HTMLElement;
+    private usageFooter: HTMLElement;
     private readonly apiBase = API_BASE_URL;
     private onboardingChecked: boolean = false;
+    private collectionDropdownOpen: boolean = false;
 
     private sendMessage(message: any): Promise<any> {
         return new Promise((resolve, reject) => {
@@ -56,26 +61,24 @@ class PopupManager {
     constructor() {
         this.syncConfirmDialog = new SyncConfirmDialog();
         this.onboardingDialog = new OnboardingDialog();
+        this.switchConfirmDialog = new SwitchConfirmDialog();
         this.initializeElements();
         this.attachEventListeners();
+        this.initializeTheme();
         this.updateUI();
-        // Check onboarding on popup open (for users already logged in but never synced)
         this.checkOnboardingNeeded();
     }
-
 
     private initializeElements(): void {
         this.syncUpButton = document.getElementById('syncUp') as HTMLButtonElement;
         this.syncDownButton = document.getElementById('syncDown') as HTMLButtonElement;
         this.lastSyncElement = document.getElementById('lastSync') as HTMLElement;
-        this.pendingBookmarksCountElement = document.getElementById('pendingBookmarksCount') as HTMLElement;
-        this.pendingFoldersCountElement = document.getElementById('pendingFoldersCount') as HTMLElement;
         this.localBookmarksCountElement = document.getElementById('localBookmarksCount') as HTMLElement;
         this.localFoldersCountElement = document.getElementById('localFoldersCount') as HTMLElement;
-        this.remoteChangeBookmarksCountElement = document.getElementById('remoteChangeBookmarksCount') as HTMLElement;
-        this.remoteChangeFoldersCountElement = document.getElementById('remoteChangeFoldersCount') as HTMLElement;
         this.remoteBookmarksCountElement = document.getElementById('remoteBookmarksCount') as HTMLElement;
         this.remoteFoldersCountElement = document.getElementById('remoteFoldersCount') as HTMLElement;
+        this.pendingUpCountElement = document.getElementById('pendingUpCount') as HTMLElement;
+        this.pendingDownCountElement = document.getElementById('pendingDownCount') as HTMLElement;
         this.initialSyncNoticeElement = document.getElementById('initialSyncNotice') as HTMLElement;
         this.statsContainerElement = document.getElementById('statsContainer') as HTMLElement;
         this.actionsContainerElement = document.getElementById('actionsContainer') as HTMLElement;
@@ -90,12 +93,17 @@ class PopupManager {
         this.logoutButton = document.getElementById('logout') as HTMLButtonElement;
         this.emailInput = document.getElementById('emailInput') as HTMLInputElement;
         this.passwordInput = document.getElementById('passwordInput') as HTMLInputElement;
+        this.togglePasswordButton = document.getElementById('togglePassword') as HTMLButtonElement;
         this.overwriteButton = document.getElementById('overwriteFromMaster') as HTMLButtonElement;
         this.openManagerButton = document.getElementById('openManager') as HTMLButtonElement;
-
-        // Usage elements
         this.collectionUsageElement = document.getElementById('collectionUsage') as HTMLElement;
         this.collectionLimitElement = document.getElementById('collectionLimit') as HTMLElement;
+        this.collectionTrigger = document.getElementById('collectionTrigger') as HTMLButtonElement;
+        this.collectionDropdown = document.getElementById('collectionDropdown') as HTMLElement;
+        this.collectionNameElement = document.getElementById('collectionName') as HTMLElement;
+        this.themeToggle = document.getElementById('themeToggle') as HTMLButtonElement;
+        this.userAvatar = document.getElementById('userAvatar') as HTMLElement;
+        this.usageFooter = document.getElementById('usageFooter') as HTMLElement;
     }
 
     private attachEventListeners(): void {
@@ -105,16 +113,36 @@ class PopupManager {
         this.emailLoginButton?.addEventListener('click', () => this.handleEmailAuth('login'));
         this.emailRegisterButton?.addEventListener('click', () => this.handleEmailAuth('register'));
         this.logoutButton?.addEventListener('click', () => this.handleLogout());
+        this.themeToggle?.addEventListener('click', () => this.toggleTheme());
+        this.togglePasswordButton?.addEventListener('click', () => this.togglePasswordVisibility());
+
+        // Collection selector
+        this.collectionTrigger?.addEventListener('click', () => this.toggleCollectionDropdown());
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (this.collectionDropdownOpen &&
+                !this.collectionTrigger?.contains(e.target as Node) &&
+                !this.collectionDropdown?.contains(e.target as Node)) {
+                this.closeCollectionDropdown();
+            }
+        });
+
+        // Debug toggle
+        document.getElementById('debugToggle')?.addEventListener('click', () => {
+            const panel = document.getElementById('debugPanel');
+            if (panel) {
+                panel.classList.toggle('hidden');
+            }
+        });
 
         document.getElementById('overwriteFromMaster')?.addEventListener('click', async () => {
             try {
-                // Get the master collection summary first
                 const response = await this.sendMessage({ action: 'getMasterCollectionSummary' });
                 if (!response.success) {
                     throw new Error(response.error?.message || 'Failed to get master collection summary');
                 }
 
-                // Show confirmation dialog
                 const summary = {
                     isOverwrite: true,
                     local: {
@@ -128,7 +156,6 @@ class PopupManager {
                 const confirmed = await this.syncConfirmDialog.showConfirmation(summary);
                 if (!confirmed) return;
 
-                // Trigger the overwrite
                 const result = await this.sendMessage({ action: 'overwriteFromMaster' });
                 if (result.success) {
                     this.showSuccess('Bookmarks successfully overwritten from master collection');
@@ -179,8 +206,6 @@ class PopupManager {
             try {
                 const response = await this.sendMessage({ action: 'debugStorage' });
                 console.log('Storage Debug Response:', response);
-
-                // Also log local storage data
                 const localData = await this.getStorageData();
                 console.log('Local Storage Data:', localData);
             } catch (error) {
@@ -193,7 +218,6 @@ class PopupManager {
                 try {
                     await this.sendMessage({ action: 'clearStorage' });
                     this.showSuccess('Storage cleared successfully');
-                    // Refresh the UI
                     await this.updateUI();
                 } catch (error) {
                     this.showError('Failed to clear storage');
@@ -204,20 +228,15 @@ class PopupManager {
 
         document.getElementById('debugBookmarkData')?.addEventListener('click', async () => {
             try {
-                // Get the full bookmark tree
                 chrome.bookmarks.getTree(async (tree) => {
                     if (!tree || tree.length === 0) {
                         this.showError('Could not get bookmark tree');
                         return;
                     }
 
-                    // Process the tree to extract folders and bookmarks
                     const { folders, bookmarks, rawTree } = this.extractBookmarkData(tree[0]);
-
-                    // Get browser info
                     const browserInfo = await this.sendMessage({ action: 'getBrowserInfo' });
 
-                    // Create a detailed debug page
                     const debugData = {
                         browser: browserInfo?.data || 'Unknown',
                         timestamp: new Date().toISOString(),
@@ -230,7 +249,6 @@ class PopupManager {
                         rawTree: rawTree
                     };
 
-                    // Store data and open debug page
                     chrome.storage.local.set({ debugBookmarkData: debugData }, () => {
                         const url = chrome.runtime.getURL('popup/debug.html');
                         chrome.tabs.create({ url });
@@ -243,14 +261,186 @@ class PopupManager {
         });
     }
 
+    // Theme management
+    private initializeTheme(): void {
+        const stored = localStorage.getItem('bookmarx-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = stored === 'dark' || (!stored && prefersDark);
+        this.applyTheme(isDark);
+    }
+
+    private toggleTheme(): void {
+        const isDark = document.body.classList.contains('dark');
+        this.applyTheme(!isDark);
+        localStorage.setItem('bookmarx-theme', !isDark ? 'dark' : 'light');
+    }
+
+    private togglePasswordVisibility(): void {
+        const eyeIcon = this.togglePasswordButton.querySelector('.eye-icon') as SVGElement;
+        const eyeOffIcon = this.togglePasswordButton.querySelector('.eye-off-icon') as SVGElement;
+        
+        if (this.passwordInput.type === 'password') {
+            this.passwordInput.type = 'text';
+            eyeIcon.classList.add('hidden');
+            eyeOffIcon.classList.remove('hidden');
+            this.togglePasswordButton.title = 'Hide password';
+        } else {
+            this.passwordInput.type = 'password';
+            eyeIcon.classList.remove('hidden');
+            eyeOffIcon.classList.add('hidden');
+            this.togglePasswordButton.title = 'Show password';
+        }
+    }
+
+    private applyTheme(dark: boolean): void {
+        if (dark) {
+            document.body.classList.add('dark');
+            if (this.themeToggle) this.themeToggle.textContent = '🌙';
+        } else {
+            document.body.classList.remove('dark');
+            if (this.themeToggle) this.themeToggle.textContent = '☀️';
+        }
+    }
+
+    // Collection selector
+    private async toggleCollectionDropdown(): Promise<void> {
+        if (this.collectionDropdownOpen) {
+            this.closeCollectionDropdown();
+            return;
+        }
+
+        this.collectionTrigger.classList.add('open');
+        this.collectionDropdownOpen = true;
+        this.collectionDropdown.classList.remove('hidden');
+        this.collectionDropdown.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--ink-muted); font-size: 12px;">Loading...</div>';
+
+        try {
+            const result = await this.sendMessage({ action: 'listCollections' });
+            const currentCollection = await this.sendMessage({ action: 'getCurrentCollection' });
+            const currentId = currentCollection?.data?.collectionId || null;
+
+            if (!result?.success || !result.data?.collections) {
+                this.collectionDropdown.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--ink-muted); font-size: 12px;">Failed to load collections</div>';
+                return;
+            }
+
+            const collections = result.data.collections;
+            this.collectionDropdown.innerHTML = '';
+
+            for (const coll of collections) {
+                const btn = document.createElement('button');
+                btn.className = 'collection-option';
+                if ((coll.isDefault && !currentId) || coll.id === currentId) {
+                    btn.classList.add('active');
+                }
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = coll.name;
+
+                btn.appendChild(nameSpan);
+
+                if (coll.isDefault) {
+                    const badge = document.createElement('span');
+                    badge.className = 'collection-option-badge';
+                    badge.textContent = 'Default';
+                    btn.appendChild(badge);
+                }
+
+                btn.addEventListener('click', () => this.handleCollectionSelect(coll.id, coll.name, coll.isDefault));
+                this.collectionDropdown.appendChild(btn);
+            }
+        } catch (error) {
+            console.error('Failed to load collections:', error);
+            this.collectionDropdown.innerHTML = '<div style="padding: 12px; text-align: center; color: var(--ink-muted); font-size: 12px;">Error loading collections</div>';
+        }
+    }
+
+    private closeCollectionDropdown(): void {
+        this.collectionDropdownOpen = false;
+        this.collectionTrigger?.classList.remove('open');
+        this.collectionDropdown?.classList.add('hidden');
+    }
+
+    private async handleCollectionSelect(collectionId: string, collectionName: string, isDefault: boolean): Promise<void> {
+        this.closeCollectionDropdown();
+
+        const currentCollection = await this.sendMessage({ action: 'getCurrentCollection' });
+        const currentId = currentCollection?.data?.collectionId || null;
+
+        // If selecting the same collection, do nothing
+        if (collectionId === currentId || (isDefault && !currentId)) {
+            return;
+        }
+
+        // Check for pending changes before switching
+        try {
+            const syncStatus = await this.getSyncStatus().catch(() => null);
+            if (syncStatus?.success) {
+                const local = syncStatus.data?.local || {};
+                const localChanges = (local.adds || 0) + (local.updates || 0) + (local.moves || 0) + (local.deletes || 0) +
+                    (local.addsFolders || 0) + (local.updatesFolders || 0) + (local.deletesFolders || 0);
+
+                if (localChanges > 0) {
+                    const choice = await this.switchConfirmDialog.show(localChanges, collectionName);
+                    if (choice === 'cancel') return;
+                    if (choice === 'sync') {
+                        this.showSuccess('Syncing current changes...');
+                        const syncResult = await this.triggerSync();
+                        if (!syncResult.success) {
+                            this.showError('Sync failed: ' + (syncResult.error?.message || 'Unknown error'));
+                            return;
+                        }
+                    }
+                    // 'discard' - proceed directly, switchCollection clears queued changes
+                }
+            }
+        } catch (error) {
+            console.error('Error checking pending changes:', error);
+        }
+
+        // Perform the switch
+        this.showSuccess(`Switching to ${collectionName}...`);
+        try {
+            const result = await this.sendMessage({
+                action: 'switchCollection',
+                data: { collectionId, collectionName }
+            });
+
+            if (result?.success) {
+                this.showSuccess(`Switched to ${collectionName}`);
+                if (this.collectionNameElement) {
+                    this.collectionNameElement.textContent = collectionName;
+                }
+                await this.updateUI();
+            } else {
+                this.showError(result?.error || 'Failed to switch collection');
+            }
+        } catch (error) {
+            this.showError('Failed to switch collection');
+            console.error('Collection switch error:', error);
+        }
+    }
+
     private async updateUI(): Promise<void> {
         try {
             const data = await this.getStorageData();
             this.updateAuthUI(data);
             this.updateSyncInfo(data);
             await this.updateStats(data);
+            await this.updateCollectionName();
         } catch (error) {
             this.showError('Failed to load extension data');
+        }
+    }
+
+    private async updateCollectionName(): Promise<void> {
+        try {
+            const result = await this.sendMessage({ action: 'getCurrentCollection' });
+            if (result?.success && this.collectionNameElement) {
+                this.collectionNameElement.textContent = result.data?.collectionName || 'Master Collection';
+            }
+        } catch (error) {
+            // Silently fail - keep the current name
         }
     }
 
@@ -266,10 +456,11 @@ class PopupManager {
         const lastSync = data.lastSync;
         if (lastSync) {
             const lastSyncDate = new Date(lastSync);
-            this.lastSyncElement.textContent = `Last synced: ${this.formatDate(lastSyncDate)}`;
+            this.lastSyncElement.textContent = this.formatDate(lastSyncDate);
+        } else {
+            this.lastSyncElement.textContent = 'Never synced';
         }
 
-        // Update sync status indicator
         this.syncStatusElement.className = 'sync-status';
         if (data.syncInProgress) {
             this.syncStatusElement.classList.add('syncing');
@@ -279,7 +470,6 @@ class PopupManager {
     }
 
     private async updateStats(data: any): Promise<void> {
-        // Get local bookmarks and folders count
         chrome.bookmarks.getTree((bookmarkItems) => {
             if (!bookmarkItems) {
                 console.warn('chrome.bookmarks.getTree returned undefined in updateStats');
@@ -296,10 +486,8 @@ class PopupManager {
         const isAuthed = Boolean(data?.auth?.token);
         if (!isAuthed) {
             this.setInitialSyncUI(false);
-            this.pendingBookmarksCountElement.textContent = '0';
-            this.pendingFoldersCountElement.textContent = '0';
-            this.remoteChangeBookmarksCountElement.textContent = '0';
-            this.remoteChangeFoldersCountElement.textContent = '0';
+            this.pendingUpCountElement.textContent = '0';
+            this.pendingDownCountElement.textContent = '0';
             this.remoteBookmarksCountElement.textContent = '0';
             this.remoteFoldersCountElement.textContent = '0';
             return;
@@ -310,31 +498,27 @@ class PopupManager {
             const isInitialSync = Boolean(syncStatus?.data?.needsInitialSync);
             this.setInitialSyncUI(isInitialSync);
 
+            let localChanges = 0;
+            let remoteChanges = 0;
+
             if (syncStatus?.success) {
                 const local = syncStatus.data?.local || {};
                 const remote = syncStatus.data?.remote || {};
 
-                // Count local pending changes (these are not split by type in the current API)
-                // For now, we'll show the total in bookmarks and 0 in folders
-                const localCount = (local.adds || 0) + (local.updates || 0) + (local.moves || 0) + (local.deletes || 0);
-                this.pendingBookmarksCountElement.textContent = localCount.toString();
-                this.pendingFoldersCountElement.textContent = '0';
+                localChanges = (local.adds || 0) + (local.updates || 0) + (local.moves || 0) + (local.deletes || 0) +
+                    (local.addsFolders || 0) + (local.updatesFolders || 0) + (local.deletesFolders || 0);
 
-                // Remote changes from server - now split by type
-                const remoteBookmarkCount = (remote.adds || 0) + (remote.updates || 0) + (remote.moves || 0) + (remote.deletes || 0);
-                const remoteFolderCount = (remote.addsFolders || 0) + (remote.updatesFolders || 0) + (remote.deletesFolders || 0);
-                this.remoteChangeBookmarksCountElement.textContent = remoteBookmarkCount.toString();
-                this.remoteChangeFoldersCountElement.textContent = remoteFolderCount.toString();
+                remoteChanges = (remote.adds || 0) + (remote.updates || 0) + (remote.moves || 0) + (remote.deletes || 0) +
+                    (remote.addsFolders || 0) + (remote.updatesFolders || 0) + (remote.deletesFolders || 0);
+
+                this.pendingUpCountElement.textContent = localChanges.toString();
+                this.pendingDownCountElement.textContent = remoteChanges.toString();
             } else {
-                this.pendingBookmarksCountElement.textContent = '0';
-                this.pendingFoldersCountElement.textContent = '0';
-                this.remoteChangeBookmarksCountElement.textContent = '0';
-                this.remoteChangeFoldersCountElement.textContent = '0';
+                this.pendingUpCountElement.textContent = '0';
+                this.pendingDownCountElement.textContent = '0';
             }
 
             if (isInitialSync) {
-                this.remoteChangeBookmarksCountElement.textContent = '0';
-                this.remoteChangeFoldersCountElement.textContent = '0';
                 this.remoteBookmarksCountElement.textContent = '0';
                 this.remoteFoldersCountElement.textContent = '0';
                 return;
@@ -352,18 +536,11 @@ class PopupManager {
                 this.remoteFoldersCountElement.textContent = '0';
             }
 
-            // Update sync button states based on pending changes
-            const localChanges = parseInt(this.pendingBookmarksCountElement.textContent || '0') +
-                parseInt(this.pendingFoldersCountElement.textContent || '0');
-            const remoteChanges = parseInt(this.remoteChangeBookmarksCountElement.textContent || '0') +
-                parseInt(this.remoteChangeFoldersCountElement.textContent || '0');
             this.updateSyncButtonStates(localChanges, remoteChanges);
         } catch (error) {
             console.error('Failed to update remote stats:', error);
-            this.pendingBookmarksCountElement.textContent = '0';
-            this.pendingFoldersCountElement.textContent = '0';
-            this.remoteChangeBookmarksCountElement.textContent = '0';
-            this.remoteChangeFoldersCountElement.textContent = '0';
+            this.pendingUpCountElement.textContent = '0';
+            this.pendingDownCountElement.textContent = '0';
             this.remoteBookmarksCountElement.textContent = '0';
             this.remoteFoldersCountElement.textContent = '0';
             this.setInitialSyncUI(false);
@@ -375,25 +552,22 @@ class PopupManager {
             this.initialSyncNoticeElement?.classList.remove('hidden');
             this.statsContainerElement?.classList.add('hidden');
             this.actionsContainerElement?.classList.add('hidden');
-            // For initial sync, show only the sync up button with special styling
-            this.syncUpButton.textContent = '🚀 Run Initial Sync';
+            this.syncUpButton.textContent = '⬆ Run Initial Sync';
             this.syncUpButton.classList.add('initial-sync');
             this.syncUpButton.disabled = false;
-            this.syncDownButton.style.display = 'none'; // Hide sync down button
+            this.syncDownButton.style.display = 'none';
         } else {
             this.initialSyncNoticeElement?.classList.add('hidden');
             this.statsContainerElement?.classList.remove('hidden');
             this.actionsContainerElement?.classList.remove('hidden');
-            this.syncUpButton.textContent = '⬆️ Sync Up';
+            this.syncUpButton.textContent = '⬆ Sync Up';
             this.syncUpButton.classList.remove('initial-sync');
-            this.syncDownButton.style.display = ''; // Show sync down button again
+            this.syncDownButton.style.display = '';
         }
     }
 
     private updateSyncButtonStates(localChanges: number, remoteChanges: number): void {
-        // Enable Sync Up only if there are local changes to push
         this.syncUpButton.disabled = localChanges === 0;
-        // Enable Sync Down only if there are remote changes to pull
         this.syncDownButton.disabled = remoteChanges === 0;
     }
 
@@ -425,13 +599,11 @@ class PopupManager {
 
     private async handleSyncUp(): Promise<void> {
         try {
-            // Get sync status from server
             const response = await this.getSyncStatus();
             if (!response.success) {
                 throw new Error(response.error?.message || 'Failed to get sync status');
             }
 
-            // Count all bookmarks for initial sync
             let summary = response.data;
             if (summary.needsInitialSync) {
                 const bookmarkCount = await this.getTotalBookmarkCount();
@@ -447,17 +619,14 @@ class PopupManager {
                 };
             }
 
-            // Show confirmation dialog
             const confirmed = await this.syncConfirmDialog.showConfirmation(summary);
             if (!confirmed) return;
 
-            // Trigger sync (push local changes up)
             const syncResult = await this.triggerSync();
             if (syncResult.success) {
                 this.showSuccess('Local changes synced to master');
                 this.updateUI();
             } else {
-                // Check if this is a limit error with upgrade URL
                 const errorMessage = syncResult.error?.message || 'Sync failed';
                 const upgradeUrl = syncResult.error?.upgradeUrl;
                 this.showError(errorMessage, upgradeUrl);
@@ -469,10 +638,40 @@ class PopupManager {
 
     private async handleSyncDown(): Promise<void> {
         try {
+            // Fetch sync status to build a confirmation summary of incoming remote changes.
+            const statusResponse = await this.getSyncStatus().catch(() => null);
+            const remote = statusResponse?.data?.remote || {};
+            const remoteAdds = (remote.adds || 0) + (remote.addsFolders || 0);
+            const remoteUpdates = (remote.updates || 0) + (remote.updatesFolders || 0);
+            const remoteMoves = remote.moves || 0;
+            const remoteDeletes = (remote.deletes || 0) + (remote.deletesFolders || 0);
+            const remoteTotal = remoteAdds + remoteUpdates + remoteMoves + remoteDeletes;
+
+            // Build a SyncSummary highlighting what is about to come down from the server.
+            const summary = {
+                isSyncDown: true,
+                local: { adds: 0, updates: 0, moves: 0, deletes: 0 },
+                remote: {
+                    adds: remoteAdds,
+                    updates: remoteUpdates,
+                    moves: remoteMoves,
+                    deletes: remoteDeletes
+                }
+            };
+
+            // If we have nothing to pull, skip the dialog and inform the user.
+            if (remoteTotal === 0) {
+                this.showSuccess('Already up to date with master collection');
+                await this.updateUI();
+                return;
+            }
+
+            const confirmed = await this.syncConfirmDialog.showConfirmation(summary);
+            if (!confirmed) return;
+
             this.syncDownButton.disabled = true;
             this.syncDownButton.textContent = '⏳ Syncing...';
 
-            // Use the new syncDown action to pull changes from server
             const result = await this.sendMessage({ action: 'syncDown' });
 
             if (result.success) {
@@ -493,8 +692,7 @@ class PopupManager {
         } catch (error) {
             this.showError((error as Error).message);
         } finally {
-            this.syncDownButton.textContent = '⬇️ Sync Down';
-            // Button state will be updated by updateUI
+            this.syncDownButton.textContent = '⬇ Sync Down';
         }
     }
 
@@ -545,15 +743,21 @@ class PopupManager {
             this.authLoggedIn.classList.remove('hidden');
             this.authUserEmail.textContent = auth.user?.email || 'Unknown user';
 
-            // Update premium tier display
+            // Set avatar initial
+            if (this.userAvatar) {
+                const email = auth.user?.email || '?';
+                this.userAvatar.textContent = email.charAt(0).toUpperCase();
+            }
+
             this.updatePremiumUI(auth.user);
+            this.usageFooter?.classList.remove('hidden');
         } else {
             this.authLoggedIn.classList.add('hidden');
             this.authLoggedOut.classList.remove('hidden');
             this.authUserEmail.textContent = '';
+            this.usageFooter?.classList.add('hidden');
         }
 
-        // Disable sync buttons if not authenticated (actual enable/disable based on changes is in updateSyncButtonStates)
         if (!isAuthed) {
             this.syncUpButton.disabled = true;
             this.syncDownButton.disabled = true;
@@ -578,11 +782,9 @@ class PopupManager {
         const isPremium = user?.isPremium || user?.subscriptionTier === 'premium';
         const tier = isPremium ? 'premium' : 'free';
 
-        // Update tier badge
-        tierBadge.textContent = tier === 'premium' ? '⭐ Premium' : 'Free';
+        tierBadge.textContent = tier === 'premium' ? 'Premium' : 'Free';
         tierBadge.className = `tier-badge tier-${tier}`;
 
-        // Update usage limits
         const userBookmarkLimit = user?.bookmarkLimit || 250;
         const userBrowserLimit = user?.browserLimit || 2;
         const userCollectionLimit = user?.collectionLimit || 1;
@@ -594,22 +796,18 @@ class PopupManager {
             this.collectionLimitElement.textContent = userCollectionLimit >= 100 ? '∞' : userCollectionLimit.toString();
         }
 
-        // Fetch current usage from server
         this.fetchUsageStats(bookmarkUsage, browserUsage, this.collectionUsageElement, userBookmarkLimit, userBrowserLimit, userCollectionLimit);
 
-        // Show/hide upgrade CTA
         if (isPremium) {
             upgradeCta.classList.add('hidden');
         } else {
             upgradeCta.classList.remove('hidden');
         }
 
-        // Add upgrade button click handler
         if (upgradeButton && !upgradeButton.hasAttribute('data-listener-attached')) {
             upgradeButton.setAttribute('data-listener-attached', 'true');
             upgradeButton.addEventListener('click', () => {
-                // Open the upgrade page in a new tab
-                chrome.tabs.create({ url: 'https://bookmarx.gasdigital.co.uk/upgrade' });
+                chrome.tabs.create({ url: `${WEBSITE_BASE_URL}/upgrade` });
             });
         }
     }
@@ -645,37 +843,10 @@ class PopupManager {
                         collectionUsageEl.textContent = (result.data?.collectionCount || 0).toString();
                     }
 
-                    // Add warning classes if near or at limit
-                    const bookmarkUsageValue = bookmarkUsageEl.parentElement?.querySelector('.usage-value');
-                    const browserUsageValue = browserUsageEl.parentElement?.querySelector('.usage-value');
-                    const collectionUsageValue = collectionUsageEl?.parentElement?.querySelector('.usage-value');
-
-                    if (bookmarkUsageValue) {
-                        bookmarkUsageValue.classList.remove('near-limit', 'at-limit');
-                        if (bookmarkCount >= bookmarkLimit) {
-                            bookmarkUsageValue.classList.add('at-limit');
-                        } else if (bookmarkCount >= bookmarkLimit * 0.8) {
-                            bookmarkUsageValue.classList.add('near-limit');
-                        }
-                    }
-
-                    if (browserUsageValue) {
-                        browserUsageValue.classList.remove('near-limit', 'at-limit');
-                        if (browserCount >= browserLimit) {
-                            browserUsageValue.classList.add('at-limit');
-                        } else if (browserCount >= browserLimit * 0.8) {
-                            browserUsageValue.classList.add('near-limit');
-                        }
-                    }
-
-                    if (collectionUsageValue) {
-                        const collectionCount = result.data?.collectionCount || 0;
-                        collectionUsageValue.classList.remove('near-limit', 'at-limit');
-                        if (collectionCount >= collectionLimit) {
-                            collectionUsageValue.classList.add('at-limit');
-                        } else if (collectionCount >= collectionLimit * 0.8) {
-                            collectionUsageValue.classList.add('near-limit');
-                        }
+                    this.applyLimitClass(bookmarkUsageEl, bookmarkCount, bookmarkLimit);
+                    this.applyLimitClass(browserUsageEl, browserCount, browserLimit);
+                    if (collectionUsageEl) {
+                        this.applyLimitClass(collectionUsageEl, result.data?.collectionCount || 0, collectionLimit);
                     }
                 }
             }
@@ -687,14 +858,18 @@ class PopupManager {
         }
     }
 
+    private applyLimitClass(el: HTMLElement, count: number, limit: number): void {
+        el.classList.remove('near-limit', 'at-limit');
+        if (count >= limit) {
+            el.classList.add('at-limit');
+        } else if (count >= limit * 0.8) {
+            el.classList.add('near-limit');
+        }
+    }
+
     private async handleGoogleLogin(): Promise<void> {
         try {
-            // Fire-and-forget: the popup will likely close when the consent tab opens,
-            // so don't await the full response. The background service worker will
-            // complete the auth flow and store the result.
-            // When the user reopens the popup, updateUI() will detect the logged-in state.
             chrome.runtime.sendMessage({ action: 'googleLogin' }, (response) => {
-                // This callback may never fire if popup closes during consent
                 if (response?.success) {
                     this.showSuccess('Signed in with Google');
                     this.updateUI();
@@ -761,70 +936,54 @@ class PopupManager {
         try {
             console.log('[Onboarding] Starting onboarding check...');
 
-            // Check if already shown this session
             if (this.onboardingChecked) {
                 console.log('[Onboarding] Already checked this session, skipping');
                 return;
             }
 
-            // Check if user is logged in
             const storageData = await this.getStorageData();
-            console.log('[Onboarding] Storage data:', JSON.stringify(storageData, null, 2));
-
             const isLoggedIn = storageData?.auth?.token;
             if (!isLoggedIn) {
                 console.log('[Onboarding] Not logged in, skipping');
                 return;
             }
-            console.log('[Onboarding] User is logged in');
 
-            // Check if this browser has synced before (lastSync must be a valid timestamp)
             const lastSyncValue = storageData?.lastSync;
-            console.log('[Onboarding] lastSync value:', lastSyncValue, 'type:', typeof lastSyncValue);
-
             const hasLocalSync = typeof lastSyncValue === 'number' && lastSyncValue > 0;
             if (hasLocalSync) {
-                console.log('[Onboarding] Browser has synced before (lastSync=' + lastSyncValue + '), no onboarding needed');
+                console.log('[Onboarding] Browser has synced before, no onboarding needed');
                 this.onboardingChecked = true;
                 return;
             }
             console.log('[Onboarding] Browser has NEVER synced - continuing to check master');
 
-            // Get sync status to check if master collection exists
             const statusResponse = await this.sendMessage({ action: 'getSyncStatus' });
-            console.log('[Onboarding] Sync status response:', statusResponse);
-
             if (!statusResponse?.success) {
                 console.log('[Onboarding] Failed to get sync status');
                 return;
             }
 
-            // If initial sync is needed (no master collection), the existing UI handles it
             if (statusResponse.data?.needsInitialSync) {
                 console.log('[Onboarding] No master collection exists - initial sync UI will handle');
                 this.onboardingChecked = true;
                 return;
             }
 
-            // Master collection exists and this browser hasn't synced
             console.log('[Onboarding] Master exists, browser never synced - checking if bookmarks match');
             this.onboardingChecked = true;
 
-            // Get master collection summary
             const masterSummary = await this.getMasterCollectionSummary();
             if (!masterSummary?.success) {
                 console.log('Failed to get master collection summary');
                 return;
             }
 
-            // Get local counts
             const localBookmarkCount = await this.getTotalBookmarkCount();
             const localFolderCount = await this.getTotalFolderCount();
 
             const masterBookmarkCount = masterSummary.data?.bookmarkCount ?? 0;
             const masterFolderCount = masterSummary.data?.folderCount ?? 0;
 
-            // If counts match, compare actual URLs to check if bookmarks are identical
             if (localBookmarkCount === masterBookmarkCount && localFolderCount === masterFolderCount) {
                 console.log('[Onboarding] Counts match - comparing URLs to check for exact match');
                 const isMatch = await this.compareLocalWithMaster();
@@ -835,7 +994,6 @@ class PopupManager {
                         this.showSuccess('Bookmarks already in sync with master collection');
                     } else {
                         console.warn('[Onboarding] Auto-merge failed, showing dialog instead:', result?.error);
-                        // Fall through to show dialog below
                         await this.showOnboardingDialog(masterBookmarkCount, masterFolderCount, localBookmarkCount, localFolderCount);
                     }
                     await this.updateUI();
@@ -854,7 +1012,6 @@ class PopupManager {
         return new Promise((resolve) => {
             chrome.bookmarks.getTree((bookmarkItems) => {
                 if (!bookmarkItems) {
-                    console.warn('chrome.bookmarks.getTree returned undefined');
                     resolve(0);
                     return;
                 }
@@ -866,7 +1023,6 @@ class PopupManager {
 
     private async compareLocalWithMaster(): Promise<boolean> {
         try {
-            // Get master collection URLs from background
             const masterResponse = await this.sendMessage({ action: 'getMasterCollectionUrls' });
             if (!masterResponse?.success) {
                 console.log('[Onboarding] Could not fetch master URLs for comparison');
@@ -875,7 +1031,6 @@ class PopupManager {
 
             const masterUrls = new Set<string>(masterResponse.data.urls || []);
 
-            // Get local bookmark URLs
             const localUrls = await new Promise<Set<string>>((resolve) => {
                 chrome.bookmarks.getTree((tree) => {
                     if (!tree || tree.length === 0) {
@@ -916,34 +1071,153 @@ class PopupManager {
         localBookmarkCount: number,
         localFolderCount: number
     ): Promise<void> {
+        // Fetch user's collections
+        let collections: CollectionInfo[] = [];
+        let defaultCollectionId = '';
+        try {
+            const collectionsResult = await this.sendMessage({ action: 'listCollections' });
+            const currentCollection = await this.sendMessage({ action: 'getCurrentCollection' });
+            defaultCollectionId = currentCollection?.data?.collectionId || '';
+
+            if (collectionsResult?.success && collectionsResult.data?.collections) {
+                const rawCollections = collectionsResult.data.collections as Array<any>;
+                const storageData = await this.getStorageData();
+                const authToken = storageData?.auth?.token;
+
+                const summaryByCollection = new Map<string, { bookmarkCount: number; folderCount: number }>();
+                if (authToken) {
+                    const summaryResults = await Promise.allSettled(
+                        rawCollections.map(async (collection) => {
+                            const response = await fetch(`${this.apiBase}/api/v1/collections/${collection.id}`, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${authToken}`
+                                }
+                            });
+
+                            if (!response.ok) {
+                                throw new Error(`Failed to fetch summary for ${collection.id}`);
+                            }
+
+                            const payload = await response.json();
+                            const summary = payload?.data?.summary;
+                            summaryByCollection.set(collection.id, {
+                                bookmarkCount: summary?.bookmarksCount ?? summary?.bookmarkCount ?? 0,
+                                folderCount: summary?.foldersCount ?? summary?.folderCount ?? 0
+                            });
+                        })
+                    );
+
+                    const failedSummaryCount = summaryResults.filter((r) => r.status === 'rejected').length;
+                    if (failedSummaryCount > 0) {
+                        console.warn(`[Onboarding] Failed to fetch ${failedSummaryCount} collection summaries, using fallback counts`);
+                    }
+                }
+
+                collections = rawCollections.map((c: any) => {
+                    const summary = summaryByCollection.get(c.id);
+                    return {
+                        id: c.id,
+                        name: c.name,
+                        bookmarkCount: summary?.bookmarkCount ?? c.bookmarksCount ?? c.bookmarkCount ?? 0,
+                        folderCount: summary?.folderCount ?? c.foldersCount ?? c.folderCount ?? 0
+                    };
+                });
+
+                if (!defaultCollectionId && collections.length > 0) {
+                    defaultCollectionId = collections[0].id;
+                }
+            }
+        } catch (error) {
+            console.error('[Onboarding] Failed to fetch collections:', error);
+        }
+
         const info: OnboardingInfo = {
             masterBookmarkCount,
             masterFolderCount,
             localBookmarkCount,
-            localFolderCount
+            localFolderCount,
+            collections,
+            defaultCollectionId
         };
 
-        const choice = await this.onboardingDialog.showOnboarding(info);
+        const result: OnboardingResult = await this.onboardingDialog.showOnboarding(info);
 
-        if (choice === 'overwrite') {
+        if (result.choice === 'overwrite') {
             this.showSuccess('Overwriting local bookmarks from master...');
-            const result = await this.sendMessage({ action: 'overwriteFromMaster' });
-            if (result?.success) {
+            // Set the selected collection before overwriting
+            if (result.selectedCollectionId) {
+                const selectedCollectionName = collections.find((c) => c.id === result.selectedCollectionId)?.name || 'Selected Collection';
+                await this.sendMessage({
+                    action: 'switchCollection',
+                    data: {
+                        collectionId: result.selectedCollectionId,
+                        collectionName: selectedCollectionName
+                    }
+                });
+            }
+            const overwriteResult = await this.sendMessage({ action: 'overwriteFromMaster' });
+            if (overwriteResult?.success) {
                 this.showSuccess('Local bookmarks replaced with master collection');
             } else {
-                this.showError(result?.error || 'Overwrite failed');
+                this.showError(overwriteResult?.error || 'Overwrite failed');
             }
-        } else if (choice === 'merge') {
-            this.showSuccess('Merging local bookmarks into master...');
-            const result = await this.sendMessage({ action: 'mergeIntoMaster' });
-            if (result?.success) {
-                const data = result.data;
-                this.showSuccess(`Merged: ${data?.bookmarksCreated ?? 0} bookmarks, ${data?.foldersCreated ?? 0} folders added`);
+        } else if (result.choice === 'mergeThenOverwrite') {
+            this.showSuccess('Merging into master, then syncing back...');
+
+            // Set the selected collection before merge
+            if (result.selectedCollectionId) {
+                const selectedCollectionName = collections.find((c) => c.id === result.selectedCollectionId)?.name || 'Selected Collection';
+                await this.sendMessage({
+                    action: 'switchCollection',
+                    data: {
+                        collectionId: result.selectedCollectionId,
+                        collectionName: selectedCollectionName
+                    }
+                });
+            }
+
+            // Step 1: Merge local into master
+            const mergeResult = await this.sendMessage({ action: 'mergeIntoMaster' });
+            if (!mergeResult?.success) {
+                this.showError(mergeResult?.error || 'Merge failed');
+                await this.updateUI();
+                return;
+            }
+
+            const mergeData = mergeResult.data;
+            this.showSuccess(`Merged ${mergeData?.bookmarksCreated ?? 0} new bookmarks into master`);
+
+            // Step 2: Overwrite local with updated master
+            this.showSuccess('Syncing complete master back to browser...');
+            const overwriteResult = await this.sendMessage({ action: 'overwriteFromMaster' });
+            if (overwriteResult?.success) {
+                this.showSuccess('Browser now synced with complete master collection');
             } else {
-                this.showError(result?.error || 'Merge failed');
+                this.showError(overwriteResult?.error || 'Sync back failed');
+            }
+        } else if (result.choice === 'overwriteRemote') {
+            this.showSuccess('Replacing remote collection with local bookmarks...');
+
+            if (result.selectedCollectionId) {
+                const selectedCollectionName = collections.find((c) => c.id === result.selectedCollectionId)?.name || 'Selected Collection';
+                await this.sendMessage({
+                    action: 'switchCollection',
+                    data: {
+                        collectionId: result.selectedCollectionId,
+                        collectionName: selectedCollectionName
+                    }
+                });
+            }
+
+            const remoteResult = await this.sendMessage({ action: 'overwriteRemote' });
+            if (remoteResult?.success) {
+                this.showSuccess('Remote collection replaced with local bookmarks');
+            } else {
+                this.showError(remoteResult?.error || 'Overwrite remote failed');
             }
         }
-        // 'cancel' - do nothing
 
         await this.updateUI();
     }
@@ -965,56 +1239,56 @@ class PopupManager {
         if (errorContainer) {
             errorContainer.innerHTML = `
                 <span>${message}</span>
-                <button class="dismiss-button">×</button>
+                <button class="dismiss-button">&times;</button>
             `;
             errorContainer.className = 'success-container';
 
-            // Add click handler for dismiss button
             const dismissButton = errorContainer.querySelector('.dismiss-button');
             dismissButton?.addEventListener('click', () => {
-                errorContainer.className = 'success-container hidden';
+                errorContainer.className = 'toast-container hidden';
             });
+
+            setTimeout(() => {
+                errorContainer.className = 'toast-container hidden';
+            }, 4000);
         }
     }
 
     private showError(message: string, upgradeUrl?: string): void {
         const errorContainer = document.getElementById('errorContainer');
         if (errorContainer) {
-            // Check if this is a limit error (contains "upgrade" or "limit")
             const isLimitError = upgradeUrl || message.toLowerCase().includes('upgrade') || message.toLowerCase().includes('limit');
 
             let html = `<span>${message}</span>`;
 
             if (isLimitError) {
-                const url = upgradeUrl || 'https://bookmarx.gasdigital.co.uk/upgrade';
+                const url = upgradeUrl || `${WEBSITE_BASE_URL}/upgrade`;
                 html += `
                     <div style="margin-top: 8px;">
                         <a href="${url}" target="_blank" class="upgrade-error-link" style="
                             display: inline-block;
                             padding: 6px 12px;
-                            background: linear-gradient(135deg, #ffd700 0%, #ffed4a 100%);
-                            color: #1a1a2e;
+                            background: rgba(255,255,255,0.2);
+                            color: #fff;
                             text-decoration: none;
-                            border-radius: 4px;
+                            border-radius: 8px;
                             font-weight: 600;
                             font-size: 12px;
-                        ">⭐ Upgrade to Premium</a>
+                        ">Upgrade to Premium</a>
                     </div>
                 `;
             }
 
-            html += `<button class="dismiss-button">×</button>`;
+            html += `<button class="dismiss-button">&times;</button>`;
 
             errorContainer.innerHTML = html;
             errorContainer.className = 'error-container';
 
-            // Add click handler for dismiss button
             const dismissButton = errorContainer.querySelector('.dismiss-button');
             dismissButton?.addEventListener('click', () => {
-                errorContainer.className = 'error-container hidden';
+                errorContainer.className = 'toast-container hidden';
             });
 
-            // Add click handler for upgrade link to open in new tab
             const upgradeLink = errorContainer.querySelector('.upgrade-error-link');
             upgradeLink?.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -1074,7 +1348,6 @@ class PopupManager {
 
         processNode(node);
 
-        // Create a simplified raw tree for viewing structure
         const simplifyTree = (node: chrome.bookmarks.BookmarkTreeNode): any => {
             const simplified: any = {
                 id: node.id,
@@ -1097,7 +1370,6 @@ class PopupManager {
     }
 }
 
-// Initialize popup when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     new PopupManager();
 });

@@ -13,7 +13,7 @@
     "build:clean": "npm run clean && npm run build:all",
     "dev": "webpack --config webpack.config.js --watch",
     "test": "jest",
-    "lint": "eslint ./**/*.ts",
+    "lint": "eslint . --ext .ts",
     "format": "prettier --write \"./**/*.ts\""
   },
   "devDependencies": {

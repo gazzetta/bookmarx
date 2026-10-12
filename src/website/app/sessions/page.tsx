@@ -41,7 +41,9 @@ export default function SessionsPage() {
   }
 
   const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString('en-US', {
+    // Handle both seconds (Unix) and milliseconds timestamps
+    const ms = timestamp < 1e12 ? timestamp * 1000 : timestamp
+    return new Date(ms).toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',

@@ -266,7 +266,7 @@ export const api = {
     ),
 
   rollbackCollectionEvent: (token: string, collectionId: string, eventId: string) =>
-    fetchApi<{ eventId: string; collectionId: string; restoredFolders: number; restoredBookmarks: number; removedFolders: number; removedBookmarks: number }>(
+    fetchApi<{ eventId: string; collectionId: string; restoredFolders: number; restoredBookmarks: number; removedFolders: number; removedBookmarks: number; deletedEvents: number }>(
       `/api/v1/collections/${collectionId}/events/${eventId}/rollback`,
       {
         method: 'POST',
@@ -340,6 +340,13 @@ export const api = {
     fetchApi<{ checkoutUrl: string }>('/api/v1/checkout/create', {
       method: 'POST',
       body: JSON.stringify({ plan }),
+    }, token),
+
+  // Capture one-time PayPal order (lifetime)
+  capturePayment: (token: string, orderID: string) =>
+    fetchApi<{ status: string }>('/api/v1/checkout/capture', {
+      method: 'POST',
+      body: JSON.stringify({ orderID }),
     }, token),
 
   // Editor changes

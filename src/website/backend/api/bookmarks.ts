@@ -96,6 +96,8 @@ function buildBookmarkTree(folders: any[], bookmarks: any[]): BookmarkNode[] {
     });
 
     // Add bookmarks to their parent folders
+    const orphanedBookmarks: any[] = [];
+    
     bookmarks.forEach(bookmark => {
         const node = {
             id: bookmark.id,
@@ -118,7 +120,10 @@ function buildBookmarkTree(folders: any[], bookmarks: any[]): BookmarkNode[] {
         else if (bookmark.folderId && folderMap.has(bookmark.folderId)) {
             folderMap.get(bookmark.folderId).children.push(node);
         }
-        // If neither found, it will be orphaned (filtered out or added to root if handled)
+        // If neither found, add to orphaned bookmarks list to be added to root
+        else {
+            orphanedBookmarks.push(node);
+        }
     });
 
     // Build the tree structure (link folders to parents)
@@ -155,6 +160,11 @@ function buildBookmarkTree(folders: any[], bookmarks: any[]): BookmarkNode[] {
         if (!parentFound) {
             rootNodes.push(folder);
         }
+    });
+
+    // Add orphaned bookmarks to the root
+    orphanedBookmarks.forEach(bookmark => {
+        rootNodes.push(bookmark);
     });
 
     // Sort all children by position to preserve original browser order

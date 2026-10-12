@@ -2,6 +2,7 @@
 export interface SyncSummary {
     isInitialSync?: boolean;
     isOverwrite?: boolean;
+    isSyncDown?: boolean;
     local: {
         adds?: number;
         updates?: number;
@@ -52,17 +53,30 @@ export class SyncConfirmDialog {
     }
 
     private createContent(summary: SyncSummary): string {
-        let headerText = '🔄 Sync Changes Confirmation';
+        let headerText = 'Sync Changes';
         let message = '<p>The following changes will be synchronized:</p>';
         let confirmButtonText = 'Sync Now';
-        
+
         if (summary.isInitialSync) {
-            headerText = '🚀 Initial Sync Required';
+            headerText = 'Initial Sync';
             message = `<p>This will upload all your bookmarks (${summary.local.adds} items) to the server for the first time.</p>`;
         } else if (summary.isOverwrite) {
-            headerText = '⚠️ Overwrite Local Bookmarks';
-            message = `<p>This will <strong>delete all your local bookmarks</strong> and replace them with the master collection from the server.</p>`;
-            confirmButtonText = 'Overwrite Bookmarks';
+            headerText = 'Overwrite Local Bookmarks';
+            const localCount = summary.local?.deletes ?? 0;
+            const remoteCount = summary.remote?.adds ?? 0;
+            message = `
+                <p><strong>This will permanently delete all ${localCount} local bookmarks/folders in this Chrome browser</strong> and replace them with the ${remoteCount} items from your master collection on the server.</p>
+                <p style="margin-top:8px;"><strong>⚠ Any unsynced local changes will be lost.</strong> Consider clicking "Sync Up" first if you have local changes you want to keep.</p>
+                <p style="margin-top:8px; font-size: 12px; opacity: 0.75;">Only this Chrome browser is affected. Other connected browsers and the master collection on the server are unchanged. <strong>This action cannot be undone.</strong></p>
+            `;
+            confirmButtonText = 'Yes, Overwrite Local';
+        } else if (summary.isSyncDown) {
+            headerText = 'Sync Down — Apply Remote Changes';
+            message = `
+                <p>The following changes from the master collection will be applied to your local bookmarks:</p>
+                <p style="margin-top:8px; font-size: 12px; opacity: 0.75;">If you have unsynced local edits to the same items, they may be overwritten. Click "Sync Up" first to push any local changes you want to keep.</p>
+            `;
+            confirmButtonText = 'Apply Changes';
         }
 
         const localChangesSection = this.createChangesSection('Local Changes', summary.local);

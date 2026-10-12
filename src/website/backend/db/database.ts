@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { pathToFileURL } from 'url';
 
 interface Browser {
     browserInstanceId: string;
@@ -28,9 +29,22 @@ interface BookmarkUpdate {
     }
 }
 
-class DatabaseService {
+export class DatabaseService {
     private db: Database.Database;
     private static instance: DatabaseService;
+
+    // Resolves once file-migrations (db/migrations/*.ts) finished applying.
+    //
+    // `initializeDatabase()` runs synchronously inside the constructor and
+    // kicks off `runFileMigrations()` (private async) WITHOUT awaiting it —
+    // so a request can land in the brief window before migrations 002-006
+    // finish adding columns like `browsers.currentCollectionId`. In the
+    // dev server that race is benign because `nextApp.prepare()` (server.ts:26)
+    // blocks `app.listen` for ~seconds, giving migrations time to settle.
+    // In the test harness there is no Next.js to prepare and requests fire
+    // immediately, so the race became observable. Tests and any caller that
+    // cares should `await dbReady` before issuing requests.
+    public static readyPromise: Promise<void> | undefined;
 
     private constructor() {
         const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/bookmarx.db');
@@ -41,8 +55,11 @@ class DatabaseService {
             fs.mkdirSync(dataDir, { recursive: true });
         }
 
-        this.db = new Database(dbPath);
-        this.db.pragma('journal_mode = DELETE'); // DELETE mode for MCP compatibility
+        this.db = new Database(dbPath, { timeout: 10000 });
+        const journalMode = (process.env.SQLITE_JOURNAL_MODE || 'WAL').toUpperCase();
+        this.db.pragma(`journal_mode = ${journalMode}`);
+        this.db.pragma('busy_timeout = 10000');
+        this.db.pragma('synchronous = NORMAL');
         this.db.pragma('foreign_keys = ON');  // Enable foreign key constraints
 
         this.initializeDatabase();
@@ -211,7 +228,7 @@ class DatabaseService {
                         startsAt INTEGER NOT NULL,
                         endsAt INTEGER,
                         cancelledAt INTEGER,
-                        paymentProvider TEXT DEFAULT 'polar',
+                        paymentProvider TEXT DEFAULT 'paypal',
                         externalSubscriptionId TEXT,
                         externalCustomerId TEXT,
                         createdAt INTEGER DEFAULT (strftime('%s', 'now')),
@@ -332,7 +349,7 @@ class DatabaseService {
         }
 
         // --- NEW MIGRATION RUNNER ---
-        this.runFileMigrations();
+        DatabaseService.readyPromise = this.runFileMigrations();
     }
 
     private async runFileMigrations() {
@@ -363,14 +380,21 @@ class DatabaseService {
 
             console.log(`Running migration: ${file}`);
             try {
-                // Dynamic import of the migration file
-                const migration = require(path.join(migrationsDir, file));
+                // Dynamic import of the migration file, done via an ESM-safe
+                // file:// URL so the loader works under both `tsx` (which shims
+                // `require`) and native ESM runtimes like vitest (which does
+                // not expose `require`). plain `require()` throws
+                // "require is not defined in ES module scope" in vitest.
+                const fileUrl = pathToFileURL(path.join(migrationsDir, file)).href;
+                const migration = (await import(fileUrl)) as { up?: (db: Database.Database) => void | Promise<void> };
 
                 if (migration.up) {
                     await migration.up(this.db);
 
                     this.db.prepare('INSERT INTO migrations (name) VALUES (?)').run(file);
                     console.log(`Migration ${file} completed successfully`);
+                } else {
+                    console.warn(`Migration ${file} has no \`up\` export; skipping`);
                 }
             } catch (error) {
                 console.error(`Failed to run migration ${file}:`, error);
@@ -381,25 +405,44 @@ class DatabaseService {
     }
 
 
-    // Register or update a browser instance
     public registerBrowser(browser: any) {
         const stmt = this.db.prepare(`
-            INSERT OR REPLACE INTO browsers (
-                browserInstanceId, userId, deviceId, browser, 
-                browserVersion, os, osVersion, userAgent
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO browsers (
+                browserInstanceId, userId, deviceId, browser,
+                browserVersion, os, osVersion, userAgent, currentCollectionId
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(browserInstanceId) DO UPDATE SET
+                userId = excluded.userId,
+                deviceId = excluded.deviceId,
+                browser = excluded.browser,
+                browserVersion = excluded.browserVersion,
+                os = excluded.os,
+                osVersion = excluded.osVersion,
+                userAgent = excluded.userAgent,
+                currentCollectionId = COALESCE(excluded.currentCollectionId, currentCollectionId),
+                lastSeen = strftime('%s', 'now'),
+                updatedAt = strftime('%s', 'now')
         `);
 
         stmt.run(
             browser.browserInstanceId,
-            browser.userId,  // This will now be '1' instead of deviceId
+            browser.userId,
             browser.deviceId,
             browser.browser,
             browser.browserVersion,
             browser.os,
             browser.osVersion,
-            browser.userAgent
+            browser.userAgent,
+            browser.currentCollectionId || null
         );
+    }
+
+    public updateBrowserCollection(browserInstanceId: string, collectionId: string): void {
+        const stmt = this.db.prepare(`
+            UPDATE browsers SET currentCollectionId = ?, updatedAt = strftime('%s', 'now')
+            WHERE browserInstanceId = ?
+        `);
+        stmt.run(collectionId, browserInstanceId);
     }
 
     // Update browser nickname
@@ -421,9 +464,32 @@ class DatabaseService {
         return stmt.get(browserInstanceId, userId);
     }
 
+    private normalizeEntityBrowserId(
+        rawBrowserId: unknown,
+        browserInstanceId: unknown,
+        prefix: 'folder' | 'bookmark'
+    ): string {
+        const browserId = typeof rawBrowserId === 'string' ? rawBrowserId.trim() : '';
+        const instanceId = typeof browserInstanceId === 'string' ? browserInstanceId.trim() : '';
+
+        if (!browserId) {
+            return `${prefix}-${crypto.randomUUID()}`;
+        }
+
+        // Guard against browser instance IDs being accidentally stored as item IDs
+        // (e.g. website-round2), which breaks parent mapping and legacy lookups.
+        if (instanceId && browserId === instanceId) {
+            return `${prefix}-${crypto.randomUUID()}`;
+        }
+
+        return browserId;
+    }
+
     // Folder operations
     public createFolder(folder: any): { lastInsertRowid: number | bigint; changes: number; masterId: string } {
         const masterId = crypto.randomUUID();
+        const browserInstanceId = folder.metadata?.deviceInfo?.browserInstanceId;
+        const normalizedBrowserId = this.normalizeEntityBrowserId(folder.browserId, browserInstanceId, 'folder');
         const stmt = this.db.prepare(`
             INSERT INTO folders (
                 masterId, browserId, browserInstanceId, userId, collectionId, title, parentId, 
@@ -434,8 +500,8 @@ class DatabaseService {
 
         const result = stmt.run(
             masterId,
-            folder.browserId,
-            folder.metadata?.deviceInfo?.browserInstanceId,
+            normalizedBrowserId,
+            browserInstanceId,
             folder.userId,
             folder.collectionId || null,
             folder.title,
@@ -456,6 +522,8 @@ class DatabaseService {
     // Bookmark operations
     public createBookmark(bookmark: any): { lastInsertRowid: number | bigint; changes: number; masterId: string } {
         const masterId = crypto.randomUUID();
+        const browserInstanceId = bookmark.metadata?.deviceInfo?.browserInstanceId;
+        const normalizedBrowserId = this.normalizeEntityBrowserId(bookmark.browserId, browserInstanceId, 'bookmark');
         const stmt = this.db.prepare(`
             INSERT INTO bookmarks (
                 masterId, browserId, browserInstanceId, userId, collectionId, url, title, 
@@ -466,15 +534,15 @@ class DatabaseService {
 
         const result = stmt.run(
             masterId,
-            bookmark.browserId,
-            bookmark.metadata?.deviceInfo?.browserInstanceId,
+            normalizedBrowserId,
+            browserInstanceId,
             bookmark.userId,
             bookmark.collectionId || null,
             bookmark.url,
             bookmark.title,
             bookmark.parentId,
             bookmark.masterParentId || null,
-            bookmark.position,
+            bookmark.position ?? 0,
             bookmark.dateAdded,
             bookmark.sourceBrowser || bookmark.metadata?.deviceInfo?.browser || null,
             bookmark.sessionId || null,
@@ -510,7 +578,7 @@ class DatabaseService {
             sync.collectionId ?? sync.details?.collectionId ?? null,
             sync.sessionId ?? sync.details?.sessionId ?? null,
             detailsJson,
-            Date.now()
+            Math.floor(Date.now() / 1000)
         );
 
         return result.lastInsertRowid;
@@ -566,7 +634,7 @@ class DatabaseService {
             SELECT COUNT(*) as count
             FROM bookmarks
             WHERE userId = ?
-              AND browserInstanceId != ?
+              AND (browserInstanceId IS NULL OR browserInstanceId != ?)
               AND status = 'active'
               AND createdAt > ?
         `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
@@ -575,7 +643,7 @@ class DatabaseService {
             SELECT COUNT(*) as count
             FROM folders
             WHERE userId = ?
-              AND browserInstanceId != ?
+              AND (browserInstanceId IS NULL OR browserInstanceId != ?)
               AND status = 'active'
               AND createdAt > ?
         `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
@@ -584,7 +652,7 @@ class DatabaseService {
             SELECT COUNT(*) as count
             FROM bookmarks
             WHERE userId = ?
-              AND browserInstanceId != ?
+              AND (browserInstanceId IS NULL OR browserInstanceId != ?)
               AND status = 'active'
               AND updatedAt > ?
               AND createdAt <= ?
@@ -594,7 +662,7 @@ class DatabaseService {
             SELECT COUNT(*) as count
             FROM folders
             WHERE userId = ?
-              AND browserInstanceId != ?
+              AND (browserInstanceId IS NULL OR browserInstanceId != ?)
               AND status = 'active'
               AND updatedAt > ?
               AND createdAt <= ?
@@ -604,7 +672,7 @@ class DatabaseService {
             SELECT COUNT(*) as count
             FROM bookmarks
             WHERE userId = ?
-              AND browserInstanceId != ?
+              AND (browserInstanceId IS NULL OR browserInstanceId != ?)
               AND status = 'deleted'
               AND updatedAt > ?
         `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
@@ -613,7 +681,7 @@ class DatabaseService {
             SELECT COUNT(*) as count
             FROM folders
             WHERE userId = ?
-              AND browserInstanceId != ?
+              AND (browserInstanceId IS NULL OR browserInstanceId != ?)
               AND status = 'deleted'
               AND updatedAt > ?
         `).get(userId, browserInstanceId, lastSyncSeconds) as { count: number };
@@ -900,39 +968,38 @@ class DatabaseService {
         stmt.run(id, collection.userId, collection.name, collection.description || null, collection.isDefault ? 1 : 0, collection.userId);
 
         // Seed default top-level folders that mirror standard browser bookmark structure
-        if (!collection.isDefault) {
-            const now = Date.now();
-            const defaultFolders = [
-                { title: 'Bookmarks bar', position: 0 },
-                { title: 'Other bookmarks', position: 1 }
-            ];
-            const folderStmt = this.db.prepare(`
-                INSERT INTO folders (
-                    masterId, browserId, browserInstanceId, userId, collectionId, title, parentId,
-                    masterParentId, position, dateAdded, sourceBrowser, sessionId,
-                    status, syncVersion, timestamp
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `);
-            for (const folder of defaultFolders) {
-                const masterId = crypto.randomUUID();
-                folderStmt.run(
-                    masterId,
-                    `default-folder-${folder.position}`,
-                    null,
-                    collection.userId,
-                    id,
-                    folder.title,
-                    '0',
-                    null,
-                    folder.position,
-                    now,
-                    null,
-                    null,
-                    'active',
-                    1,
-                    now
-                );
-            }
+        // Create for ALL collections (including default) so bookmarks have a parent folder
+        const now = Math.floor(Date.now() / 1000);
+        const defaultFolders = [
+            { title: 'Bookmarks Bar', position: 0, browserId: `website-${id}-bar` },
+            { title: 'Other Bookmarks', position: 1, browserId: `website-${id}-other` }
+        ];
+        const folderStmt = this.db.prepare(`
+            INSERT INTO folders (
+                masterId, browserId, browserInstanceId, userId, collectionId, title, parentId,
+                masterParentId, position, dateAdded, sourceBrowser, sessionId,
+                status, syncVersion, timestamp
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const folder of defaultFolders) {
+            const masterId = crypto.randomUUID();
+            folderStmt.run(
+                masterId,
+                folder.browserId,
+                null,
+                collection.userId,
+                id,
+                folder.title,
+                '0',
+                null,
+                folder.position,
+                now,
+                'website',
+                null,
+                'active',
+                1,
+                now
+            );
         }
 
         return id;
@@ -1023,7 +1090,7 @@ class DatabaseService {
     ): { copiedFolders: number; copiedBookmarks: number } {
         let copiedFolders = 0;
         let copiedBookmarks = 0;
-        const now = Date.now();
+        const now = Math.floor(Date.now() / 1000);
 
         const folderStmt = this.db.prepare(`
             INSERT INTO folders (
@@ -1058,7 +1125,7 @@ class DatabaseService {
             const newMasterId = crypto.randomUUID();
             folderStmt.run(
                 newMasterId,
-                `copy-${sourceMasterId.slice(0, 8)}-${Date.now()}`,
+                `copy-${sourceMasterId.slice(0, 8)}-${Math.floor(Date.now() / 1000)}`,
                 null,
                 userId,
                 destCollectionId,
@@ -1259,7 +1326,7 @@ class DatabaseService {
             event.changesCount ?? 0,
             JSON.stringify(event.snapshot),
             event.details ? JSON.stringify(event.details) : null,
-            Date.now()
+            Math.floor(Date.now() / 1000)
         );
 
         return eventId;
@@ -1439,7 +1506,7 @@ class DatabaseService {
                     folder.parentId || null,
                     folder.masterParentId || null,
                     folder.position ?? 0,
-                    folder.dateAdded || Date.now(),
+                    folder.dateAdded || now,
                     folder.sourceBrowser || null,
                     folder.sessionId || null,
                     'active',
@@ -1462,7 +1529,7 @@ class DatabaseService {
                     bookmark.parentId || '',
                     bookmark.masterParentId || null,
                     bookmark.position ?? 0,
-                    bookmark.dateAdded || Date.now(),
+                    bookmark.dateAdded || now,
                     bookmark.sourceBrowser || null,
                     bookmark.sessionId || null,
                     'active',
@@ -1473,11 +1540,10 @@ class DatabaseService {
                 );
             }
 
-            this.db.prepare(`
-                UPDATE collection_events
-                SET rolledBackAt = ?, updatedAt = ?
-                WHERE eventId = ? AND collectionId = ? AND userId = ?
-            `).run(now, now, eventId, collectionId, userId);
+            const deletedEvents = this.db.prepare(`
+                DELETE FROM collection_events
+                WHERE collectionId = ? AND userId = ? AND createdAt >= ?
+            `).run(collectionId, userId, event.createdAt).changes;
 
             return {
                 eventId,
@@ -1485,7 +1551,8 @@ class DatabaseService {
                 restoredFolders: (snapshot.folders || []).length,
                 restoredBookmarks: (snapshot.bookmarks || []).length,
                 removedFolders,
-                removedBookmarks
+                removedBookmarks,
+                deletedEvents
             };
         });
 
@@ -1647,7 +1714,7 @@ class DatabaseService {
             subscription.currency || 'USD',
             subscription.startsAt,
             subscription.endsAt || null,
-            subscription.paymentProvider || 'polar',
+            subscription.paymentProvider || 'paypal',
             subscription.externalSubscriptionId || null,
             subscription.externalCustomerId || null
         );
@@ -1751,7 +1818,7 @@ class DatabaseService {
                 bookmark.masterParentId,
                 bookmark.index,
                 'active',
-                bookmark.metadata?.timestamp || Date.now(),
+                bookmark.metadata?.timestamp || Math.floor(Date.now() / 1000),
                 bookmark.masterId,
                 bookmark.userId
             );
@@ -2232,12 +2299,19 @@ class DatabaseService {
 
     public getUserByEmail(email: string) {
         const stmt = this.db.prepare(`
-            SELECT id, email, passwordHash, displayName
+            SELECT id, email, passwordHash, displayName, subscriptionTier, subscriptionExpiresAt
             FROM users
             WHERE email = ?
         `);
 
-        return stmt.get(email) as { id: string; email: string; passwordHash: string | null; displayName: string | null } | undefined;
+        return stmt.get(email) as {
+            id: string;
+            email: string;
+            passwordHash: string | null;
+            displayName: string | null;
+            subscriptionTier?: string;
+            subscriptionExpiresAt?: number | null;
+        } | undefined;
     }
 
     public createIdentity(identity: { userId: string; provider: string; providerUserId: string; email?: string }) {
@@ -2393,13 +2467,44 @@ class DatabaseService {
     }
 
     // Get folder masterId by browserId (for resolving parentId references)
-    public getFolderMasterIdByBrowserId(browserId: string, userId: string): string | null {
-        const stmt = this.db.prepare(`
-            SELECT masterId FROM folders 
-            WHERE browserId = ? AND userId = ? AND status = 'active'
-        `);
-        const result = stmt.get(browserId, userId) as { masterId: string } | undefined;
+    public getFolderMasterIdByBrowserId(browserId: string, userId: string, collectionId?: string): string | null {
+        const stmt = collectionId
+            ? this.db.prepare(`
+                SELECT masterId FROM folders 
+                WHERE browserId = ? AND userId = ? AND collectionId = ? AND status = 'active'
+                ORDER BY updatedAt DESC
+                LIMIT 1
+            `)
+            : this.db.prepare(`
+                SELECT masterId FROM folders 
+                WHERE browserId = ? AND userId = ? AND status = 'active'
+                ORDER BY updatedAt DESC
+                LIMIT 1
+            `);
+        const result = (collectionId
+            ? stmt.get(browserId, userId, collectionId)
+            : stmt.get(browserId, userId)) as { masterId: string } | undefined;
         return result?.masterId || null;
+    }
+
+    public getFolderBrowserIdByMasterId(masterId: string, userId: string, collectionId?: string): string | null {
+        const stmt = collectionId
+            ? this.db.prepare(`
+                SELECT browserId FROM folders
+                WHERE masterId = ? AND userId = ? AND collectionId = ? AND status = 'active'
+                LIMIT 1
+            `)
+            : this.db.prepare(`
+                SELECT browserId FROM folders
+                WHERE masterId = ? AND userId = ? AND status = 'active'
+                LIMIT 1
+            `);
+
+        const result = (collectionId
+            ? stmt.get(masterId, userId, collectionId)
+            : stmt.get(masterId, userId)) as { browserId: string } | undefined;
+
+        return result?.browserId || null;
     }
 
     /**
@@ -2548,6 +2653,10 @@ class DatabaseService {
     /**
      * Record that a browser has synced down changes.
      * This updates the browser's last sync timestamp so it won't receive these changes again.
+     *
+     * IMPORTANT: Before calling this function, ensure the browser is registered via registerBrowser().
+     * Otherwise, createSyncHistory will fail with a FOREIGN KEY constraint error because
+     * browserInstanceId must exist in the browsers table.
      */
     public recordSyncDown(userId: string, browserInstanceId: string, changesApplied: number) {
         return this.createSyncHistory({
@@ -2559,7 +2668,7 @@ class DatabaseService {
             bookmarksProcessed: 0,
             foldersProcessed: 0,
             metadata: {
-                timestamp: Date.now(),
+                timestamp: Math.floor(Date.now() / 1000),
                 deviceInfo: { browserInstanceId }
             }
         });
@@ -2661,3 +2770,15 @@ class DatabaseService {
 }
 
 export const db = DatabaseService.getInstance();
+
+// Resolves once `runFileMigrations()` has applied every migration in
+// `db/migrations/`. Tests should `await dbReady` before issuing requests so
+// schema add-ons (002-006) don't race any request handler. See
+// `DatabaseService.readyPromise` above for the rationale.
+export const dbReady: Promise<void> =
+    // `db` was just created by `getInstance()` above, which ran the
+    // constructor's synchronous `initializeDatabase()` and started the
+    // async file-migration. By the time this initializer runs the promise
+    // is guaranteed to be set, but the assertion clarifies intent for the
+    // type-checker that the narrowing-from-undefined still applies here.
+    DatabaseService.readyPromise ?? Promise.resolve();

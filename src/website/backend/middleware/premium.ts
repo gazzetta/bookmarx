@@ -41,7 +41,7 @@ export function requirePremium(req: AuthenticatedRequest, res: Response, next: N
             error: {
                 code: 'PREMIUM_REQUIRED',
                 message: `This feature requires a ${premiumTitle} subscription`,
-                upgradeUrl: 'https://bookmarx.gasdigital.co.uk/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
             }
         });
     }
@@ -56,7 +56,7 @@ export function requirePremium(req: AuthenticatedRequest, res: Response, next: N
             error: {
                 code: 'SUBSCRIPTION_EXPIRED',
                 message: `Your ${premiumTitle} subscription has expired`,
-                upgradeUrl: 'https://bookmarx.gasdigital.co.uk/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
             }
         });
     }
@@ -108,7 +108,7 @@ export function checkBookmarkLimit(req: AuthenticatedRequest, res: Response, nex
                 limit: user.bookmarkLimit,
                 premiumLimit,
                 attemptedToAdd: totalNew,
-                upgradeUrl: 'https://bookmarx.gasdigital.co.uk/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
             }
         });
     }
@@ -211,7 +211,7 @@ export function checkBrowserLimit(req: AuthenticatedRequest, res: Response, next
                 registrationsThisPeriod: recentRegistrations,
                 limit: rateLimit,
                 periodDays: ratePeriodDays,
-                upgradeUrl: 'https://bookmarx.gasdigital.co.uk/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
             }
         });
     }
@@ -224,7 +224,7 @@ export function checkBrowserLimit(req: AuthenticatedRequest, res: Response, next
             currentCount: browserCount,
             limit: user.browserLimit,
             premiumLimit: premiumBrowserLimit,
-            upgradeUrl: 'https://bookmarx.gasdigital.co.uk/upgrade'
+            upgradeUrl: 'https://www.bookmarx.cc/upgrade'
         }
     });
 }
@@ -276,7 +276,7 @@ export function checkCollectionLimit(req: AuthenticatedRequest, res: Response, n
                 currentCount: collectionCount,
                 limit: user.collectionLimit,
                 premiumLimit: premiumCollectionLimit,
-                upgradeUrl: 'https://bookmarx.gasdigital.co.uk/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
             }
         });
     }

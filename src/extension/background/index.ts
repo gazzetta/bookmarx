@@ -10,7 +10,9 @@ class BackgroundService {
     private storageManager: StorageManager;
     private isInitialized: boolean = false;
     private readonly statusCheckAlarmName = 'sync-status-check';
-    private readonly statusCheckIntervalMinutes = 5;
+    // TEMP QA TEST: reduced from 5 minutes to 0.5 minutes (30s) for change-detection testing.
+    // REVERT to 5 after Section 2.8 testing completes.
+    private readonly statusCheckIntervalMinutes = 0.5;
 
     constructor() {
         this.initializeServices();
@@ -113,7 +115,7 @@ class BackgroundService {
             if (message.action === 'resetNotificationState') {
                 (async () => {
                     try {
-                        await this.setNotificationState({ localCount: 0, remoteCount: 0 });
+                        await this.setNotificationState({ localCount: 0, remoteCount: 0, lastNotifiedCollectionUpdatedAt: undefined });
                         sendResponse({ success: true });
                     } catch (error) {
                         console.error('Reset Notification State Error:', error);
@@ -337,6 +339,78 @@ class BackgroundService {
                 return true;
             }
 
+            // List user collections
+            if (message.action === 'listCollections') {
+                (async () => {
+                    try {
+                        const result = await this.syncManager.listCollections();
+                        sendResponse(result);
+                    } catch (error) {
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true;
+            }
+
+            // Get current collection info
+            if (message.action === 'getCurrentCollection') {
+                (async () => {
+                    try {
+                        const collectionId = await this.storageManager.getCollectionId();
+                        const collectionName = await this.storageManager.getCollectionName();
+                        sendResponse({
+                            success: true,
+                            data: { collectionId, collectionName }
+                        });
+                    } catch (error) {
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true;
+            }
+
+            // Get device ID
+            if (message.action === 'getDeviceId') {
+                (async () => {
+                    try {
+                        const deviceId = await this.storageManager.getBrowserInstanceId();
+                        sendResponse({
+                            success: true,
+                            data: { deviceId }
+                        });
+                    } catch (error) {
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true;
+            }
+
+            // Switch to a different collection
+            if (message.action === 'switchCollection') {
+                (async () => {
+                    try {
+                        const { collectionId, collectionName } = message.data;
+                        const result = await this.syncManager.switchCollection(collectionId, collectionName);
+                        sendResponse(result);
+                    } catch (error) {
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    }
+                })();
+                return true;
+            }
+
             // Overwrite from master collection
             if (message.action === 'overwriteFromMaster') {
                 console.log('Received request to overwrite from master collection');
@@ -353,6 +427,24 @@ class BackgroundService {
                         });
                     });
                 return true; // Keep the message channel open for async response
+            }
+
+            // Overwrite remote collection with local bookmarks
+            if (message.action === 'overwriteRemote') {
+                console.log('Received request to overwrite remote collection with local bookmarks');
+                this.syncManager.overwriteRemote()
+                    .then((result: any) => {
+                        console.log('Overwrite remote completed with result:', result);
+                        sendResponse(result);
+                    })
+                    .catch((error: any) => {
+                        console.error('Overwrite remote error:', error);
+                        sendResponse({
+                            success: false,
+                            error: error instanceof Error ? error.message : 'Unknown error'
+                        });
+                    });
+                return true;
             }
 
             // Merge local bookmarks into master collection
@@ -500,6 +592,33 @@ class BackgroundService {
                 deletes: 0
             };
             const remoteCount = remote.adds + remote.updates + remote.moves + remote.deletes;
+
+            // Check if collection has been updated since last sync
+            const collectionUpdatedAt = serverStatus?.data?.collectionUpdatedAt;
+            const storageData = await this.storageManager.getData();
+            const lastSync = storageData?.lastSync;
+            const state = await this.getNotificationState();
+            if (collectionUpdatedAt && lastSync && collectionUpdatedAt > (lastSync / 1000) && collectionUpdatedAt !== state.lastNotifiedCollectionUpdatedAt) {
+                console.log('[Notifications] Collection updated since last sync, triggering notification');
+                const notified = await this.showNotification(
+                    'bookmarx-collection-updated',
+                    'BookMarx: Collection updated',
+                    'Your collection has been updated on the website. Click to sync changes.'
+                );
+                if (notified) {
+                    await this.setNotificationState({
+                        ...state,
+                        lastNotifiedCollectionUpdatedAt: collectionUpdatedAt
+                    });
+                }
+            } else if (collectionUpdatedAt && lastSync && state.lastNotifiedCollectionUpdatedAt && collectionUpdatedAt <= (lastSync / 1000)) {
+                console.log('[Notifications] Collection update already synced; clearing state.');
+                await this.setNotificationState({
+                    ...state,
+                    lastNotifiedCollectionUpdatedAt: undefined
+                });
+            }
+
             console.log('[Notifications] Counts', { localCount, remoteCount });
             await this.maybeNotifySyncStatus(localCount, remoteCount);
         } catch (error) {
@@ -508,13 +627,18 @@ class BackgroundService {
     }
 
     private async getServerSyncStatus(authToken: string, browserInstanceId: string): Promise<any> {
+        const collectionId = await this.storageManager.getCollectionId();
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+            'X-Browser-Instance-ID': browserInstanceId
+        };
+        if (collectionId) {
+            headers['X-Collection-ID'] = collectionId;
+        }
         const response = await fetch(`${API_BASE_URL}/api/v1/sync/status`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`,
-                'X-Browser-Instance-ID': browserInstanceId
-            }
+            headers
         });
 
         // Handle 401 - user not found or invalid token
@@ -579,19 +703,20 @@ class BackgroundService {
         }
     }
 
-    private async getNotificationState(): Promise<{ localCount: number; remoteCount: number }> {
+    private async getNotificationState(): Promise<{ localCount: number; remoteCount: number; lastNotifiedCollectionUpdatedAt?: number }> {
         return new Promise((resolve) => {
             chrome.storage.local.get('notificationState', (data) => {
                 const state = data.notificationState || {};
                 resolve({
                     localCount: typeof state.localCount === 'number' ? state.localCount : 0,
-                    remoteCount: typeof state.remoteCount === 'number' ? state.remoteCount : 0
+                    remoteCount: typeof state.remoteCount === 'number' ? state.remoteCount : 0,
+                    lastNotifiedCollectionUpdatedAt: typeof state.lastNotifiedCollectionUpdatedAt === 'number' ? state.lastNotifiedCollectionUpdatedAt : undefined
                 });
             });
         });
     }
 
-    private async setNotificationState(state: { localCount: number; remoteCount: number }): Promise<void> {
+    private async setNotificationState(state: { localCount: number; remoteCount: number; lastNotifiedCollectionUpdatedAt?: number }): Promise<void> {
         await chrome.storage.local.set({ notificationState: state });
     }
 

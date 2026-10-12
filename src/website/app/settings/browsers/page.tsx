@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import DashboardLayout from '@/components/DashboardLayout'
+import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface Browser {
     browserInstanceId: string
@@ -27,6 +28,7 @@ export default function BrowsersPage() {
     const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null)
     const [nicknameInput, setNicknameInput] = useState<string>('')
     const [savingNickname, setSavingNickname] = useState(false)
+    const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; browserInstanceId: string | null }>({ isOpen: false, browserInstanceId: null })
 
     useEffect(() => {
         if (!isLoading && !user) {
@@ -117,12 +119,15 @@ export default function BrowsersPage() {
         setNicknameInput('')
     }
 
-    const handleRemoveBrowser = async (browserInstanceId: string) => {
+    const handleRemoveBrowser = (browserInstanceId: string) => {
         if (!token) return
+        setConfirmDialog({ isOpen: true, browserInstanceId })
+    }
 
-        if (!confirm('Are you sure you want to remove this browser? It will need to run an initial sync again to reconnect.')) {
-            return
-        }
+    const executeRemoveBrowser = async () => {
+        const browserInstanceId = confirmDialog.browserInstanceId
+        if (!token || !browserInstanceId) return
+        setConfirmDialog({ isOpen: false, browserInstanceId: null })
 
         setDeletingId(browserInstanceId)
         setError(null)
@@ -245,7 +250,7 @@ export default function BrowsersPage() {
                                 <div>
                                     <h3 className="font-bold text-primary-900 dark:text-terra-300">Browser limit reached</h3>
                                     <p className="text-primary-700/80 dark:text-terra-300/80 mt-1 text-sm leading-relaxed">
-                                        You've utilized all available browser slots. To add a new browser, please remove an existing connection or
+                                        You&apos;ve utilized all available browser slots. To add a new browser, please remove an existing connection or
                                         <Link href="/settings/subscription" className="text-primary-600 dark:text-terra-400 hover:text-primary-700 dark:hover:text-terra-300 font-bold underline decoration-2 underline-offset-4 ml-1">
                                             upgrade to Premium
                                         </Link> for unlimited connections.
@@ -446,13 +451,24 @@ export default function BrowsersPage() {
                                 </li>
                                 <li className="flex items-start gap-2.5">
                                     <span className="w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-terra-500 mt-2 shrink-0"></span>
-                                    To reconnect a removed browser, you'll need to run a fresh initial sync from the extension.
+                                    To reconnect a removed browser, you&apos;ll need to run a fresh initial sync from the extension.
                                 </li>
                             </ul>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <ConfirmDialog
+                isOpen={confirmDialog.isOpen}
+                title="Disconnect Browser"
+                message="Are you sure you want to remove this browser?\n\nIt will need to run an initial sync again to reconnect."
+                confirmText="Disconnect"
+                cancelText="Cancel"
+                variant="danger"
+                onConfirm={executeRemoveBrowser}
+                onCancel={() => setConfirmDialog({ isOpen: false, browserInstanceId: null })}
+            />
         </DashboardLayout>
     )
 }

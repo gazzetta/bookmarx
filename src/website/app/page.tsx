@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { useConfig } from '@/lib/config-context'
+import { useAuth } from '@/lib/auth-context'
+import { api } from '@/lib/api'
 import Footer from '@/components/Footer'
 import ThemeToggle from '@/components/ThemeToggle'
 
@@ -127,12 +129,26 @@ export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [scrolled, setScrolled] = useState(false)
   const { config } = useConfig()
+  const { user, token, isLoading } = useAuth()
+  const [userStats, setUserStats] = useState<{ bookmarkCount: number; browserCount: number; collectionCount: number } | null>(null)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  useEffect(() => {
+    if (token && !isLoading) {
+      api.getUserStats(token)
+        .then(stats => setUserStats({
+          bookmarkCount: stats.bookmarkCount,
+          browserCount: stats.browserCount,
+          collectionCount: stats.collectionCount
+        }))
+        .catch(console.error)
+    }
+  }, [token, isLoading])
 
   const faqs = [
     {
@@ -185,15 +201,26 @@ export default function HomePage() {
 
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <Link href="/login" className="hidden sm:block text-ink-600 dark:text-cream-500 hover:text-ink dark:hover:text-cream-100 text-[15px] font-medium transition-colors">
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="bg-ink dark:bg-cream-100 hover:bg-ink-900 dark:hover:bg-white text-cream-100 dark:text-ink px-6 py-2.5 rounded-xl text-[15px] font-semibold transition-all hover:shadow-elevated"
-              >
-                Get Started
-              </Link>
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  className="bg-ink dark:bg-cream-100 hover:bg-ink-900 dark:hover:bg-white text-cream-100 dark:text-ink px-6 py-2.5 rounded-xl text-[15px] font-semibold transition-all hover:shadow-elevated"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link href="/login" className="hidden sm:block text-ink-600 dark:text-cream-500 hover:text-ink dark:hover:text-cream-100 text-[15px] font-medium transition-colors">
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="bg-ink dark:bg-cream-100 hover:bg-ink-900 dark:hover:bg-white text-cream-100 dark:text-ink px-6 py-2.5 rounded-xl text-[15px] font-semibold transition-all hover:shadow-elevated"
+                  >
+                    Get Started
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </nav>
@@ -222,14 +249,14 @@ export default function HomePage() {
               <div className="animate-fade-in-up" style={{ animationDelay: '200ms', animationFillMode: 'both' }}>
                 <p className="text-lg lg:text-xl text-ink-500 dark:text-white/50 mb-10 leading-relaxed max-w-lg">
                   Sync bookmarks across all your browsers, devices, and accounts.
-                  One unified library — whether you're on Chrome at work, Firefox at home, or Edge on your laptop.
+                  One unified library — whether you&apos;re on Chrome at work, Firefox at home, or Edge on your laptop.
                 </p>
               </div>
 
               <div className="animate-fade-in-up" style={{ animationDelay: '350ms', animationFillMode: 'both' }}>
                 <div className="flex flex-col sm:flex-row gap-4 mb-12">
-                  <Link href="/register" className="btn-primary inline-flex items-center justify-center gap-2 text-base">
-                    Start Free
+                  <Link href={user ? "/dashboard" : "/register"} className="btn-primary inline-flex items-center justify-center gap-2 text-base">
+                    {user ? "Go to Dashboard" : "Start Free"}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
@@ -269,7 +296,7 @@ export default function HomePage() {
                         <svg className="w-3.5 h-3.5 text-[#666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
-                        <span className="text-xs text-[#888]">bookmarx.gasdigital.co.uk/dashboard</span>
+                        <span className="text-xs text-[#888]">www.bookmarx.cc/dashboard</span>
                       </div>
                     </div>
                   </div>
@@ -286,16 +313,22 @@ export default function HomePage() {
 
                     <div className="grid grid-cols-3 gap-3 mb-5">
                       <div className="bg-white dark:bg-[#242424] rounded-xl p-3.5 border border-cream-300 dark:border-white/[0.06]">
-                        <div className="text-xl font-bold text-ink dark:text-cream-100 font-display">1,247</div>
+                        <div className="text-xl font-bold text-ink dark:text-cream-100 font-display">
+                          {user ? (userStats?.bookmarkCount ?? 0).toLocaleString() : '1,247'}
+                        </div>
                         <div className="text-[11px] text-ink-400 dark:text-white/40 mt-0.5">Bookmarks</div>
                       </div>
                       <div className="bg-white dark:bg-[#242424] rounded-xl p-3.5 border border-cream-300 dark:border-white/[0.06]">
-                        <div className="text-xl font-bold text-ink dark:text-cream-100 font-display">4</div>
+                        <div className="text-xl font-bold text-ink dark:text-cream-100 font-display">
+                          {user ? userStats?.browserCount ?? 0 : '4'}
+                        </div>
                         <div className="text-[11px] text-ink-400 dark:text-white/40 mt-0.5">Browsers</div>
                       </div>
                       <div className="bg-white dark:bg-[#242424] rounded-xl p-3.5 border border-cream-300 dark:border-white/[0.06]">
-                        <div className="text-xl font-bold text-ink dark:text-cream-100 font-display">23</div>
-                        <div className="text-[11px] text-ink-400 dark:text-white/40 mt-0.5">Sessions</div>
+                        <div className="text-xl font-bold text-ink dark:text-cream-100 font-display">
+                          {user ? userStats?.collectionCount ?? 0 : '3'}
+                        </div>
+                        <div className="text-[11px] text-ink-400 dark:text-white/40 mt-0.5">Collections</div>
                       </div>
                     </div>
 
@@ -562,7 +595,7 @@ export default function HomePage() {
                 </ul>
 
                 <Link
-                  href="mailto:bookmarx@gasdigital.co.uk"
+                  href="mailto:support@bookmarks.cc"
                   className="block w-full text-center border-2 border-cream-400 dark:border-white/15 hover:border-ink dark:hover:border-white/40 hover:bg-ink dark:hover:bg-white/10 hover:text-cream-100 text-ink dark:text-cream-100 px-6 py-3.5 rounded-xl font-semibold transition-all"
                 >
                   Contact Sales
@@ -573,7 +606,7 @@ export default function HomePage() {
 
           <RevealSection delay={300}>
             <div className="text-center mt-14">
-              <p className="text-sm text-ink-400 dark:text-white/40">Secure payments powered by <span className="font-semibold text-ink-600 dark:text-white/70">Polar</span></p>
+              <p className="text-sm text-ink-400 dark:text-white/40">Secure payments powered by <span className="font-semibold text-ink-600 dark:text-white/70">PayPal</span></p>
             </div>
           </RevealSection>
         </div>
@@ -644,10 +677,10 @@ export default function HomePage() {
           <RevealSection delay={200}>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href="/register"
+                href={user ? "/dashboard" : "/register"}
                 className="inline-flex items-center justify-center gap-2 bg-terra-500 hover:bg-terra-600 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all hover:shadow-glow-lg"
               >
-                Get Started Free
+                {user ? "Go to Dashboard" : "Get Started Free"}
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>

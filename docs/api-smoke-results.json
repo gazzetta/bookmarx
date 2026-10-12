@@ -1,0 +1,134 @@
+[
+  {
+    "Section": "5.1",
+    "Test": "Register returns token+user",
+    "Status": "PASS",
+    "Detail": "Status 200"
+  },
+  {
+    "Section": "5.1",
+    "Test": "Login returns token+user",
+    "Status": "PASS",
+    "Detail": "Status 200"
+  },
+  {
+    "Section": "5.1",
+    "Test": "Get Me isPremium:true (premium)",
+    "Status": "PASS",
+    "Detail": "tier=premium"
+  },
+  {
+    "Section": "5.1",
+    "Test": "Get Me isPremium:false (free)",
+    "Status": "PASS",
+    "Detail": "tier=free"
+  },
+  {
+    "Section": "5.1",
+    "Test": "Invalid token returns 401",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.2",
+    "Test": "Free user 403 on sessions",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.2",
+    "Test": "Premium 200 on sessions",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.2",
+    "Test": "Premium can create collection",
+    "Status": "PASS",
+    "Detail": "Status 201"
+  },
+  {
+    "Section": "5.2",
+    "Test": "Free user 403 on create collection",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.2",
+    "Test": "Premium can submit editor changes",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.2",
+    "Test": "Free user 403 on editor changes",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.3",
+    "Test": "Sync status returns valid response",
+    "Status": "PASS",
+    "Detail": "bid=bdb1decc-498e-4eda-98de-26b1e128a72d"
+  },
+  {
+    "Section": "5.3",
+    "Test": "Sync status without browser id returns 400",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.3",
+    "Test": "Config returns limits/branding",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "5.3",
+    "Test": "User stats returns counts",
+    "Status": "PASS",
+    "Detail": "bookmarks=435 browsers=3"
+  },
+  {
+    "Section": "5.4",
+    "Test": "List browsers returns instances",
+    "Status": "PASS",
+    "Detail": "count=3"
+  },
+  {
+    "Section": "4.1",
+    "Test": "/auth/me isPremium:true",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "4.1",
+    "Test": "Premium /sessions returns 200",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "4.1",
+    "Test": "Premium POST /collections 201",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "4.1",
+    "Test": "Premium sync endpoints work",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "6.5",
+    "Test": "Special chars + unicode + query params accepted",
+    "Status": "PASS",
+    "Detail": ""
+  },
+  {
+    "Section": "6.2",
+    "Test": "Tampered JWT returns 401",
+    "Status": "PASS",
+    "Detail": ""
+  }
+]

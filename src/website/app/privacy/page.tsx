@@ -133,8 +133,8 @@ export default function PrivacyPage() {
                   <span>For optional sign-in with Google. Subject to Google&apos;s Privacy Policy.</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <span className="font-medium text-ink-600">Polar:</span>
-                  <span>For payment processing on premium subscriptions. Subject to Polar&apos;s Privacy Policy.</span>
+                  <span className="font-medium text-ink-600">PayPal:</span>
+                  <span>For payment processing on premium subscriptions. Subject to PayPal&apos;s Privacy Policy.</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="font-medium text-ink-600">Resend:</span>
@@ -187,8 +187,8 @@ export default function PrivacyPage() {
               <h2 className="font-display text-2xl font-bold text-ink mb-4">8. Contact Us</h2>
               <p className="text-ink-500 leading-relaxed">
                 If you have questions about this Privacy Policy, please contact us at{' '}
-                <a href="mailto:bookmarx@gasdigital.co.uk" className="text-terra-500 hover:text-terra-600 font-medium">
-                  bookmarx@gasdigital.co.uk
+                <a href="mailto:support@bookmarks.cc" className="text-terra-500 hover:text-terra-600 font-medium">
+                  support@bookmarks.cc
                 </a>.
               </p>
             </section>

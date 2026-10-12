@@ -20,6 +20,8 @@ interface StorageData {
     } | null;
     deviceId?: string;
     browserInstanceId?: string;
+    collectionId?: string;
+    collectionName?: string;
 }
 
 export class StorageManager {
@@ -260,6 +262,26 @@ export class StorageManager {
             browserInstanceId: id
         });
         console.log('Set browserInstanceId:', id);
+    }
+
+    public async getCollectionId(): Promise<string | null> {
+        const data = await this.getData();
+        return data?.collectionId || null;
+    }
+
+    public async getCollectionName(): Promise<string> {
+        const data = await this.getData();
+        return data?.collectionName || 'Master Collection';
+    }
+
+    public async setCollection(id: string | null, name: string): Promise<void> {
+        const data = await this.getData() || this.defaults;
+        await this.setData({
+            ...data,
+            collectionId: id || undefined,
+            collectionName: name
+        });
+        console.log('Set collection:', { id, name });
     }
 
     public async getUserId(): Promise<string> {

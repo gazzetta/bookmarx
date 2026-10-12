@@ -37,7 +37,7 @@ const getGoogleClient = () => {
 
 // Emails that are always treated as premium (e.g. admin/test accounts)
 const ALWAYS_PREMIUM_EMAILS = [
-    'gas@gasdigital.co.uk',
+    'qa@bookmarx.cc',
 ];
 
 const isAlwaysPremiumEmail = (email: string): boolean =>
@@ -122,21 +122,49 @@ export const registerWithEmail = async (req: Request, res: Response) => {
         });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    const userId = randomUUID();
-    const displayName = email.split('@')[0] || email;
+    try {
+        const passwordHash = await bcrypt.hash(password, 10);
+        const userId = randomUUID();
+        const displayName = email.split('@')[0] || email;
 
-    db.createUser({
-        id: userId,
-        email,
-        passwordHash,
-        displayName
-    });
+        db.createUser({
+            id: userId,
+            email,
+            passwordHash,
+            displayName
+        });
 
-    const user = buildUser({ id: userId, email, displayName });
-    const token = issueToken(user);
+        const user = buildUser({ id: userId, email, displayName });
+        const token = issueToken(user);
 
-    return sendAuthResponse(res, { token, user });
+        return sendAuthResponse(res, { token, user });
+    } catch (error) {
+        const err = error as { code?: string };
+
+        if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+            return res.status(409).json({
+                success: false,
+                error: { message: 'Email is already registered' }
+            });
+        }
+
+        if (err.code === 'SQLITE_BUSY' || err.code === 'SQLITE_LOCKED') {
+            return res.status(503).json({
+                success: false,
+                error: { message: 'Database is busy, please retry in a moment' }
+            });
+        }
+
+        console.error('Register error:', error);
+        return res.status(500).json({
+            success: false,
+            error: {
+                message: process.env.NODE_ENV === 'development'
+                    ? (error instanceof Error ? error.message : 'Registration failed')
+                    : 'Registration failed'
+            }
+        });
+    }
 };
 
 export const loginWithEmail = async (req: Request, res: Response) => {

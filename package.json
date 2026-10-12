@@ -1,0 +1,21 @@
+{
+  "name": "bookmarx-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cross-component test harness for BookMarx (API / website / extension / mobile). Root package hosts shared test infra only; app code lives under src/.",
+  "scripts": {
+    "test": "vitest run",
+    "test:api": "vitest run tests/api",
+    "test:watch": "vitest",
+    "test:ci": "vitest run --reporter=default --reporter=junit --outputFile=test-results.junit.xml",
+    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^20.11.0",
+    "@types/supertest": "^6.0.2",
+    "supertest": "^7.0.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.6.0"
+  }
+}

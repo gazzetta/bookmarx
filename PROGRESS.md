@@ -47,6 +47,12 @@
 - [ ] Manual extension smoke tests across Chrome/Brave/Edge/Firefox
 - [ ] Premium workflow E2E API smoke tests with authenticated test accounts
 - [x] Mobile type-check clean (`npx tsc --noEmit` passes in `src/mobile`)
+- [x] Backend API integration suite (`npm test` at repo root, 37 tests
+      covering auth / sync / capture / cross-device convergence) — added
+      2026-06-25. Surfaced + fixed five server-side bugs (broken migration
+      runner, ESM-unsafe migration loader, async migration race on first
+      request, capture endpoint losing `collectionId`, `handleSync` MOVE
+      and DELETE branches dropping `userId`/`masterId`).
 
 ### Phase 1: Archive & Setup ✅
 - [x] Create `stage-1/` folder
@@ -75,7 +81,7 @@
 - [x] Update `handleSync` to return masterId on CREATE
 - [x] Update `/sync/master-collection` to include masterId
 - [x] Create `POST /api/v1/capture` endpoint for mobile share
-- [ ] Test backward compatibility with existing extension
+- [x] Test backward compatibility with existing extension ← `tests/api/sync-convergence.test.ts` (2026-06-25). Five server-side bugs fixed while wiring it up: see `tests/README.md`.
 
 ### Phase 3: Browser Detection ✅
 - [x] Create `src/extension/background/utils/browserDetect.ts`

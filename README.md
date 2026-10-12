@@ -65,10 +65,20 @@ npm install
 npm run build
 ```
 
-### 3. Load in Browser
+### 3. Load Extension in Browser
 - **Chrome/Brave/Edge:** Go to `chrome://extensions` / `brave://extensions` / `edge://extensions`
 - Enable Developer mode
 - Click "Load unpacked" → select `src/extension/dist`
+
+### 4. Start Mobile App (Expo)
+```powershell
+cd 'c:\CODING\bookmarx\src\mobile'
+npm install
+npx expo start
+```
+- Press `i` for iOS simulator (macOS only)
+- Press `a` for Android emulator
+- Scan QR code with Expo Go app on physical device
 
 ---
 
