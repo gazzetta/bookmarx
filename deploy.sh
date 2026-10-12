@@ -1,13 +1,24 @@
 #!/bin/bash
 # BookMarx unified deployment script (Next.js + API)
-# Usage: cd /home/gazza/bookmarx/src/website && sudo ./deploy.sh
+#
+# This script lives in the TOP-LEVEL folder of the repo. The website it deploys
+# is NOT in the top-level folder - it is in src/website underneath it.
+# All paths below are resolved from this script's own location, so running it
+# from anywhere (or via sudo) resolves the same locations.
+#
+# Usage: cd /home/gazza/bookmarx && sudo ./deploy.sh
 
 set -e
 
-REPO_DIR="/home/gazza/bookmarx"
+# Folder this script is running from. On the live server this is /home/gazza/bookmarx.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Set BOOKMARX_REPO_DIR=/path/to/repo to deploy a checkout living somewhere else.
+REPO_DIR="${BOOKMARX_REPO_DIR:-$SCRIPT_DIR}"
+# The website itself lives one level down, under src/website.
 WEBSITE_DIR="$REPO_DIR/src/website"
 REPO_URL="https://github.com/gazzetta/bookmarx.git"
-BRANCH="main"
+# The remote's default branch is master (the repo has no `main` branch).
+BRANCH="master"
 DOMAIN="www.bookmarx.cc"
 APP_PORT="3005"
 SITE_CONF="/etc/nginx/sites-available/bookmarx"
@@ -48,6 +59,9 @@ if ! id -u "$APP_USER" >/dev/null 2>&1; then
     exit 1
 fi
 
+# NOTE: the repo layout (this script at the top level, the website in
+# src/website) is validated further down, once the repo has been fetched.
+
 # Create required directories
 log_info "Creating directories..."
 mkdir -p "$REPO_DIR" "/var/log/bookmarx" "$WEBSITE_DIR/data"
@@ -60,20 +74,27 @@ cd "$REPO_DIR"
 if [ -d ".git" ]; then
     log_info "Pulling latest changes..."
     run_as_app_user "cd \"$REPO_DIR\" && git fetch origin && git reset --hard \"origin/$BRANCH\""
+elif [ -n "$(ls -A "$REPO_DIR" 2>/dev/null)" ]; then
+    # Folder already has files (e.g. a pre-staged .env) but is not a git repo yet,
+    # so clone into it and fetch in place rather than failing on a non-empty dir.
+    log_info "Initialising git repo in existing folder..."
+    run_as_app_user "cd \"$REPO_DIR\" && git init -q && git remote add origin \"$REPO_URL\" && git fetch -q origin \"$BRANCH\" && git reset --hard -q FETCH_HEAD"
 else
     log_info "Cloning repository..."
     run_as_app_user "git clone -b \"$BRANCH\" \"$REPO_URL\" \"$REPO_DIR\""
 fi
 
-# Install dependencies and build
-cd "$WEBSITE_DIR"
-log_info "Installing dependencies..."
-run_as_app_user "cd \"$WEBSITE_DIR\" && npm ci"
+# Now that the repo is present, verify the layout this script expects:
+# deploy.sh in the top-level folder, with the website under src/website.
+if [ ! -f "$WEBSITE_DIR/package.json" ]; then
+    log_error "Website not found at $WEBSITE_DIR after fetching the repo."
+    log_error "Expected: $REPO_DIR/deploy.sh with the website in $REPO_DIR/src/website"
+    exit 1
+fi
+log_info "Website directory: $WEBSITE_DIR"
 
-log_info "Building unified app..."
-run_as_app_user "cd \"$WEBSITE_DIR\" && npm run build"
-
-# Set up .env if it doesn't exist
+# Set up .env BEFORE building: Next.js inlines NEXT_PUBLIC_* variables into the
+# client bundle at build time, so the env file must exist before `next build` runs.
 if [ ! -f "$WEBSITE_DIR/.env" ]; then
     if [ -f "$WEBSITE_DIR/.env.production" ]; then
         log_warn "No .env found. Copying .env.production..."
@@ -85,6 +106,14 @@ if [ ! -f "$WEBSITE_DIR/.env" ]; then
         exit 1
     fi
 fi
+
+# Install dependencies and build
+cd "$WEBSITE_DIR"
+log_info "Installing dependencies..."
+run_as_app_user "cd \"$WEBSITE_DIR\" && npm ci"
+
+log_info "Building unified app..."
+run_as_app_user "cd \"$WEBSITE_DIR\" && npm run build"
 
 # Nginx config (only when running as root)
 if [ "$IS_ROOT" = true ]; then
@@ -103,6 +132,12 @@ upstream bookmarx_app {
 server {
     listen 80;
     server_name ${DOMAIN};
+
+    # Where the website actually lives on disk. This is a reverse-proxy setup, so
+    # nginx forwards requests to the Next.js/API app above rather than serving the
+    # site itself, but root points nginx at the website folder for any local
+    # lookups (error pages, direct file hits) and documents the site's location.
+    root ${WEBSITE_DIR};
 
     add_header Strict-Transport-Security "max-age=63072000" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
