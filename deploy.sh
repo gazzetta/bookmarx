@@ -40,7 +40,10 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 run_as_app_user() {
     if [ "$IS_ROOT" = true ]; then
-        sudo -u "$APP_USER" bash -lc "$1"
+        # -H forces HOME to the target user's home. Without it sudo may leave
+        # HOME as /root, which breaks SSH key lookup (git fetch) and hides
+        # nvm-based node/pm2 installs for the app user.
+        sudo -H -u "$APP_USER" bash -lc "$1"
     else
         bash -lc "$1"
     fi
@@ -196,7 +199,7 @@ fi
 log_info "Restarting PM2..."
 PM2_CMD="pm2"
 if [ "$IS_ROOT" = true ]; then
-    PM2_CMD="sudo -u $APP_USER pm2"
+    PM2_CMD="sudo -H -u $APP_USER pm2"
 fi
 
 $PM2_CMD delete bookmarx-api 2>/dev/null || true
