@@ -104,11 +104,9 @@ test.describe('Initial sync flow', () => {
     const storage = await getExtensionStorage();
     const deviceId = storage?.deviceId;
 
-    // Verify via API that the bookmark made it to the server.
-    // Note: The initial sync sends the ENTIRE Chrome bookmark tree, which may
-    // exceed the free plan bookmark limit (250). If the sync hit a limit, the
-    // bookmark won't be on the server. We log the result but don't hard-fail
-    // on the bookmark check — the key assertions are dialog + lastSync + changes cleared.
+    // Verify via API that the bookmark made it to the server. The fresh profile has
+    // only this one bookmark, so it is well under the free plan limit (250) and the
+    // round-trip must hold. Previously this only logged, so a broken sync still passed.
     const response = await fetch(`${apiBase()}/sync/master-collection`, {
       headers: {
         'Authorization': `Bearer ${freeAccount.token}`,
@@ -117,18 +115,8 @@ test.describe('Initial sync flow', () => {
       },
     });
     const body = await response.json();
-    console.log('[L3 initial-sync] Master collection API response:', {
-      success: body.success,
-      bookmarkCount: body.data?.bookmarks?.length || 0,
-    });
-    if (body.success) {
-      const bookmarks = body.data?.bookmarks || [];
-      const found = bookmarks.some((b: any) => b.url === 'https://example.com/l3-test');
-      if (found) {
-        console.log('[L3 initial-sync] Bookmark found in master collection — full round-trip verified');
-      } else {
-        console.log('[L3 initial-sync] Bookmark NOT in master collection — likely hit free plan bookmark limit (initial sync sends entire tree)');
-      }
-    }
+    expect(body.success, JSON.stringify(body)).toBe(true);
+    const found = (body.data?.bookmarks || []).some((b: any) => b.url === 'https://example.com/l3-test');
+    expect(found, 'bookmark should round-trip to the master collection').toBe(true);
   });
 });

@@ -284,3 +284,25 @@ These came out of the extension/website surveys. The test specs above already ac
 4. **`utils/extensionApi.ts` polyfill wrapper unused** — every other file calls `chrome.*` directly. Not a test problem but flag for the human in case any L4 Firefox-only behaviour breaks and we're left wondering where to wire it.
 5. **`getGoogleAccessToken` is dead code** in `popup/index.ts:1205-1215`. Don't write a test against it — the actual Google flow goes through the background `googleLogin` message handler.
 6. **No beforeunload handler in web editor** — `MANUAL-QA-CHECKLIST.md:191` already notes this; L2 `collections-editor.spec.ts` will assert navigation-away is silent (i.e. NOT a manual warning) to pin this as designed behaviour, not a regression.
+## 9. Multi-browser sync suite (added 2026-10-13)
+
+**Peers.** `tests/extension/_peers.ts` runs each "browser" as its own profile, with its own deviceId and browserInstanceId. Peers are bundled Chromium, Edge (`msedge`), and a Chromium that presents an Opera UA (`OPR/`). `detectBrowser()` sniffs the UA, so the server sees a distinct fingerprint without installing Opera. Peers send Sync Up/Down the same way the popup does, then check both the server and each peer's `chrome.bookmarks` tree.
+
+**Engine findings.** Google Chrome (`channel: 'chrome'`) ignores `--load-extension` on Chrome 137+ branded builds, so it can't host a peer. Opera, Brave and Firefox are not installed on the test machine. Firefox and real Opera/Brave remain L4.
+
+**Free-tier cap.** The server fingerprints a browser as `browser|os|osVersion` (`premium.ts`). Two plain Chromium profiles on one machine look like one browser, and the server silently replaces the older one instead of refusing the new one. The cap test therefore needs three distinct fingerprints.
+
+**Specs.**
+- `cross-browser-sync.spec.ts`: two browsers both ways with deletes; account isolation; third browser refused with `BROWSER_LIMIT_REACHED`.
+- `cross-browser-regressions.spec.ts`: a browser's own push must not skip earlier changes from another; folder deletes propagate.
+- `notifications.spec.ts`: a remote change raises `notificationState.remoteCount` in another browser, both via the status check and via the alarm alone; the periodic alarm fires within one cycle.
+- `tests/api/pull-ack.test.ts`: acknowledged pulls are re-delivered until acked; pushes and master reads don't move the pull watermark; folder creates are idempotent; deletes resolve by masterId.
+- `tests/api/collection-delete.test.ts`: deleting a synced collection removes it and its items.
+
+**Pull watermark rules (what the tests pin).**
+- The watermark counts only pulls, meaning `kind: 'pull'` rows in `sync_history.detailsJson` and `INITIAL_IMPORT`. Pushes (`kind: 'push'`) and master reads (`kind: 'fetch'`) never move it.
+- New clients send `X-Sync-Ack: 1`. The server returns a `cursor`, and the watermark moves only when the client POSTs `/sync/pending/ack`.
+- Old clients (no header) keep the legacy path, which moves the watermark on the GET.
+- Creates are idempotent. A re-sent create returns the stored item, and a failed create comes back as `success: false` so the queue is kept.
+
+**Known gaps, not covered by automation.** The test profile path only supports Chromium-family browsers, so the Firefox sideload and real Opera/Brave root-folder mapping are still manual (L4).

@@ -144,19 +144,28 @@ const handleSync: RequestHandler = async (req, res) => {
                                 // Resolve masterParentId from parentId if not provided
                                 const masterParentId = resolveMasterParentId(data.masterParentId, data.parentId);
 
-                                const createResult = db.createBookmark({
-                                    ...data,
-                                    masterParentId,
-                                    userId,
-                                    collectionId: defaultCollectionId,
-                                    metadata
-                                });
-                                results.push({
-                                    success: true,
-                                    type: 'bookmark',
-                                    browserId: data.browserId,
-                                    masterId: createResult.masterId
-                                });
+                                // A CREATE re-sent after a failed push: return the stored item, don't add a duplicate
+                                const bookmarkInstanceId = metadata?.deviceInfo?.browserInstanceId;
+                                const existingBookmarkId = bookmarkInstanceId
+                                    ? db.findActiveCreatedMasterId('bookmarks', db.normalizeBrowserItemId(data.browserId, bookmarkInstanceId, 'bookmark'), bookmarkInstanceId, userId, defaultCollectionId)
+                                    : null;
+                                if (existingBookmarkId) {
+                                    results.push({ success: true, type: 'bookmark', browserId: data.browserId, masterId: existingBookmarkId, duplicate: true });
+                                } else {
+                                    const createResult = db.createBookmark({
+                                        ...data,
+                                        masterParentId,
+                                        userId,
+                                        collectionId: defaultCollectionId,
+                                        metadata
+                                    });
+                                    results.push({
+                                        success: true,
+                                        type: 'bookmark',
+                                        browserId: data.browserId,
+                                        masterId: createResult.masterId
+                                    });
+                                }
                             } catch (err) {
                                 console.error('Failed to create bookmark:', err);
                                 results.push({
@@ -171,19 +180,28 @@ const handleSync: RequestHandler = async (req, res) => {
                                 // Resolve masterParentId from parentId if not provided
                                 const masterParentId = resolveMasterParentId(data.masterParentId, data.parentId);
 
-                                const createResult = db.createFolder({
-                                    ...data,
-                                    masterParentId,
-                                    userId,
-                                    collectionId: defaultCollectionId,
-                                    metadata
-                                });
-                                results.push({
-                                    success: true,
-                                    type: 'folder',
-                                    browserId: data.browserId,
-                                    masterId: createResult.masterId
-                                });
+                                // A CREATE re-sent after a failed push: return the stored item, don't add a duplicate
+                                const folderInstanceId = metadata?.deviceInfo?.browserInstanceId;
+                                const existingFolderId = folderInstanceId
+                                    ? db.findActiveCreatedMasterId('folders', db.normalizeBrowserItemId(data.browserId, folderInstanceId, 'folder'), folderInstanceId, userId, defaultCollectionId)
+                                    : null;
+                                if (existingFolderId) {
+                                    results.push({ success: true, type: 'folder', browserId: data.browserId, masterId: existingFolderId, duplicate: true });
+                                } else {
+                                    const createResult = db.createFolder({
+                                        ...data,
+                                        masterParentId,
+                                        userId,
+                                        collectionId: defaultCollectionId,
+                                        metadata
+                                    });
+                                    results.push({
+                                        success: true,
+                                        type: 'folder',
+                                        browserId: data.browserId,
+                                        masterId: createResult.masterId
+                                    });
+                                }
                             } catch (err) {
                                 console.error('Failed to create folder:', err);
                                 results.push({
@@ -257,8 +275,15 @@ const handleSync: RequestHandler = async (req, res) => {
                         // pulled the master-collection). Without this, cross-device deletes
                         // silently no-op — exactly what PROGRESS.md:71-73 says masterId prevents.
                         try {
-                            const bookmarkExists = await db.checkBookmarkExists(data.browserId);
-                            if (bookmarkExists) {
+                            // Use the type the client sent. A legacy client sends 'unknown', so look the type up
+                            // among this browser's own items. Other browsers' rows with the same id don't count.
+                            // A masterId identifies the item across browsers, so it is looked up first.
+                            const deleteKind = data.type === 'bookmark' || data.type === 'folder'
+                                ? data.type
+                                : data.masterId
+                                    ? db.findMasterItemKind(data.masterId, userId)
+                                    : db.findBrowserItemKind(data.browserId, metadata?.deviceInfo?.browserInstanceId, userId);
+                            if (deleteKind === 'bookmark') {
                                 console.log('Deleting bookmark:', data.browserId);
                                 results.push(await db.deleteBookmark({
                                     id: data.browserId,
@@ -268,8 +293,7 @@ const handleSync: RequestHandler = async (req, res) => {
                                 }));
                             } else {
                                 // If not found in bookmarks, check folders
-                                const folderExists = await db.checkFolderExists(data.browserId);
-                                if (folderExists) {
+                                if (deleteKind === 'folder') {
                                     console.log('Deleting folder:', data.browserId);
                                     results.push(await db.deleteFolder({
                                         id: data.browserId,
@@ -365,6 +389,7 @@ const handleSync: RequestHandler = async (req, res) => {
             status: 'SUCCESS',
             collectionId: defaultCollectionId,
             details: {
+                kind: 'push', // never advances the pull watermark (see getLastSyncForBrowser)
                 changesProcessed: changes.length,
                 bookmarksProcessed: changes.filter(c => c.data.type === 'bookmark').length,
                 foldersProcessed: changes.filter(c => c.data.type === 'folder').length,
@@ -377,6 +402,24 @@ const handleSync: RequestHandler = async (req, res) => {
             },
             metadata: changes[0]?.metadata || metadata
         });
+
+        // A CREATE that failed was not stored. Report it as a failure, so the client keeps its queue
+        // and sends it again. The retry is safe because re-sent creates return the stored item.
+        const failedCreates = results.filter((r: any) => r?.error === 'BOOKMARK_CREATE_FAILED' || r?.error === 'FOLDER_CREATE_FAILED');
+        if (failedCreates.length > 0) {
+            return res.json({
+                success: false,
+                error: {
+                    message: `${failedCreates.length} new item(s) could not be saved. They will be sent again.`,
+                    details: failedCreates.map((r: any) => ({ itemId: r.itemId, code: r.error, message: r.details }))
+                },
+                data: {
+                    action: 'SYNC_INCOMPLETE',
+                    changesApplied: results.length - failedCreates.length,
+                    results
+                }
+            });
+        }
 
         res.json({
             success: true,
@@ -885,7 +928,8 @@ app.get('/api/v1/sync/status', authenticate, async (req: Request, res: Response)
 
         if (!needsInitialSync) {
             const lastSyncSeconds = db.getLastSyncForBrowser(userId, browserInstanceId) || 0;
-            pendingChanges = db.getPendingChangesForBrowser(userId, browserInstanceId, lastSyncSeconds);
+            // Same window as an acknowledged pull (see /sync/pending), so the count matches what a pull returns.
+            pendingChanges = db.getPendingChangesForBrowser(userId, browserInstanceId, Math.max(lastSyncSeconds - 1, 0));
         }
 
         const response = {
@@ -1068,6 +1112,7 @@ app.get('/api/v1/sync/master-collection', authenticate, async (req: Request, res
             changesCount: bookmarks.length + folders.length,
             status: 'SUCCESS',
             details: {
+                kind: 'fetch', // a read of the master, not a pull acknowledgement; never advances the watermark
                 bookmarksProcessed: bookmarks.length,
                 foldersProcessed: folders.length
             },
@@ -1177,8 +1222,19 @@ app.get('/api/v1/sync/pending', authenticate, async (req: Request, res: Response
         const lastSyncSeconds = lastSync || 0;
         console.log(`Last sync for browser: ${lastSync ? new Date(lastSync * 1000).toISOString() : 'never'}`);
 
+        // Acknowledged pulls (X-Sync-Ack: 1): the watermark moves only when the client POSTs
+        // /sync/pending/ack after applying. A failed apply therefore gets the same changes again.
+        // The window starts at cursor-1 with '>', which means '>= cursor'. Re-sent changes from
+        // the cursor's own second are safe because the client's apply is idempotent.
+        // Legacy clients (no header) keep the old strict '>' window and write the watermark now.
+        const ackMode = req.headers['x-sync-ack'] === '1';
+        const windowStart = ackMode ? Math.max(lastSyncSeconds - 1, 0) : lastSyncSeconds;
+        // Capture the cursor before reading. Node is single-threaded and better-sqlite3 is
+        // synchronous, so no write can commit between this line and the queries below.
+        const cursor = Math.floor(Date.now() / 1000);
+
         // Get pending changes (delta from other browsers)
-        const changes = db.getPendingChangesDetails(userId, browserInstanceId, lastSyncSeconds);
+        const changes = db.getPendingChangesDetails(userId, browserInstanceId, windowStart);
 
         const total = changes.creates.folders.length + changes.creates.bookmarks.length +
                      changes.updates.folders.length + changes.updates.bookmarks.length +
@@ -1195,13 +1251,14 @@ app.get('/api/v1/sync/pending', authenticate, async (req: Request, res: Response
 
         // Create a record of this pending changes fetch. Pass browserInstanceId via metadata
         // so getLastSyncForBrowser can find this row and advance lastSync.
-        db.createSyncHistory({
+        if (!ackMode) db.createSyncHistory({
             userId,
             deviceId,
             type: 'SYNC',
             changesCount: total,
             status: 'SUCCESS',
             details: {
+                kind: 'pull',
                 bookmarksProcessed: changes.creates.bookmarks.length + changes.updates.bookmarks.length + changes.deletes.bookmarks.length,
                 foldersProcessed: changes.creates.folders.length + changes.updates.folders.length + changes.deletes.folders.length
             },
@@ -1217,7 +1274,11 @@ app.get('/api/v1/sync/pending', authenticate, async (req: Request, res: Response
             data: {
                 needsInitialSync: false,
                 changes,
-                summary
+                summary,
+                // Ack mode only: the client sends `cursor` back on /sync/pending/ack once it has applied these.
+                // `since` is the window start, which the client uses to count retries of the same window.
+                cursor: ackMode ? cursor : undefined,
+                since: ackMode ? windowStart : undefined
             }
         });
     } catch (err) {
@@ -1332,6 +1393,51 @@ function buildFolderPath(folderId: string, folderMap: Map<string, { title: strin
 }
 
 // Merge local bookmarks into master collection with dedupe
+// Acknowledge an applied pull. Moves this browser's pull watermark to the cursor the pull returned.
+// The row is stamped with the cursor, not the ack time, so changes committed while the client was
+// applying are still delivered on the next pull.
+app.post('/api/v1/sync/pending/ack', authenticate, async (req: Request, res: Response) => {
+    try {
+        const authUser = (req as Request & { user?: { id: string } }).user;
+        const userId = authUser?.id;
+        const deviceId = req.headers['x-device-id'] as string | undefined;
+        const browserInstanceId = req.headers['x-browser-instance-id'] as string | undefined;
+        const cursor = Number(req.body?.cursor);
+        const changesApplied = Number(req.body?.changesApplied ?? 0);
+        const nowSeconds = Math.floor(Date.now() / 1000);
+
+        if (!userId || !deviceId || !browserInstanceId) {
+            return res.status(400).json({
+                success: false,
+                error: { message: 'Device ID and Browser Instance ID are required' }
+            });
+        }
+        if (!Number.isInteger(cursor) || cursor <= 0 || cursor > nowSeconds + 5) {
+            return res.status(400).json({
+                success: false,
+                error: { message: 'A valid cursor from the pending response is required' }
+            });
+        }
+
+        db.createSyncHistory({
+            userId,
+            deviceId,
+            type: 'SYNC',
+            changesCount: Number.isFinite(changesApplied) ? changesApplied : 0,
+            status: 'SUCCESS',
+            details: { kind: 'pull', changesProcessed: changesApplied },
+            metadata: { deviceInfo: { browserInstanceId } },
+            timestamp: cursor
+        });
+
+        res.json({ success: true, data: { cursor } });
+    } catch (err) {
+        const error = err as Error;
+        console.error('[Pending ack] Failed:', error);
+        res.status(500).json({ success: false, error: { message: error.message } });
+    }
+});
+
 app.post('/api/v1/sync/merge', authenticate, checkBookmarkLimit, async (req: Request, res: Response) => {
     try {
         console.log('\n=== Merge Sync Request ===');

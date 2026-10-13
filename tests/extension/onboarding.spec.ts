@@ -39,10 +39,10 @@ test.describe('Onboarding dialog', () => {
     await expect(dialog.locator('.onboarding-header')).toContainText(/setup.*bookmark/i);
     await expect(dialog.locator('.onboarding-stat-group')).toHaveCount(2); // master + local
 
-    // Verify "Overwrite Local" button exists
-    await expect(dialog.locator('.onboarding-overwrite-btn')).toBeVisible();
-    // Verify "Merge" button exists
-    await expect(dialog.locator('.onboarding-merge-btn')).toBeVisible();
+    // Verify "Overwrite Local" option card exists (OnboardingDialog renders options as data-choice cards)
+    await expect(dialog.locator('[data-choice="overwrite"]')).toBeVisible();
+    // Verify "Merge Into Master then Overwrite Local" option card exists
+    await expect(dialog.locator('[data-choice="mergeThenOverwrite"]')).toBeVisible();
 
     await popup.close();
   });

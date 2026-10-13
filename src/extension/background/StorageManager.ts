@@ -1,6 +1,13 @@
 import { QueuedChange, ChangeMetadata } from './types';
 import { detectBrowser, BrowserInfo } from './utils/browserDetect';
 
+// masterId -> local browser id. localId null marks an applied delete (tombstone).
+export interface MasterIdEntry {
+    kind: 'bookmark' | 'folder';
+    localId: string | null;
+}
+export type MasterIdMap = Record<string, MasterIdEntry>;
+
 interface StorageData {
     changes: QueuedChange[];
     lastSync: number;
@@ -65,6 +72,18 @@ export class StorageManager {
         });
     }
 
+    // chrome.storage.local has no transactions, and the sync state is stored as one object. Every
+    // read-modify-write of it runs through this chain, one at a time. Without it, two events that
+    // overlap (a bookmark created while signing in) overwrite each other: a queued change or the
+    // auth token is lost.
+    private writeChain: Promise<unknown> = Promise.resolve();
+
+    private exclusive<T>(task: () => Promise<T>): Promise<T> {
+        const run = this.writeChain.then(task, task);
+        this.writeChain = run.catch(() => undefined);
+        return run;
+    }
+
     private async localClear(): Promise<void> {
         return new Promise((resolve, reject) => {
             chrome.storage.local.clear(() => {
@@ -106,7 +125,11 @@ export class StorageManager {
         await this.localSet(data as unknown as Record<string, any>);
     }
 
-    public async queueChange(change: { type: string; data: any }): Promise<void> {
+    public queueChange(change: { type: string; data: any }): Promise<void> {
+        return this.exclusive(() => this.queueChangeUnlocked(change));
+    }
+
+    private async queueChangeUnlocked(change: { type: string; data: any }): Promise<void> {
         const data = await this.getData() || this.defaults;
         const userId = await this.getUserId();
         const deviceId = await this.getDeviceId();
@@ -142,7 +165,11 @@ export class StorageManager {
         return Boolean(data?.suppressQueue);
     }
 
-    public async setQueueingSuppressed(suppressed: boolean): Promise<void> {
+    public setQueueingSuppressed(suppressed: boolean): Promise<void> {
+        return this.exclusive(() => this.setQueueingSuppressedUnlocked(suppressed));
+    }
+
+    private async setQueueingSuppressedUnlocked(suppressed: boolean): Promise<void> {
         const data = await this.getData() || this.defaults;
         data.suppressQueue = suppressed;
         await this.setData(data);
@@ -183,7 +210,11 @@ export class StorageManager {
         return data?.changes?.length || 0;
     }
 
-    public async clearQueuedChanges(): Promise<void> {
+    public clearQueuedChanges(): Promise<void> {
+        return this.exclusive(() => this.clearQueuedChangesUnlocked());
+    }
+
+    private async clearQueuedChangesUnlocked(): Promise<void> {
         const data = await this.getData();
         if (data) {
             data.changes = [];
@@ -191,12 +222,38 @@ export class StorageManager {
         }
     }
 
-    public async updateLastSync(): Promise<void> {
+    public updateLastSync(): Promise<void> {
+        return this.exclusive(() => this.updateLastSyncUnlocked());
+    }
+
+    private async updateLastSyncUnlocked(): Promise<void> {
         const data = await this.getData();
         if (data) {
             data.lastSync = Date.now();
             await this.setData(data);
         }
+    }
+
+    // Local masterId -> browser id map, written after each apply. Later creates, updates and
+    // deletes use it to find items the master no longer lists. A null localId is a tombstone:
+    // the delete was applied, so a re-delivered delete does nothing.
+    public async getMasterIdMap(): Promise<MasterIdMap> {
+        const data = await this.localGet('masterIdMap');
+        return (data.masterIdMap as MasterIdMap) || {};
+    }
+
+    public async setMasterIdMap(map: MasterIdMap): Promise<void> {
+        await this.localSet({ masterIdMap: map });
+    }
+
+    // Retry count for a pull window that failed to apply cleanly. Keyed by the window start.
+    public async getPullFailure(): Promise<{ since: number; attempts: number } | null> {
+        const data = await this.localGet('pullFailure');
+        return (data.pullFailure as { since: number; attempts: number } | null) || null;
+    }
+
+    public async setPullFailure(value: { since: number; attempts: number } | null): Promise<void> {
+        await this.localSet({ pullFailure: value });
     }
 
     public async debugCurrentState(): Promise<void> {
@@ -255,7 +312,11 @@ export class StorageManager {
         return browserInstanceId;
     }
 
-    public async setBrowserInstanceId(id: string): Promise<void> {
+    public setBrowserInstanceId(id: string): Promise<void> {
+        return this.exclusive(() => this.setBrowserInstanceIdUnlocked(id));
+    }
+
+    private async setBrowserInstanceIdUnlocked(id: string): Promise<void> {
         const data = await this.getData() || this.defaults;
         await this.setData({
             ...data,
@@ -274,7 +335,11 @@ export class StorageManager {
         return data?.collectionName || 'Master Collection';
     }
 
-    public async setCollection(id: string | null, name: string): Promise<void> {
+    public setCollection(id: string | null, name: string): Promise<void> {
+        return this.exclusive(() => this.setCollectionUnlocked(id, name));
+    }
+
+    private async setCollectionUnlocked(id: string | null, name: string): Promise<void> {
         const data = await this.getData() || this.defaults;
         await this.setData({
             ...data,
@@ -299,7 +364,11 @@ export class StorageManager {
         return auth?.token || '';
     }
 
-    public async setAuth(auth: { token: string; user: { id: string; email: string; displayName: string | null } }): Promise<void> {
+    public setAuth(auth: { token: string; user: { id: string; email: string; displayName: string | null } }): Promise<void> {
+        return this.exclusive(() => this.setAuthUnlocked(auth));
+    }
+
+    private async setAuthUnlocked(auth: { token: string; user: { id: string; email: string; displayName: string | null } }): Promise<void> {
         const data = await this.getData() || this.defaults;
         await this.setData({
             ...data,
@@ -308,7 +377,11 @@ export class StorageManager {
         });
     }
 
-    public async clearAuth(): Promise<void> {
+    public clearAuth(): Promise<void> {
+        return this.exclusive(() => this.clearAuthUnlocked());
+    }
+
+    private async clearAuthUnlocked(): Promise<void> {
         const data = await this.getData() || this.defaults;
         await this.setData({
             ...data,

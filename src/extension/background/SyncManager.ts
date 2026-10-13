@@ -1,6 +1,9 @@
-import { StorageManager } from './StorageManager';
+import { StorageManager, MasterIdMap } from './StorageManager';
 import { detectBrowser } from './utils/browserDetect';
 import { API_BASE_URL, WEBSITE_BASE_URL } from '../config';
+
+// Give up on a pull window after this many failed applies, so one bad change can't block sync forever.
+const MAX_PULL_ATTEMPTS = 5;
 
 interface SyncResponse {
     success: boolean;
@@ -11,6 +14,8 @@ interface SyncResponse {
     };
     changes?: any[];
     error?: string;
+    // Set when the server refused with a structured error (e.g. BROWSER_LIMIT_REACHED).
+    limitError?: { code: string; message: string; upgradeUrl: string };
     timestamp?: number;
 }
 
@@ -127,6 +132,20 @@ export class SyncManager {
             } catch (err) {
                 reject(err);
             }
+        });
+    }
+
+    // Exact-URL match over the local tree. Folders have no URL, so they never match.
+    private async findLocalBookmarksByUrl(url: string): Promise<chrome.bookmarks.BookmarkTreeNode[]> {
+        return new Promise((resolve, reject) => {
+            chrome.bookmarks.search({ url }, (results) => {
+                const error = chrome.runtime.lastError;
+                if (error) {
+                    reject(new Error(error.message));
+                } else {
+                    resolve(results.filter(r => r.url === url));
+                }
+            });
         });
     }
 
@@ -294,8 +313,15 @@ export class SyncManager {
                     await this.applyServerChanges(response.changes);
                 }
 
+                // The server now knows masterIds for what we pushed. Record them for later pulls.
+                await this.refreshMasterIdMap();
+
                 return true;
             } else {
+                if (response.limitError) {
+                    const { code, message, upgradeUrl } = response.limitError;
+                    throw new LimitError(message || response.error || 'Sync blocked by limit', code, upgradeUrl);
+                }
                 throw new Error(response.error || 'Sync failed');
             }
 
@@ -376,10 +402,29 @@ export class SyncManager {
             });
 
             if (!response.ok) {
+                // Keep the server's error code. Without it the popup can't show the
+                // upgrade prompt for BROWSER_LIMIT_REACHED and gets a bare status code.
+                const body = await response.json().catch(() => null);
+                if (body?.error?.code) {
+                    return {
+                        success: false,
+                        error: body.error.message || `Server returned ${response.status}`,
+                        limitError: {
+                            code: body.error.code,
+                            message: body.error.message || '',
+                            upgradeUrl: `${WEBSITE_BASE_URL}/upgrade`
+                        }
+                    };
+                }
                 throw new Error(`Server returned ${response.status}`);
             }
 
-            return await response.json();
+            const body = await response.json();
+            // The server sends structured failures as error objects. sync() needs a message string.
+            if (body?.success === false && body?.error && typeof body.error === 'object') {
+                return { success: false, error: body.error.message || 'Sync failed' };
+            }
+            return body;
         } catch (error) {
             console.error('Error sending changes:', error);
             return {
@@ -519,6 +564,7 @@ export class SyncManager {
             if (result.success) {
                 console.log('Initial sync completed successfully');
                 await this.storageManager.updateLastSync();
+                await this.refreshMasterIdMap();
                 return true;
             } else {
                 console.error('Initial sync failed:', result.error);
@@ -720,6 +766,21 @@ export class SyncManager {
         '0',             // Chrome / Chromium / Edge / Brave / Opera
         'root________',  // Firefox
     ]);
+
+    // System root kind by folder title. 1 = bookmarks bar, 2 = other, 3 = mobile.
+    private static readonly ROOT_KIND_BY_NAME: Record<string, '1' | '2' | '3'> = {
+        'bookmarks bar': '1', 'bookmarks toolbar': '1', 'toolbar': '1',
+        'favourites bar': '1', 'favorites bar': '1', 'bookmarks': '1', 'my bookmarks': '1',
+        'other bookmarks': '2', 'unfiled bookmarks': '2', 'unsorted bookmarks': '2',
+        'other favourites': '2', 'other favorites': '2', 'other': '2', 'bookmarks menu': '2',
+        'mobile bookmarks': '3', 'mobile': '3',
+    };
+
+    // System root kind by browser folder id. Chrome, Edge and Opera use 1/2/3. Firefox uses named ids.
+    private static readonly ROOT_KIND_BY_ID: Record<string, '1' | '2' | '3'> = {
+        '1': '1', '2': '2', '3': '3',
+        'toolbar_____': '1', 'unfiled_____': '2', 'menu________': '2', 'mobile______': '3',
+    };
 
     private processBookmarkTree(node: chrome.bookmarks.BookmarkTreeNode): { bookmarks: any[], folders: any[] } {
         const bookmarks: any[] = [];
@@ -1018,6 +1079,8 @@ export class SyncManager {
                     'Authorization': `Bearer ${authToken}`,
                     'X-Device-ID': deviceId,
                     'X-Browser-Instance-ID': browserInstanceId,
+                    // Acknowledged pull: the server moves our watermark only after we POST /pending/ack
+                    'X-Sync-Ack': '1',
                     ...collectionHeaders
                 }
             });
@@ -1046,9 +1109,13 @@ export class SyncManager {
             }
 
             const { changes, summary } = result.data;
+            // Ack-mode pulls return the cursor to acknowledge and the window start (for retry counting)
+            const cursor: number | undefined = result.data.cursor;
+            const since: number | undefined = result.data.since;
 
             if (summary.total === 0) {
                 console.log('No pending changes to apply');
+                if (cursor !== undefined) await this.ackPull(cursor, 0);
                 return {
                     success: true,
                     data: {
@@ -1068,9 +1135,19 @@ export class SyncManager {
                 deletes: { folders: 0, bookmarks: 0 }
             };
 
-            // Build a map of masterId -> local browserId for existing items
+            // Build a map of masterId -> local browserId for existing items. Matches come from the
+            // master (URL and path). The persisted map is merged in so items the master has already
+            // dropped (deleted) can still be found.
             const tree = await this.getBookmarkTree();
-            const { localFolderMap, localBookmarkMap } = await this.buildLocalIdMaps(tree[0]);
+            const { localFolderMap, localBookmarkMap, masterUrls } = await this.buildLocalIdMaps(tree[0]);
+            const nextMap: MasterIdMap = await this.storageManager.getMasterIdMap();
+            for (const [masterId, entry] of Object.entries(nextMap)) {
+                if (!entry.localId) continue; // tombstone: already deleted here
+                if (entry.kind === 'folder' && !localFolderMap.has(masterId)) localFolderMap.set(masterId, entry.localId);
+                if (entry.kind === 'bookmark' && !localBookmarkMap.has(masterId)) localBookmarkMap.set(masterId, entry.localId);
+            }
+            // Count of changes that threw. A nonzero count means the window is not acknowledged and will be retried.
+            let failures = 0;
 
             // 1. Create new folders (parent folders first)
             if (changes.creates.folders.length > 0) {
@@ -1083,6 +1160,24 @@ export class SyncManager {
 
                 for (const folder of sortedFolders) {
                     try {
+                        // Top-level bookmarks bar / other / mobile: map onto this browser's own root.
+                        // Creating a copy here is what produced a second "Bookmarks Bar" folder.
+                        const rootKind = this.systemRootKindOfMasterFolder(folder);
+                        if (rootKind) {
+                            folderIdMap[folder.masterId] = rootKind;
+                            localFolderMap.set(folder.masterId, rootKind);
+                            nextMap[folder.masterId] = { kind: 'folder', localId: rootKind };
+                            continue;
+                        }
+
+                        // Already here (matched earlier, or re-sent after a failed pull): reuse, don't duplicate
+                        const existing = await this.existingLocalId(localFolderMap, folder.masterId);
+                        if (existing) {
+                            folderIdMap[folder.masterId] = existing;
+                            nextMap[folder.masterId] = { kind: 'folder', localId: existing };
+                            continue;
+                        }
+
                         const parentId = await this.resolveParentIdForSync(
                             folder.masterParentId,
                             folder.parentId,
@@ -1098,9 +1193,11 @@ export class SyncManager {
 
                         folderIdMap[folder.masterId] = newFolder.id;
                         localFolderMap.set(folder.masterId, newFolder.id);
+                        nextMap[folder.masterId] = { kind: 'folder', localId: newFolder.id };
                         applied.creates.folders++;
                         console.log(`Created folder: ${folder.title} (${newFolder.id})`);
                     } catch (error) {
+                        failures++;
                         console.error(`Failed to create folder ${folder.title}:`, error);
                     }
                 }
@@ -1110,6 +1207,13 @@ export class SyncManager {
             if (changes.creates.bookmarks.length > 0) {
                 for (const bookmark of changes.creates.bookmarks) {
                     try {
+                        // Already here (re-sent after a failed pull): reuse, don't duplicate
+                        const existing = await this.existingLocalId(localBookmarkMap, bookmark.masterId);
+                        if (existing) {
+                            nextMap[bookmark.masterId] = { kind: 'bookmark', localId: existing };
+                            continue;
+                        }
+
                         const parentId = await this.resolveParentIdForSync(
                             bookmark.masterParentId,
                             bookmark.parentId,
@@ -1117,15 +1221,18 @@ export class SyncManager {
                             {}
                         );
 
-                        await this.createBookmarkNode({
+                        const created = await this.createBookmarkNode({
                             parentId,
                             title: bookmark.title,
                             url: bookmark.url
                         });
 
+                        localBookmarkMap.set(bookmark.masterId, created.id);
+                        nextMap[bookmark.masterId] = { kind: 'bookmark', localId: created.id };
                         applied.creates.bookmarks++;
                         console.log(`Created bookmark: ${bookmark.title}`);
                     } catch (error) {
+                        failures++;
                         console.error(`Failed to create bookmark ${bookmark.title}:`, error);
                     }
                 }
@@ -1135,17 +1242,18 @@ export class SyncManager {
             if (changes.updates.folders.length > 0) {
                 for (const folder of changes.updates.folders) {
                     try {
-                        const localId = localFolderMap.get(folder.masterId);
-                        if (localId) {
+                        const localId = await this.existingLocalId(localFolderMap, folder.masterId);
+                        if (localId && !SyncManager.isSystemRootId(localId)) {
                             await this.updateBookmarkNode(localId, {
                                 title: folder.title
                             });
                             applied.updates.folders++;
                             console.log(`Updated folder: ${folder.title}`);
-                        } else {
+                        } else if (!localId) {
                             console.warn(`Folder not found locally for update: ${folder.masterId}`);
                         }
                     } catch (error) {
+                        failures++;
                         console.error(`Failed to update folder ${folder.title}:`, error);
                     }
                 }
@@ -1155,7 +1263,7 @@ export class SyncManager {
             if (changes.updates.bookmarks.length > 0) {
                 for (const bookmark of changes.updates.bookmarks) {
                     try {
-                        const localId = localBookmarkMap.get(bookmark.masterId);
+                        const localId = await this.existingLocalId(localBookmarkMap, bookmark.masterId);
                         if (localId) {
                             await this.updateBookmarkNode(localId, {
                                 title: bookmark.title,
@@ -1167,6 +1275,7 @@ export class SyncManager {
                             console.warn(`Bookmark not found locally for update: ${bookmark.masterId}`);
                         }
                     } catch (error) {
+                        failures++;
                         console.error(`Failed to update bookmark ${bookmark.title}:`, error);
                     }
                 }
@@ -1176,13 +1285,32 @@ export class SyncManager {
             if (changes.deletes.bookmarks.length > 0) {
                 for (const bookmark of changes.deletes.bookmarks) {
                     try {
-                        const localId = localBookmarkMap.get(bookmark.masterId);
+                        if (nextMap[bookmark.masterId]?.localId === null) continue; // already applied
+                        const localId = await this.existingLocalId(localBookmarkMap, bookmark.masterId);
                         if (localId) {
                             await this.removeBookmarkNode(localId);
                             applied.deletes.bookmarks++;
+                            nextMap[bookmark.masterId] = { kind: 'bookmark', localId: null };
                             console.log(`Deleted bookmark: ${bookmark.title}`);
+                        } else if (bookmark.url && masterUrls && !masterUrls.has(this.normalizeUrl(bookmark.url))) {
+                            // Not in the persisted map (e.g. created locally and never matched). Fall back to the URL
+                            // on the delete record, only when no live master bookmark still uses that URL.
+                            const matches = await this.findLocalBookmarksByUrl(bookmark.url);
+                            for (const match of matches) {
+                                await this.removeBookmarkNode(match.id);
+                                applied.deletes.bookmarks++;
+                            }
+                            nextMap[bookmark.masterId] = { kind: 'bookmark', localId: null };
+                            console.log(`Deleted ${matches.length} local bookmark(s) by URL fallback: ${bookmark.title}`);
+                        } else if (!masterUrls) {
+                            // Can't tell whether it exists here without the master. Retry, don't drop it.
+                            throw new Error(`Cannot resolve delete for ${bookmark.title}: master collection unavailable`);
+                        } else {
+                            nextMap[bookmark.masterId] = { kind: 'bookmark', localId: null };
+                            console.log(`No local copy to delete for ${bookmark.title}`);
                         }
                     } catch (error) {
+                        failures++;
                         console.error(`Failed to delete bookmark ${bookmark.title}:`, error);
                     }
                 }
@@ -1192,26 +1320,57 @@ export class SyncManager {
             if (changes.deletes.folders.length > 0) {
                 for (const folder of changes.deletes.folders) {
                     try {
-                        const localId = localFolderMap.get(folder.masterId);
-                        if (localId) {
+                        if (nextMap[folder.masterId]?.localId === null) continue; // already applied
+                        const localId = await this.existingLocalId(localFolderMap, folder.masterId);
+                        if (localId && SyncManager.isSystemRootId(localId)) {
+                            // Never remove a browser's own bookmarks bar, other or mobile root
+                            console.warn(`Refusing to delete system root for ${folder.title}`);
+                        } else if (localId) {
                             await this.removeBookmarkTree(localId);
                             applied.deletes.folders++;
+                            nextMap[folder.masterId] = { kind: 'folder', localId: null };
                             console.log(`Deleted folder: ${folder.title}`);
+                        } else if (!masterUrls) {
+                            throw new Error(`Cannot resolve delete for folder ${folder.title}: master collection unavailable`);
+                        } else {
+                            nextMap[folder.masterId] = { kind: 'folder', localId: null };
+                            console.log(`No local folder to delete for ${folder.title}`);
                         }
                     } catch (error) {
+                        failures++;
                         console.error(`Failed to delete folder ${folder.title}:`, error);
                     }
                 }
             }
 
-            // Acknowledge the sync to the server
-            await this.acknowledgeSyncDown(summary.total);
-            await this.storageManager.updateLastSync();
+            // Keep what was applied even if the ack below fails. Re-sent changes then find their items.
+            await this.storageManager.setMasterIdMap(nextMap);
+
+            if (failures > 0) {
+                // Don't acknowledge. The server keeps this window, so the next pull sends it again.
+                const retry = await this.storageManager.getPullFailure();
+                const attempts = retry && since !== undefined && retry.since === since ? retry.attempts + 1 : 1;
+                if (attempts < MAX_PULL_ATTEMPTS) {
+                    await this.storageManager.setPullFailure({ since: since ?? 0, attempts });
+                    console.warn(`${failures} change(s) failed to apply; will retry (attempt ${attempts} of ${MAX_PULL_ATTEMPTS})`);
+                    return {
+                        success: false,
+                        error: `${failures} change(s) could not be applied. Sync will retry them.`
+                    };
+                }
+                console.error(`Giving up on ${failures} change(s) after ${attempts} attempts. Advancing past them.`);
+            }
+            await this.storageManager.setPullFailure(null);
 
             const totalApplied =
                 applied.creates.folders + applied.creates.bookmarks +
                 applied.updates.folders + applied.updates.bookmarks +
                 applied.deletes.folders + applied.deletes.bookmarks;
+
+            if (cursor !== undefined) {
+                await this.ackPull(cursor, totalApplied);
+            }
+            await this.storageManager.updateLastSync();
 
             console.log(`Sync down complete. Applied ${totalApplied} changes.`);
 
@@ -1220,6 +1379,7 @@ export class SyncManager {
                 data: {
                     message: `Applied ${totalApplied} changes`,
                     applied,
+                    failed: failures,
                     summary
                 }
             };
@@ -1247,6 +1407,8 @@ export class SyncManager {
     private async buildLocalIdMaps(rootNode: chrome.bookmarks.BookmarkTreeNode): Promise<{
         localFolderMap: Map<string, string>;
         localBookmarkMap: Map<string, string>;
+        // Normalized URLs still live in the master collection; null when the fetch failed.
+        masterUrls: Set<string> | null;
     }> {
         const localFolderMap = new Map<string, string>();
         const localBookmarkMap = new Map<string, string>();
@@ -1256,7 +1418,7 @@ export class SyncManager {
         const masterCollection = await this.fetchMasterCollection();
         if (!masterCollection.success) {
             console.warn('Could not fetch master collection for ID mapping');
-            return { localFolderMap, localBookmarkMap };
+            return { localFolderMap, localBookmarkMap, masterUrls: null };
         }
 
         // Build URL -> masterId map for bookmarks
@@ -1280,6 +1442,13 @@ export class SyncManager {
             }
         }
 
+        // Master folder that stands for each system root (1 = bar, 2 = other, 3 = mobile)
+        const masterRootIdByKind = new Map<string, string>();
+        for (const f of masterCollection.data.folders || []) {
+            const kind = this.systemRootKindOfMasterFolder(f);
+            if (kind && f.masterId && !masterRootIdByKind.has(kind)) masterRootIdByKind.set(kind, f.masterId);
+        }
+
         // Now traverse local tree and match
         const processNode = (node: chrome.bookmarks.BookmarkTreeNode, pathParts: string[]) => {
             if (node.id === '0') {
@@ -1298,7 +1467,12 @@ export class SyncManager {
                     localBookmarkMap.set(masterId, node.id);
                 }
             } else {
-                // It's a folder
+                // It's a folder. Top-level system roots match by browser id, whatever this browser calls them
+                // (Chrome "Bookmarks bar", Edge "Favourites bar", Firefox id "toolbar_____").
+                const rootKind = pathParts.length === 0 ? SyncManager.ROOT_KIND_BY_ID[node.id] : undefined;
+                const masterRootId = rootKind ? masterRootIdByKind.get(rootKind) : undefined;
+                if (masterRootId) localFolderMap.set(masterRootId, node.id);
+
                 const currentPath = [...pathParts, node.title.toLowerCase()].join('/');
                 const masterId = masterFoldersByPath.get(currentPath);
                 if (masterId) {
@@ -1315,7 +1489,7 @@ export class SyncManager {
         processNode(rootNode, []);
 
         console.log(`Built local ID maps: ${localFolderMap.size} folders, ${localBookmarkMap.size} bookmarks`);
-        return { localFolderMap, localBookmarkMap };
+        return { localFolderMap, localBookmarkMap, masterUrls: new Set(masterBookmarksByUrl.keys()) };
     }
 
     private normalizeUrl(url: string): string {
@@ -1442,16 +1616,17 @@ export class SyncManager {
     }
 
     /**
-     * Acknowledge to the server that changes have been applied.
+     * Acknowledge an applied pull. The server moves this browser's watermark to `cursor`.
+     * If the ack is lost, the next pull repeats the window. Apply is idempotent, so that's safe.
      */
-    private async acknowledgeSyncDown(changesApplied: number): Promise<void> {
+    private async ackPull(cursor: number, changesApplied: number): Promise<void> {
         try {
             const authToken = await this.storageManager.getAuthToken();
             const browserInstanceId = await this.storageManager.getBrowserInstanceId();
             const deviceId = await this.storageManager.getDeviceId();
 
             const collectionHeaders = await this.getCollectionHeaders();
-            await fetch(`${this.API_ENDPOINT}/ack`, {
+            const response = await fetch(`${this.API_ENDPOINT}/pending/ack`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1460,11 +1635,70 @@ export class SyncManager {
                     'X-Browser-Instance-ID': browserInstanceId,
                     ...collectionHeaders
                 },
-                body: JSON.stringify({ changesApplied })
+                body: JSON.stringify({ cursor, changesApplied })
             });
+            if (!response.ok) {
+                console.warn(`Pull ack failed with status ${response.status}; the next pull will repeat this window`);
+            }
         } catch (error) {
-            console.error('Failed to acknowledge sync:', error);
-            // Don't throw - sync was successful even if ack fails
+            console.warn('Pull ack failed; the next pull will repeat this window:', error);
+        }
+    }
+
+    // Top-level folder that stands for one of the browser's system roots, or null.
+    // Matched by title, so it works across browsers: Chrome "Bookmarks bar", Edge "Favourites bar".
+    private systemRootKindOfMasterFolder(folder: any): '1' | '2' | '3' | null {
+        if (!folder || folder.masterParentId) return null; // nested folders are never system roots
+        const key = String(folder.title ?? '').trim().toLowerCase();
+        return SyncManager.ROOT_KIND_BY_NAME[key] ?? null;
+    }
+
+    private static isSystemRootId(id: string): boolean {
+        return id === '1' || id === '2' || id === '3';
+    }
+
+    // Local id for a masterId, if that node still exists. Drops stale map entries.
+    private async existingLocalId(map: Map<string, string>, masterId: string): Promise<string | undefined> {
+        const localId = map.get(masterId);
+        if (!localId) return undefined;
+        if (await this.localNodeExists(localId)) return localId;
+        map.delete(masterId);
+        return undefined;
+    }
+
+    private async localNodeExists(id: string): Promise<boolean> {
+        return new Promise((resolve) => {
+            chrome.bookmarks.get(id, (nodes) => {
+                const missing = Boolean(chrome.runtime.lastError) || !nodes || nodes.length === 0;
+                resolve(!missing);
+            });
+        });
+    }
+
+    private collectNodeIds(node: chrome.bookmarks.BookmarkTreeNode, ids: Set<string>): Set<string> {
+        ids.add(node.id);
+        for (const child of node.children || []) this.collectNodeIds(child, ids);
+        return ids;
+    }
+
+    // After a push the server has new masterIds for our items. Re-match from the master and persist,
+    // so the next pull recognises them. Entries whose local node is gone are pruned. Tombstones are kept.
+    private async refreshMasterIdMap(): Promise<void> {
+        try {
+            const tree = await this.getBookmarkTree();
+            const { localFolderMap, localBookmarkMap } = await this.buildLocalIdMaps(tree[0]);
+            const present = this.collectNodeIds(tree[0], new Set<string>());
+            const existing = await this.storageManager.getMasterIdMap();
+
+            const next: MasterIdMap = {};
+            for (const [masterId, entry] of Object.entries(existing)) {
+                if (entry.localId === null || present.has(entry.localId)) next[masterId] = entry;
+            }
+            for (const [masterId, localId] of localFolderMap) next[masterId] = { kind: 'folder', localId };
+            for (const [masterId, localId] of localBookmarkMap) next[masterId] = { kind: 'bookmark', localId };
+            await this.storageManager.setMasterIdMap(next);
+        } catch (error) {
+            console.warn('Could not refresh the masterId map after a push:', error);
         }
     }
 

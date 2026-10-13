@@ -56,19 +56,22 @@ export class BookmarkManager {
         }
     }
     
-    private async handleBookmarkRemoved(id: string): Promise<void> {
+    private async handleBookmarkRemoved(id: string, removeInfo?: chrome.bookmarks.BookmarkRemoveInfo): Promise<void> {
         try {
             if (await this.storageManager.isQueueingSuppressed()) {
                 return;
             }
             const userId = await this.storageManager.getUserId();
-            // We don't know if it was a folder or bookmark at this point
-            // The server will handle both cases the same way
+            // The removed node says whether it was a bookmark or a folder. Sending the type avoids a
+            // server-side guess, which picked the wrong table when browser ids repeated across browsers.
+            const removed = removeInfo?.node;
             await this.storageManager.queueChange({
                 type: 'DELETE',
                 data: {
-                    type: 'unknown', // Server will determine based on database lookup
+                    type: removed ? (removed.url ? 'bookmark' : 'folder') : 'unknown',
                     browserId: id,
+                    title: removed?.title,
+                    url: removed?.url,
                     userId
                 }
             });

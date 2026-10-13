@@ -13,6 +13,7 @@
 import { test as base, expect, type Page, type BrowserContext } from '@playwright/test';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 
 const BASE_URL = process.env.BOOKMARX_BASE_URL ?? 'http://localhost:3005';
 const API = `${BASE_URL}/api/v1`;
@@ -110,7 +111,7 @@ export async function cleanup(auth: AuthState | null): Promise<void> {
 let _context: BrowserContext | null = null;
 let _extensionId: string | null = null;
 
-async function createExtensionContext(): Promise<{ context: BrowserContext; extensionId: string }> {
+async function createExtensionContext(): Promise<{ context: BrowserContext; extensionId: string; userDataDir: string }> {
   if (!fs.existsSync(path.join(EXTENSION_DIR, 'manifest.json'))) {
     throw new Error(
       `Extension not built. Run: cd src/extension; npm run build:chrome\n` +
@@ -121,13 +122,11 @@ async function createExtensionContext(): Promise<{ context: BrowserContext; exte
   const { chromium } = await import('@playwright/test');
 
   // Launch persistent context with the extension loaded. This requires
-  // headless: false (Chrome limitation). We use a temp user-data-dir.
-  const userDataDir = path.join(__dirname, '../../.test-extension-profile');
-
-  // Clean up any leftover profile from a previous run to ensure fresh state
-  if (fs.existsSync(userDataDir)) {
-    fs.rmSync(userDataDir, { recursive: true, force: true });
-  }
+  // headless: false (Chrome limitation). Each test gets its own fresh temp
+  // user-data-dir. A shared fixed dir let one test's Chrome still hold the
+  // profile when the next test launched, so the new browser attached to the
+  // old one and the service worker never showed up (install/pending/popup timeouts).
+  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bookmarx-l3-profile-'));
 
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: false,
@@ -161,7 +160,7 @@ async function createExtensionContext(): Promise<{ context: BrowserContext; exte
     throw new Error('Could not determine extension ID — service worker not found');
   }
 
-  return { context, extensionId };
+  return { context, extensionId, userDataDir };
 }
 
 export function getExtensionId(): string {
@@ -301,14 +300,15 @@ export interface ExtensionFixtures {
 
 export const test = base.extend<ExtensionFixtures>({
   context: async ({}, use) => {
-    const { context, extensionId } = await createExtensionContext();
+    const { context, extensionId, userDataDir } = await createExtensionContext();
     _context = context;
     _extensionId = extensionId;
     await use(context);
-    // Close context after all tests in the file
+    // Close this test's browser, then remove its profile so nothing leaks into the next test
     await context.close();
     _context = null;
     _extensionId = null;
+    fs.rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
   },
   extensionId: async ({ context }, use) => {
     await use(_extensionId!);

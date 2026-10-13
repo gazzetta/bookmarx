@@ -507,7 +507,9 @@ export class DatabaseService {
             folder.title,
             folder.parentId,
             folder.masterParentId || null,
-            folder.position,
+            // The extension sends `index`, not `position`. position is NOT NULL, so folder creates
+            // without a default failed and were silently dropped (bookmarks already default to 0).
+            folder.position ?? folder.index ?? 0,
             folder.dateAdded,
             folder.sourceBrowser || folder.metadata?.deviceInfo?.browser || null,
             folder.sessionId || null,
@@ -578,7 +580,8 @@ export class DatabaseService {
             sync.collectionId ?? sync.details?.collectionId ?? null,
             sync.sessionId ?? sync.details?.sessionId ?? null,
             detailsJson,
-            Math.floor(Date.now() / 1000)
+            // An explicit timestamp is the pull cursor for acknowledged pulls; default is now.
+            sync.timestamp ?? Math.floor(Date.now() / 1000)
         );
 
         return result.lastInsertRowid;
@@ -617,13 +620,20 @@ export class DatabaseService {
     }
 
     public getLastSyncForBrowser(userId: string, browserInstanceId: string): number | null {
-        // Only count sync types where the browser RECEIVED data from master
-        // MERGE_IMPORT only sends data up, so it shouldn't count as having synced down
+        // The pull watermark. Only rows where the browser RECEIVED data count:
+        //   - INITIAL_IMPORT
+        //   - SYNC rows with details.kind = 'pull' (acknowledged pulls)
+        //   - legacy SYNC rows with no kind (written by older extensions on pull)
+        // Pushes (kind 'push') and master fetches (kind 'fetch') never advance it. Otherwise
+        // a browser's own push would skip changes other browsers made before it.
         const stmt = this.db.prepare(`
-            SELECT MAX(timestamp) as lastSync 
-            FROM sync_history 
+            SELECT MAX(timestamp) as lastSync
+            FROM sync_history
             WHERE userId = ? AND browserInstanceId = ? AND status = 'SUCCESS'
-              AND type IN ('INITIAL_IMPORT', 'SYNC')
+              AND (
+                type = 'INITIAL_IMPORT'
+                OR (type = 'SYNC' AND COALESCE(json_extract(detailsJson, '$.kind'), 'pull') = 'pull')
+              )
         `);
         const result = stmt.get(userId, browserInstanceId) as { lastSync: number | null };
         return result.lastSync;
@@ -1048,12 +1058,40 @@ export class DatabaseService {
         if (!collection || collection.isDefault) {
             return false;
         }
-        const stmt = this.db.prepare(`
-            DELETE FROM collections 
-            WHERE id = ? AND userId = ? AND isDefault = 0
-        `);
-        const result = stmt.run(collectionId, userId);
-        return result.changes > 0;
+        const defaultCollectionId = this.getDefaultCollection(userId)?.id ?? null;
+
+        // Other tables hold foreign keys to collections, so the DELETE alone fails with
+        // "FOREIGN KEY constraint failed" once the collection has been synced or viewed. Clear them first:
+        //  - the collection's bookmarks and folders go with it (the UI says so when a collection is archived)
+        //  - sync_history keeps its rows, without the collection link
+        //  - browsers viewing this collection switch to the default one
+        //  - collection_events for it are removed (they can't outlive their collection)
+        const deleteWithUnlinks = this.db.transaction(() => {
+            this.db.prepare(`
+                DELETE FROM bookmarks WHERE collectionId = ? AND userId = ?
+            `).run(collectionId, userId);
+            this.db.prepare(`
+                DELETE FROM folders WHERE collectionId = ? AND userId = ?
+            `).run(collectionId, userId);
+            this.db.prepare(`
+                UPDATE sync_history SET collectionId = NULL
+                WHERE collectionId = ? AND userId = ?
+            `).run(collectionId, userId);
+            this.db.prepare(`
+                DELETE FROM collection_events
+                WHERE collectionId = ? AND userId = ?
+            `).run(collectionId, userId);
+            this.db.prepare(`
+                UPDATE browsers SET currentCollectionId = ?
+                WHERE currentCollectionId = ? AND userId = ?
+            `).run(defaultCollectionId, collectionId, userId);
+            const result = this.db.prepare(`
+                DELETE FROM collections
+                WHERE id = ? AND userId = ? AND isDefault = 0
+            `).run(collectionId, userId);
+            return result.changes > 0;
+        });
+        return deleteWithUnlinks();
     }
 
     public getBrowsersUsingCollection(collectionId: string, userId: string): any[] {
@@ -1655,13 +1693,12 @@ export class DatabaseService {
         collectionLimit?: number;
         polarCustomerId?: string;
     }): boolean {
+        // Limits come from the tier settings (auth middleware), not from per-user columns. Those columns
+        // are gone from fresh schemas, so this statement must not write them.
         const stmt = this.db.prepare(`
-            UPDATE users 
+            UPDATE users
             SET subscriptionTier = COALESCE(?, subscriptionTier),
                 subscriptionExpiresAt = COALESCE(?, subscriptionExpiresAt),
-                bookmarkLimit = COALESCE(?, bookmarkLimit),
-                browserLimit = COALESCE(?, browserLimit),
-                collectionLimit = COALESCE(?, collectionLimit),
                 polarCustomerId = COALESCE(?, polarCustomerId),
                 updatedAt = strftime('%s', 'now')
             WHERE id = ?
@@ -1669,9 +1706,6 @@ export class DatabaseService {
         const result = stmt.run(
             updates.subscriptionTier,
             updates.subscriptionExpiresAt,
-            updates.bookmarkLimit,
-            updates.browserLimit,
-            updates.collectionLimit,
             updates.polarCustomerId,
             userId
         );
@@ -2067,7 +2101,7 @@ export class DatabaseService {
 
         if (folder.masterId) {
             // Cross-device delete via masterId
-            db.transaction(() => {
+            return db.transaction(() => {
                 const folderStmt = db.prepare(`
                     UPDATE folders 
                     SET status = 'deleted',
@@ -2106,7 +2140,7 @@ export class DatabaseService {
             })();
         } else {
             // Legacy delete via browserId + browserInstanceId
-            db.transaction(() => {
+            return db.transaction(() => {
                 const folderStmt = db.prepare(`
                     UPDATE folders 
                     SET status = 'deleted',
@@ -2464,6 +2498,60 @@ export class DatabaseService {
             WHERE masterId = ? AND userId = ? AND status = 'active'
         `);
         return stmt.get(masterId, userId);
+    }
+
+    // The active item this browser already created under this browserId, if any. Lets a re-sent
+    // CREATE return the existing item instead of adding a duplicate.
+    public findActiveCreatedMasterId(
+        kind: 'bookmarks' | 'folders',
+        browserId: string,
+        browserInstanceId: string,
+        userId: string,
+        collectionId: string | null
+    ): string | null {
+        const row = this.db.prepare(`
+            SELECT masterId FROM ${kind}
+            WHERE browserId = ? AND browserInstanceId = ? AND userId = ?
+              AND collectionId IS ? AND status = 'active'
+            ORDER BY updatedAt DESC
+            LIMIT 1
+        `).get(browserId, browserInstanceId, userId, collectionId) as { masterId: string } | undefined;
+        return row?.masterId ?? null;
+    }
+
+    // Whether an active item with this masterId is a bookmark or a folder. A masterId is global, so this works
+    // across browsers, unlike browserId.
+    public findMasterItemKind(masterId: string, userId: string): 'bookmark' | 'folder' | null {
+        const bookmark = this.db.prepare(`
+            SELECT 1 FROM bookmarks WHERE masterId = ? AND userId = ? AND status = 'active' LIMIT 1
+        `).get(masterId, userId);
+        if (bookmark) return 'bookmark';
+        const folder = this.db.prepare(`
+            SELECT 1 FROM folders WHERE masterId = ? AND userId = ? AND status = 'active' LIMIT 1
+        `).get(masterId, userId);
+        return folder ? 'folder' : null;
+    }
+
+    // Whether an active item with this browserId was created by this browser instance, and if so whether it is
+    // a bookmark or a folder. Scoped to the instance: browser ids repeat across browsers and accounts.
+    public findBrowserItemKind(browserId: string, browserInstanceId: string | undefined, userId: string): 'bookmark' | 'folder' | null {
+        if (!browserInstanceId) return null;
+        const bookmark = this.db.prepare(`
+            SELECT 1 FROM bookmarks
+            WHERE browserId = ? AND browserInstanceId = ? AND userId = ? AND status = 'active'
+            LIMIT 1
+        `).get(browserId, browserInstanceId, userId);
+        if (bookmark) return 'bookmark';
+        const folder = this.db.prepare(`
+            SELECT 1 FROM folders
+            WHERE browserId = ? AND browserInstanceId = ? AND userId = ? AND status = 'active'
+            LIMIT 1
+        `).get(browserId, browserInstanceId, userId);
+        return folder ? 'folder' : null;
+    }
+
+    public normalizeBrowserItemId(rawBrowserId: unknown, browserInstanceId: unknown, prefix: 'folder' | 'bookmark'): string {
+        return this.normalizeEntityBrowserId(rawBrowserId, browserInstanceId, prefix);
     }
 
     // Get folder masterId by browserId (for resolving parentId references)
