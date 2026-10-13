@@ -12,6 +12,12 @@ set -e
 
 # Folder this script is running from. On the live server this is /home/gazza/bookmarx.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Absolute path to this script file, plus its checksum BEFORE the git fetch
+# below. If the fetch updates deploy.sh itself, the copy currently executing
+# is stale, so we stop and ask the operator to re-run (see self-update check
+# after the git pull/clone block).
+SCRIPT_PATH="$SCRIPT_DIR/$(basename "${BASH_SOURCE[0]}")"
+SELF_HASH="$(sha256sum "$SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1 || echo "unknown")"
 # Set BOOKMARX_REPO_DIR=/path/to/repo to deploy a checkout living somewhere else.
 REPO_DIR="${BOOKMARX_REPO_DIR:-$SCRIPT_DIR}"
 # The website itself lives one level down, under src/website.
@@ -85,6 +91,18 @@ elif [ -n "$(ls -A "$REPO_DIR" 2>/dev/null)" ]; then
 else
     log_info "Cloning repository..."
     run_as_app_user "git clone -b \"$BRANCH\" \"$REPO_URL\" \"$REPO_DIR\""
+fi
+
+# Self-update check: if the fetch above pulled down a newer version of this
+# script, the copy currently executing is stale. Stop here (this is not a
+# failure) so the operator re-runs the new version from the top. Deliberately
+# placed before anything is built, restarted or reloaded.
+NEW_HASH="$(sha256sum "$SCRIPT_PATH" 2>/dev/null | cut -d' ' -f1 || echo "unknown")"
+if [ "$SELF_HASH" != "$NEW_HASH" ]; then
+    log_warn "This pull updated deploy.sh itself, so the copy now running is out of date."
+    log_warn "Nothing has been built, restarted or deployed. Please run the deploy command again:"
+    log_warn "  cd \"$REPO_DIR\" && sudo ./deploy.sh"
+    exit 1
 fi
 
 # Now that the repo is present, verify the layout this script expects:
