@@ -130,8 +130,23 @@ fi
 
 # Install dependencies and build
 cd "$WEBSITE_DIR"
-log_info "Installing dependencies..."
-run_as_app_user "cd \"$WEBSITE_DIR\" && npm ci"
+# Skip the full reinstall when nothing relevant changed: hash the dependency
+# manifests plus the node version (a node upgrade requires the native SQLite
+# driver to be rebuilt even if the lockfile is untouched). The hash file is
+# server-local state, survives `git reset --hard` (untracked) and is ignored
+# by git. First deploy after this change installs once, then skips.
+DEPS_HASH_FILE="$WEBSITE_DIR/.deploy-deps.hash"
+DEPS_HASH="$(cat "$WEBSITE_DIR/package.json" "$WEBSITE_DIR/package-lock.json" 2>/dev/null | sha256sum | cut -d' ' -f1)-$(node -v 2>/dev/null || echo "no-node")"
+if [ -f "$DEPS_HASH_FILE" ] && [ "$(cat "$DEPS_HASH_FILE" 2>/dev/null)" = "$DEPS_HASH" ] && [ -d "$WEBSITE_DIR/node_modules" ]; then
+    log_info "Dependencies unchanged (and node_modules present), skipping npm ci..."
+else
+    log_info "Installing dependencies..."
+    run_as_app_user "cd \"$WEBSITE_DIR\" && npm ci"
+    echo "$DEPS_HASH" > "$DEPS_HASH_FILE"
+    if [ "$IS_ROOT" = true ]; then
+        chown "$APP_USER:$APP_USER" "$DEPS_HASH_FILE"
+    fi
+fi
 
 log_info "Building unified app..."
 run_as_app_user "cd \"$WEBSITE_DIR\" && npm run build"
