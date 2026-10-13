@@ -54,8 +54,10 @@ Thumbs.db
 *.db-journal
 *.sqlite
 
+# TypeScript incremental build info (stale caches cause phantom errors)
+*.tsbuildinfo
+
 # ---- Test harness (root tests/ workspace) ----
 test-results.junit.xml
 coverage/
 .vitest/
-src/website/*.tsbuildinfo
