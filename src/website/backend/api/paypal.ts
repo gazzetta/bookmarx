@@ -3,6 +3,7 @@
  * Used by checkout.ts and webhooks/paypal.ts.
  */
 
+import { db } from '../db/database';
 let cachedToken: string | null = null;
 let tokenExpiresAt = 0;
 
@@ -28,6 +29,7 @@ export async function getAccessToken(): Promise<string> {
     }
 
     const response = await fetch(`${base}/v1/oauth2/token`, {
+        signal: AbortSignal.timeout(15000),
         method: 'POST',
         headers: {
             Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
@@ -54,23 +56,24 @@ export interface PayPalPlanConfig {
 }
 
 export function getPlanConfig(plan: string): PayPalPlanConfig | null {
+    const prices = db.getAppConfig().pricing;
     switch (plan) {
         case 'monthly':
             return {
                 planId: process.env.PAYPAL_MONTHLY_PLAN_ID || '',
-                amount: 249,
+                amount: prices.monthly,
                 planType: 'monthly',
             };
         case 'yearly':
             return {
                 planId: process.env.PAYPAL_YEARLY_PLAN_ID || '',
-                amount: 2499,
+                amount: prices.yearly,
                 planType: 'yearly',
             };
         case 'lifetime':
             return {
                 planId: process.env.PAYPAL_LIFETIME_PRODUCT_ID || '',
-                amount: 4999,
+                amount: prices.lifetime,
                 planType: 'lifetime',
             };
         default:

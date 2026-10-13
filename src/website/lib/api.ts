@@ -1,4 +1,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || ''
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) { super(message); this.name = 'ApiError' }
+}
 
 export interface User {
   id: string
@@ -182,7 +185,7 @@ async function fetchApi<T>(
   const data = await response.json()
 
   if (!response.ok || !data.success) {
-    throw new Error(data.error?.message || 'API request failed')
+    throw new ApiError(data.error?.message || 'API request failed', response.status, data.error?.code)
   }
 
   return data.data
@@ -348,6 +351,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ orderID }),
     }, token),
+  confirmSubscription: (token: string, subscriptionID: string) =>
+    fetchApi<{ status: string }>('/api/v1/checkout/confirm-subscription', { method: 'POST', body: JSON.stringify({ subscriptionID }) }, token),
 
   // Editor changes
   applyChanges: (token: string, collectionId: string, changes: EditorChange[]) => {
@@ -362,6 +367,7 @@ export const api = {
     }
 
     const transformed = changes.map(c => {
+      c.operationId ||= crypto.randomUUID();
       const mapped: Record<string, unknown> = { ...c, type: typeMap[c.type] || c.type }
       if (c.type === 'RENAME') { mapped.newTitle = c.title }
       if (c.type === 'MOVE') { mapped.newParentId = c.parentId }
@@ -381,10 +387,12 @@ export const api = {
 }
 
 export interface EditorChange {
+  operationId?: string
+  copyTempIds?: Record<string, string>
   type: 'MOVE' | 'RENAME' | 'UPDATE_URL' | 'DELETE' | 'CREATE_FOLDER' | 'CREATE_BOOKMARK' | 'COPY_FROM'
   itemType: 'folder' | 'bookmark'
   itemId?: string
-  parentId?: string
+  parentId?: string | null
   position?: number
   title?: string
   url?: string

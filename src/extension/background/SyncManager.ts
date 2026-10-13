@@ -1,9 +1,9 @@
 import { StorageManager, MasterIdMap } from './StorageManager';
 import { detectBrowser } from './utils/browserDetect';
 import { API_BASE_URL, WEBSITE_BASE_URL } from '../config';
+import { BookmarkRoots, RootKind, ROOT_LABELS } from './utils/bookmarkRoots';
 
-// Give up on a pull window after this many failed applies, so one bad change can't block sync forever.
-const MAX_PULL_ATTEMPTS = 5;
+// Failed pull windows remain unacknowledged until every item has been applied.
 
 interface SyncResponse {
     success: boolean;
@@ -63,12 +63,17 @@ export class SyncManager {
     private readonly API_BASE = `${API_BASE_URL}/api/v1`;
     private readonly API_ENDPOINT = `${this.API_BASE}/sync`;
     private appConfig: any = null;
+    private roots?: BookmarkRoots;
 
-    constructor(private storageManager: StorageManager) { }
+    constructor(private storageManager: StorageManager) {
+        chrome.alarms?.onAlarm?.addListener((alarm) => {
+            if (alarm.name === 'sync') void this.checkForPendingChanges();
+        });
+    }
 
     private async getCollectionHeaders(): Promise<Record<string, string>> {
         const collectionId = await this.storageManager.getCollectionId();
-        return collectionId ? { 'X-Collection-ID': collectionId } : {};
+        return { 'X-Sync-Version': '2', ...(collectionId ? { 'X-Collection-ID': collectionId } : {}) };
     }
 
     // Firefox's chrome.bookmarks.* APIs use callbacks, NOT Promises.
@@ -102,7 +107,9 @@ export class SyncManager {
     }
 
     private async createBookmarkNode(details: { parentId: string; title: string; url?: string; index?: number }): Promise<chrome.bookmarks.BookmarkTreeNode> {
-        return new Promise((resolve, reject) => {
+        const eventId = await this.storageManager.expectBookmarkEvent({ type: 'CREATE', parentId: details.parentId, title: details.title, url: details.url });
+        try {
+        return await new Promise((resolve, reject) => {
             try {
                 chrome.bookmarks.create(details, (result) => {
                     const error = chrome.runtime.lastError;
@@ -116,6 +123,29 @@ export class SyncManager {
                 reject(err);
             }
         });
+        } catch (error) {
+            await this.storageManager.cancelBookmarkEvent(eventId);
+            throw error;
+        }
+    }
+
+    private async createMasterNode(masterId: string, kind: 'folder' | 'bookmark', details: { parentId: string; title: string; url?: string; index?: number }): Promise<chrome.bookmarks.BookmarkTreeNode> {
+        const pending = await this.storageManager.getCreateIntent(masterId);
+        if (pending) {
+            const candidates = (await this.getBookmarkChildren(pending.details.parentId)).filter(node =>
+                !pending.beforeIds.includes(node.id) && node.title === pending.details.title && node.url === pending.details.url);
+            if (candidates.length > 1) throw new Error('An interrupted create is ambiguous; sync stopped to preserve both bookmarks');
+            if (candidates.length === 1) {
+                await this.storageManager.finishMasterCreate(masterId, kind, candidates[0].id);
+                return candidates[0];
+            }
+        }
+        await this.storageManager.saveCreateIntent(masterId, { details, beforeIds: (await this.getBookmarkChildren(details.parentId)).map(node => node.id) });
+        let node: chrome.bookmarks.BookmarkTreeNode;
+        try { node = await this.createBookmarkNode(details); }
+        catch (error) { await this.storageManager.cancelMasterCreate(masterId); throw error; }
+        await this.storageManager.finishMasterCreate(masterId, kind, node.id);
+        return node;
     }
 
     private async getBookmarkChildren(parentId: string): Promise<chrome.bookmarks.BookmarkTreeNode[]> {
@@ -150,7 +180,9 @@ export class SyncManager {
     }
 
     private async removeBookmarkNode(id: string): Promise<void> {
-        return new Promise((resolve, reject) => {
+        const eventId = await this.storageManager.expectBookmarkEvent({ type: 'DELETE', id });
+        try {
+        return await new Promise((resolve, reject) => {
             try {
                 chrome.bookmarks.remove(id, () => {
                     const error = chrome.runtime.lastError;
@@ -164,10 +196,16 @@ export class SyncManager {
                 reject(err);
             }
         });
+        } catch (error) {
+            await this.storageManager.cancelBookmarkEvent(eventId);
+            throw error;
+        }
     }
 
     private async removeBookmarkTree(id: string): Promise<void> {
-        return new Promise((resolve, reject) => {
+        const eventId = await this.storageManager.expectBookmarkEvent({ type: 'DELETE', id });
+        try {
+        return await new Promise((resolve, reject) => {
             try {
                 chrome.bookmarks.removeTree(id, () => {
                     const error = chrome.runtime.lastError;
@@ -181,10 +219,16 @@ export class SyncManager {
                 reject(err);
             }
         });
+        } catch (error) {
+            await this.storageManager.cancelBookmarkEvent(eventId);
+            throw error;
+        }
     }
 
     private async updateBookmarkNode(id: string, changes: chrome.bookmarks.BookmarkChangesArg): Promise<chrome.bookmarks.BookmarkTreeNode> {
-        return new Promise((resolve, reject) => {
+        const eventId = await this.storageManager.expectBookmarkEvent({ type: 'UPDATE', id });
+        try {
+        return await new Promise((resolve, reject) => {
             try {
                 chrome.bookmarks.update(id, changes, (result) => {
                     const error = chrome.runtime.lastError;
@@ -198,10 +242,16 @@ export class SyncManager {
                 reject(err);
             }
         });
+        } catch (error) {
+            await this.storageManager.cancelBookmarkEvent(eventId);
+            throw error;
+        }
     }
 
     private async moveBookmarkNode(id: string, destination: { parentId?: string; index?: number }): Promise<chrome.bookmarks.BookmarkTreeNode> {
-        return new Promise((resolve, reject) => {
+        const eventId = await this.storageManager.expectBookmarkEvent({ type: 'MOVE', id });
+        try {
+        return await new Promise((resolve, reject) => {
             try {
                 chrome.bookmarks.move(id, destination, (result) => {
                     const error = chrome.runtime.lastError;
@@ -215,6 +265,10 @@ export class SyncManager {
                 reject(err);
             }
         });
+        } catch (error) {
+            await this.storageManager.cancelBookmarkEvent(eventId);
+            throw error;
+        }
     }
 
     // Check response for auth errors and handle accordingly
@@ -235,6 +289,7 @@ export class SyncManager {
     }
 
     public async initialize(): Promise<void> {
+        await this.recoverReplacement();
         // Fetch config on init
         await this.fetchAppConfig();
 
@@ -302,9 +357,10 @@ export class SyncManager {
             console.log('Server response:', response);
 
             if (response.success) {
+                await this.rememberServerIdentities(response.data?.processed || []);
                 // Clear the synced changes only if we had any
                 if (changes.length > 0) {
-                    await this.storageManager.clearQueuedChanges();
+                    await this.storageManager.removeQueuedChanges(changes);
                     await this.storageManager.updateLastSync();
                 }
 
@@ -359,9 +415,15 @@ export class SyncManager {
             };
 
             // Format changes with proper metadata
-            const formattedChanges = changes.map(change => ({
+            const identities = await this.storageManager.getMasterIdMap();
+            const masterByLocal = new Map(Object.entries(identities).filter(([, value]) => value.localId).map(([key, value]) => [value.localId!, key]));
+            const outgoingChanges = changes.map(change => ({
+                operationId: change.operationId,
                 type: change.type,
                 data: {
+                    masterId: change.type === 'CREATE' ? undefined : change.data.masterId || masterByLocal.get(change.data.browserId || change.data.id),
+                    masterParentId: change.data.masterParentId ?? masterByLocal.get(change.data.parentId),
+                    rootKind: change.data.rootKind,
                     type: change.data.type,
                     id: change.data.id || change.data.browserId,
                     browserId: change.data.browserId || change.data.id,
@@ -369,6 +431,7 @@ export class SyncManager {
                     url: change.data.url,
                     parentId: change.data.parentId,
                     index: change.data.index,
+                    position: change.data.position,
                     dateAdded: change.data.dateAdded
                 },
                 metadata: {
@@ -379,6 +442,7 @@ export class SyncManager {
                 timestamp: Date.now()
             }));
 
+            const formattedChanges = await this.storageManager.freezeOutgoingChanges(outgoingChanges);
             const collectionHeaders = await this.getCollectionHeaders();
             const response = await fetch(this.API_ENDPOINT, {
                 method: 'POST',
@@ -412,7 +476,7 @@ export class SyncManager {
                         limitError: {
                             code: body.error.code,
                             message: body.error.message || '',
-                            upgradeUrl: `${WEBSITE_BASE_URL}/upgrade`
+                            upgradeUrl: `${WEBSITE_BASE_URL}/settings/subscription`
                         }
                     };
                 }
@@ -451,6 +515,7 @@ export class SyncManager {
             // ... (bookmark tree processing and device info logic remains the same) ...
 
             // Get all bookmarks using safe wrapper
+            const queuedAtStart = await this.storageManager.getQueuedChanges();
             const tree = await this.getBookmarkTree();
             const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
 
@@ -485,6 +550,7 @@ export class SyncManager {
             console.log('\nSending initial sync request to server...');
             const userId = await this.storageManager.getUserId();
             const deviceId = await this.storageManager.getDeviceId();
+            const operationId = await this.storageManager.beginSnapshot({ bookmarks, folders, mode: 'initial' });
             const collectionHeaders = await this.getCollectionHeaders();
             const response = await fetch(`${this.API_ENDPOINT}/initial`, {
                 method: 'POST',
@@ -496,6 +562,7 @@ export class SyncManager {
                     ...collectionHeaders
                 },
                 body: JSON.stringify({
+                    operationId,
                     bookmarks,
                     folders,
                     userId,
@@ -531,7 +598,7 @@ export class SyncManager {
                         `You have ${attemptedToAdd} bookmarks but the free plan only allows ${limit}. ` +
                         `Please upgrade to ${premiumTitle} for ${premiumBookmarks.toLocaleString()} bookmarks.`,
                         'BOOKMARK_LIMIT_REACHED',
-                        result.error.upgradeUrl || `${WEBSITE_BASE_URL}/upgrade`
+                        result.error.upgradeUrl || `${WEBSITE_BASE_URL}/settings/subscription`
                     );
                 }
 
@@ -541,7 +608,7 @@ export class SyncManager {
                         `You've reached your limit of ${limit} browsers. ` +
                         `Please remove a browser or upgrade to ${premiumTitle} for up to ${premiumBrowsers} browsers.`,
                         'BROWSER_LIMIT_REACHED',
-                        result.error.upgradeUrl || `${WEBSITE_BASE_URL}/upgrade`
+                        result.error.upgradeUrl || `${WEBSITE_BASE_URL}/settings/subscription`
                     );
                 }
 
@@ -549,7 +616,7 @@ export class SyncManager {
                     throw new LimitError(
                         `You've registered too many browsers recently. Please wait or upgrade to ${premiumTitle}.`,
                         'BROWSER_REGISTRATION_RATE_LIMITED',
-                        result.error.upgradeUrl || `${WEBSITE_BASE_URL}/upgrade`
+                        result.error.upgradeUrl || `${WEBSITE_BASE_URL}/settings/subscription`
                     );
                 }
 
@@ -563,6 +630,9 @@ export class SyncManager {
 
             if (result.success) {
                 console.log('Initial sync completed successfully');
+                await this.rememberServerIdentities(result.data?.processed || []);
+                await this.storageManager.removeQueuedChanges(queuedAtStart);
+                await this.storageManager.completeSnapshot();
                 await this.storageManager.updateLastSync();
                 await this.refreshMasterIdMap();
                 return true;
@@ -581,6 +651,10 @@ export class SyncManager {
     }
 
     public async overwriteRemote(): Promise<{ success: boolean; data?: any; error?: string }> {
+        return this.withOperationLock(() => this.overwriteRemoteUnlocked());
+    }
+
+    private async overwriteRemoteUnlocked(): Promise<{ success: boolean; data?: any; error?: string }> {
         try {
             console.log('\n=== Starting Overwrite Remote ===');
 
@@ -593,6 +667,7 @@ export class SyncManager {
                 throw new Error('Not authenticated');
             }
 
+            const queuedAtStart = await this.storageManager.getQueuedChanges();
             const tree = await this.getBookmarkTree();
             const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
 
@@ -620,6 +695,7 @@ export class SyncManager {
 
             const userId = await this.storageManager.getUserId();
             const deviceId = await this.storageManager.getDeviceId();
+            const operationId = await this.storageManager.beginSnapshot({ bookmarks, folders, mode: 'replace' });
             const collectionHeaders = await this.getCollectionHeaders();
             const response = await fetch(`${this.API_ENDPOINT}/initial`, {
                 method: 'POST',
@@ -631,6 +707,8 @@ export class SyncManager {
                     ...collectionHeaders
                 },
                 body: JSON.stringify({
+                    operationId,
+                    mode: 'replace',
                     bookmarks,
                     folders,
                     userId,
@@ -648,6 +726,9 @@ export class SyncManager {
 
             if (result.success) {
                 console.log('Overwrite remote completed successfully');
+                await this.rememberServerIdentities(result.data?.processed || []);
+                await this.storageManager.removeQueuedChanges(queuedAtStart);
+                await this.storageManager.completeSnapshot();
                 await this.storageManager.updateLastSync();
                 return { success: true, data: result.data };
             } else {
@@ -663,6 +744,10 @@ export class SyncManager {
     }
 
     public async mergeIntoMaster(): Promise<{ success: boolean; data?: any; error?: string }> {
+        return this.withOperationLock(() => this.mergeIntoMasterUnlocked());
+    }
+
+    private async mergeIntoMasterUnlocked(): Promise<{ success: boolean; data?: any; error?: string }> {
         try {
             console.log('\n=== Starting Merge Into Master ===');
 
@@ -672,6 +757,7 @@ export class SyncManager {
             }
 
             // Get all bookmarks using safe wrapper
+            const queuedAtStart = await this.storageManager.getQueuedChanges();
             const tree = await this.getBookmarkTree();
             const { bookmarks, folders } = this.processBookmarkTree(tree[0]);
 
@@ -705,6 +791,7 @@ export class SyncManager {
             console.log('\nSending merge request to server...');
             const userId = await this.storageManager.getUserId();
             const deviceId = await this.storageManager.getDeviceId();
+            const operationId = await this.storageManager.beginSnapshot({ bookmarks, folders, mode: 'merge' });
             const collectionHeaders = await this.getCollectionHeaders();
             const response = await fetch(`${this.API_ENDPOINT}/merge`, {
                 method: 'POST',
@@ -716,6 +803,7 @@ export class SyncManager {
                     ...collectionHeaders
                 },
                 body: JSON.stringify({
+                    operationId,
                     bookmarks,
                     folders,
                     userId,
@@ -739,8 +827,11 @@ export class SyncManager {
 
             if (result.success) {
                 console.log('Merge completed successfully');
+                await this.rememberServerIdentities(result.data?.processed || []);
+                await this.storageManager.removeQueuedChanges(queuedAtStart);
+                await this.storageManager.completeSnapshot();
                 await this.storageManager.updateLastSync();
-                await this.storageManager.clearQueuedChanges();
+                await this.storageManager.removeQueuedChanges(queuedAtStart);
                 return {
                     success: true,
                     data: result.data
@@ -785,8 +876,10 @@ export class SyncManager {
     private processBookmarkTree(node: chrome.bookmarks.BookmarkTreeNode): { bookmarks: any[], folders: any[] } {
         const bookmarks: any[] = [];
         const folders: any[] = [];
+        const nativeRoots = new BookmarkRoots(node);
 
         const processNode = (node: chrome.bookmarks.BookmarkTreeNode) => {
+            if (nativeRoots.excludedIds.has(node.id)) return;
             const isRoot = SyncManager.ROOT_NODE_IDS.has(node.id);
 
             if (!isRoot) {
@@ -805,6 +898,7 @@ export class SyncManager {
                     folders.push({
                         id: node.id,
                         browserId: node.id,
+                        rootKind: nativeRoots.roles.get(node.id),
                         userId: 'default',
                         title: node.title,
                         parentId: node.parentId,
@@ -915,12 +1009,6 @@ export class SyncManager {
             periodInMinutes: interval / (60 * 1000)
         });
 
-        // Listen for alarm
-        chrome.alarms.onAlarm.addListener((alarm) => {
-            if (alarm.name === 'sync') {
-                this.checkForPendingChanges();
-            }
-        });
     }
 
     public async getSyncSummary(): Promise<SyncSummary> {
@@ -1057,6 +1145,10 @@ export class SyncManager {
      * the delta (new/updated/deleted items from other browsers).
      */
     public async syncDown(): Promise<{ success: boolean; data?: any; error?: string }> {
+        return this.withOperationLock(() => this.syncDownUnlocked());
+    }
+
+    private async syncDownUnlocked(): Promise<{ success: boolean; data?: any; error?: string }> {
         const wasSuppressed = await this.storageManager.isQueueingSuppressed();
         await this.storageManager.setQueueingSuppressed(true);
 
@@ -1081,6 +1173,7 @@ export class SyncManager {
                     'X-Browser-Instance-ID': browserInstanceId,
                     // Acknowledged pull: the server moves our watermark only after we POST /pending/ack
                     'X-Sync-Ack': '1',
+                    'X-Sync-Version': '2',
                     ...collectionHeaders
                 }
             });
@@ -1139,6 +1232,7 @@ export class SyncManager {
             // master (URL and path). The persisted map is merged in so items the master has already
             // dropped (deleted) can still be found.
             const tree = await this.getBookmarkTree();
+            this.roots = new BookmarkRoots(tree[0]);
             const { localFolderMap, localBookmarkMap, masterUrls } = await this.buildLocalIdMaps(tree[0]);
             const nextMap: MasterIdMap = await this.storageManager.getMasterIdMap();
             for (const [masterId, entry] of Object.entries(nextMap)) {
@@ -1154,9 +1248,18 @@ export class SyncManager {
                 const folderIdMap: Record<string, string> = {}; // masterId -> new local id
 
                 // Sort folders by creation time to handle parent-child ordering
-                const sortedFolders = [...changes.creates.folders].sort((a: any, b: any) =>
-                    (a.createdAt || 0) - (b.createdAt || 0)
-                );
+                const pending = new Map<string, any>(changes.creates.folders.map((folder: any) => [folder.masterId, folder]));
+                const sortedFolders: any[] = [];
+                const visiting = new Set<string>();
+                const visit = (folder: any) => {
+                    if (!pending.has(folder.masterId)) return;
+                    if (visiting.has(folder.masterId)) throw new Error('Remote collection contains a folder cycle');
+                    visiting.add(folder.masterId);
+                    const parent = pending.get(folder.masterParentId);
+                    if (parent) visit(parent);
+                    visiting.delete(folder.masterId); pending.delete(folder.masterId); sortedFolders.push(folder);
+                };
+                for (const folder of [...pending.values()].sort((a, b) => (a.position || 0) - (b.position || 0))) visit(folder);
 
                 for (const folder of sortedFolders) {
                     try {
@@ -1164,9 +1267,11 @@ export class SyncManager {
                         // Creating a copy here is what produced a second "Bookmarks Bar" folder.
                         const rootKind = this.systemRootKindOfMasterFolder(folder);
                         if (rootKind) {
-                            folderIdMap[folder.masterId] = rootKind;
-                            localFolderMap.set(folder.masterId, rootKind);
-                            nextMap[folder.masterId] = { kind: 'folder', localId: rootKind };
+                            const rootId = await this.existingLocalId(localFolderMap, folder.masterId) || await this.ensureLocalRoot(rootKind, folder.masterId);
+                            folderIdMap[folder.masterId] = rootId;
+                            localFolderMap.set(folder.masterId, rootId);
+                            nextMap[folder.masterId] = { kind: 'folder', localId: rootId };
+                            await this.storageManager.setMasterIdMap(nextMap);
                             continue;
                         }
 
@@ -1175,6 +1280,9 @@ export class SyncManager {
                         if (existing) {
                             folderIdMap[folder.masterId] = existing;
                             nextMap[folder.masterId] = { kind: 'folder', localId: existing };
+                            await this.storageManager.setMasterIdMap(nextMap);
+                            await this.applyRemotePlacement(existing, folder, localFolderMap, folderIdMap);
+                            await this.updateBookmarkNode(existing, { title: folder.title });
                             continue;
                         }
 
@@ -1186,14 +1294,16 @@ export class SyncManager {
                             folder.title
                         );
 
-                        const newFolder = await this.createBookmarkNode({
+                        const newFolder = await this.createMasterNode(folder.masterId, 'folder', {
                             parentId,
-                            title: folder.title
+                            title: folder.title,
+                            index: await this.safeIndex(parentId, folder.position)
                         });
 
                         folderIdMap[folder.masterId] = newFolder.id;
                         localFolderMap.set(folder.masterId, newFolder.id);
                         nextMap[folder.masterId] = { kind: 'folder', localId: newFolder.id };
+                            await this.storageManager.setMasterIdMap(nextMap);
                         applied.creates.folders++;
                         console.log(`Created folder: ${folder.title} (${newFolder.id})`);
                     } catch (error) {
@@ -1205,12 +1315,15 @@ export class SyncManager {
 
             // 2. Create new bookmarks
             if (changes.creates.bookmarks.length > 0) {
-                for (const bookmark of changes.creates.bookmarks) {
+                for (const bookmark of [...changes.creates.bookmarks].sort((a, b) => (a.position || 0) - (b.position || 0))) {
                     try {
                         // Already here (re-sent after a failed pull): reuse, don't duplicate
                         const existing = await this.existingLocalId(localBookmarkMap, bookmark.masterId);
                         if (existing) {
                             nextMap[bookmark.masterId] = { kind: 'bookmark', localId: existing };
+                            await this.storageManager.setMasterIdMap(nextMap);
+                            await this.applyRemotePlacement(existing, bookmark, localFolderMap, {});
+                            await this.updateBookmarkNode(existing, { title: bookmark.title, url: bookmark.url });
                             continue;
                         }
 
@@ -1221,14 +1334,16 @@ export class SyncManager {
                             {}
                         );
 
-                        const created = await this.createBookmarkNode({
+                        const created = await this.createMasterNode(bookmark.masterId, 'bookmark', {
                             parentId,
                             title: bookmark.title,
-                            url: bookmark.url
+                            url: bookmark.url,
+                            index: await this.safeIndex(parentId, bookmark.position)
                         });
 
                         localBookmarkMap.set(bookmark.masterId, created.id);
                         nextMap[bookmark.masterId] = { kind: 'bookmark', localId: created.id };
+                            await this.storageManager.setMasterIdMap(nextMap);
                         applied.creates.bookmarks++;
                         console.log(`Created bookmark: ${bookmark.title}`);
                     } catch (error) {
@@ -1243,14 +1358,15 @@ export class SyncManager {
                 for (const folder of changes.updates.folders) {
                     try {
                         const localId = await this.existingLocalId(localFolderMap, folder.masterId);
-                        if (localId && !SyncManager.isSystemRootId(localId)) {
+                        if (localId && !this.roots?.nativeIds.has(localId)) {
                             await this.updateBookmarkNode(localId, {
                                 title: folder.title
                             });
+                            await this.applyRemotePlacement(localId, folder, localFolderMap, {});
                             applied.updates.folders++;
                             console.log(`Updated folder: ${folder.title}`);
                         } else if (!localId) {
-                            console.warn(`Folder not found locally for update: ${folder.masterId}`);
+                            throw new Error(`Folder not found locally for update: ${folder.masterId}`);
                         }
                     } catch (error) {
                         failures++;
@@ -1269,10 +1385,11 @@ export class SyncManager {
                                 title: bookmark.title,
                                 url: bookmark.url
                             });
+                            await this.applyRemotePlacement(localId, bookmark, localFolderMap, {});
                             applied.updates.bookmarks++;
                             console.log(`Updated bookmark: ${bookmark.title}`);
                         } else {
-                            console.warn(`Bookmark not found locally for update: ${bookmark.masterId}`);
+                            throw new Error(`Bookmark not found locally for update: ${bookmark.masterId}`);
                         }
                     } catch (error) {
                         failures++;
@@ -1291,22 +1408,14 @@ export class SyncManager {
                             await this.removeBookmarkNode(localId);
                             applied.deletes.bookmarks++;
                             nextMap[bookmark.masterId] = { kind: 'bookmark', localId: null };
+                            await this.storageManager.setMasterIdMap(nextMap);
                             console.log(`Deleted bookmark: ${bookmark.title}`);
-                        } else if (bookmark.url && masterUrls && !masterUrls.has(this.normalizeUrl(bookmark.url))) {
-                            // Not in the persisted map (e.g. created locally and never matched). Fall back to the URL
-                            // on the delete record, only when no live master bookmark still uses that URL.
-                            const matches = await this.findLocalBookmarksByUrl(bookmark.url);
-                            for (const match of matches) {
-                                await this.removeBookmarkNode(match.id);
-                                applied.deletes.bookmarks++;
-                            }
-                            nextMap[bookmark.masterId] = { kind: 'bookmark', localId: null };
-                            console.log(`Deleted ${matches.length} local bookmark(s) by URL fallback: ${bookmark.title}`);
                         } else if (!masterUrls) {
                             // Can't tell whether it exists here without the master. Retry, don't drop it.
                             throw new Error(`Cannot resolve delete for ${bookmark.title}: master collection unavailable`);
                         } else {
                             nextMap[bookmark.masterId] = { kind: 'bookmark', localId: null };
+                            await this.storageManager.setMasterIdMap(nextMap);
                             console.log(`No local copy to delete for ${bookmark.title}`);
                         }
                     } catch (error) {
@@ -1322,18 +1431,20 @@ export class SyncManager {
                     try {
                         if (nextMap[folder.masterId]?.localId === null) continue; // already applied
                         const localId = await this.existingLocalId(localFolderMap, folder.masterId);
-                        if (localId && SyncManager.isSystemRootId(localId)) {
+                        if (localId && this.roots?.nativeIds.has(localId)) {
                             // Never remove a browser's own bookmarks bar, other or mobile root
                             console.warn(`Refusing to delete system root for ${folder.title}`);
                         } else if (localId) {
                             await this.removeBookmarkTree(localId);
                             applied.deletes.folders++;
                             nextMap[folder.masterId] = { kind: 'folder', localId: null };
+                            await this.storageManager.setMasterIdMap(nextMap);
                             console.log(`Deleted folder: ${folder.title}`);
                         } else if (!masterUrls) {
                             throw new Error(`Cannot resolve delete for folder ${folder.title}: master collection unavailable`);
                         } else {
                             nextMap[folder.masterId] = { kind: 'folder', localId: null };
+                            await this.storageManager.setMasterIdMap(nextMap);
                             console.log(`No local folder to delete for ${folder.title}`);
                         }
                     } catch (error) {
@@ -1350,15 +1461,8 @@ export class SyncManager {
                 // Don't acknowledge. The server keeps this window, so the next pull sends it again.
                 const retry = await this.storageManager.getPullFailure();
                 const attempts = retry && since !== undefined && retry.since === since ? retry.attempts + 1 : 1;
-                if (attempts < MAX_PULL_ATTEMPTS) {
-                    await this.storageManager.setPullFailure({ since: since ?? 0, attempts });
-                    console.warn(`${failures} change(s) failed to apply; will retry (attempt ${attempts} of ${MAX_PULL_ATTEMPTS})`);
-                    return {
-                        success: false,
-                        error: `${failures} change(s) could not be applied. Sync will retry them.`
-                    };
-                }
-                console.error(`Giving up on ${failures} change(s) after ${attempts} attempts. Advancing past them.`);
+                await this.storageManager.setPullFailure({ since: since ?? 0, attempts });
+                return { success: false, error: `${failures} change(s) could not be applied. They remain pending; sync will retry them.` };
             }
             await this.storageManager.setPullFailure(null);
 
@@ -1405,91 +1509,34 @@ export class SyncManager {
      * For now, we match by URL (bookmarks) and path (folders).
      */
     private async buildLocalIdMaps(rootNode: chrome.bookmarks.BookmarkTreeNode): Promise<{
-        localFolderMap: Map<string, string>;
-        localBookmarkMap: Map<string, string>;
-        // Normalized URLs still live in the master collection; null when the fetch failed.
-        masterUrls: Set<string> | null;
+        localFolderMap: Map<string, string>; localBookmarkMap: Map<string, string>; masterUrls: Set<string> | null;
     }> {
+        this.roots = new BookmarkRoots(rootNode);
         const localFolderMap = new Map<string, string>();
         const localBookmarkMap = new Map<string, string>();
-
-        // For now, we need to fetch the master collection to get masterId mappings
-        // In the future, we could store these locally during initial sync
-        const masterCollection = await this.fetchMasterCollection();
-        if (!masterCollection.success) {
-            console.warn('Could not fetch master collection for ID mapping');
-            return { localFolderMap, localBookmarkMap, masterUrls: null };
-        }
-
-        // Build URL -> masterId map for bookmarks
-        const masterBookmarksByUrl = new Map<string, string>();
-        for (const b of masterCollection.data.bookmarks || []) {
-            if (b.url && b.masterId) {
-                masterBookmarksByUrl.set(this.normalizeUrl(b.url), b.masterId);
-            }
-        }
-
-        // Build path -> masterId map for folders
-        const masterFoldersByPath = new Map<string, string>();
-        const masterFolderMap = new Map<string, any>();
-        for (const f of masterCollection.data.folders || []) {
-            masterFolderMap.set(f.masterId, f);
-        }
-        for (const f of masterCollection.data.folders || []) {
-            const path = this.buildFolderPath(f.masterId, masterFolderMap);
-            if (path && f.masterId) {
-                masterFoldersByPath.set(path.toLowerCase(), f.masterId);
-            }
-        }
-
-        // Master folder that stands for each system root (1 = bar, 2 = other, 3 = mobile)
-        const masterRootIdByKind = new Map<string, string>();
-        for (const f of masterCollection.data.folders || []) {
-            const kind = this.systemRootKindOfMasterFolder(f);
-            if (kind && f.masterId && !masterRootIdByKind.has(kind)) masterRootIdByKind.set(kind, f.masterId);
-        }
-
-        // Now traverse local tree and match
-        const processNode = (node: chrome.bookmarks.BookmarkTreeNode, pathParts: string[]) => {
-            if (node.id === '0') {
-                // Root node - process children
-                for (const child of node.children || []) {
-                    processNode(child, []);
-                }
-                return;
-            }
-
-            if (node.url) {
-                // It's a bookmark
-                const normalizedUrl = this.normalizeUrl(node.url);
-                const masterId = masterBookmarksByUrl.get(normalizedUrl);
-                if (masterId) {
-                    localBookmarkMap.set(masterId, node.id);
-                }
-            } else {
-                // It's a folder. Top-level system roots match by browser id, whatever this browser calls them
-                // (Chrome "Bookmarks bar", Edge "Favourites bar", Firefox id "toolbar_____").
-                const rootKind = pathParts.length === 0 ? SyncManager.ROOT_KIND_BY_ID[node.id] : undefined;
-                const masterRootId = rootKind ? masterRootIdByKind.get(rootKind) : undefined;
-                if (masterRootId) localFolderMap.set(masterRootId, node.id);
-
-                const currentPath = [...pathParts, node.title.toLowerCase()].join('/');
-                const masterId = masterFoldersByPath.get(currentPath);
-                if (masterId) {
-                    localFolderMap.set(masterId, node.id);
-                }
-
-                // Process children
-                for (const child of node.children || []) {
-                    processNode(child, [...pathParts, node.title.toLowerCase()]);
-                }
-            }
+        const localNodes = new Map<string, chrome.bookmarks.BookmarkTreeNode>();
+        const visit = (node: chrome.bookmarks.BookmarkTreeNode) => {
+            localNodes.set(node.id, node);
+            for (const child of node.children || []) visit(child);
         };
-
-        processNode(rootNode, []);
-
-        console.log(`Built local ID maps: ${localFolderMap.size} folders, ${localBookmarkMap.size} bookmarks`);
-        return { localFolderMap, localBookmarkMap, masterUrls: new Set(masterBookmarksByUrl.keys()) };
+        visit(rootNode);
+        const persisted = await this.storageManager.getMasterIdMap();
+        for (const [masterId, entry] of Object.entries(persisted)) {
+            if (entry.localId && localNodes.has(entry.localId)) (entry.kind === 'folder' ? localFolderMap : localBookmarkMap).set(masterId, entry.localId);
+        }
+        const master = await this.fetchMasterCollection();
+        if (!master.success) return { localFolderMap, localBookmarkMap, masterUrls: null };
+        const instance = await this.storageManager.getBrowserInstanceId();
+        for (const item of [...(master.data.folders || []), ...(master.data.bookmarks || [])]) {
+            const map = item.url === undefined ? localFolderMap : localBookmarkMap;
+            if (map.has(item.masterId)) continue;
+            const role = !item.url && BookmarkRoots.masterKind(item);
+            const rootId = role && this.roots.byKind.get(role);
+            if (rootId) map.set(item.masterId, rootId);
+            else if (item.browserInstanceId === instance && localNodes.has(item.browserId)) map.set(item.masterId, item.browserId);
+        }
+        return { localFolderMap, localBookmarkMap,
+            masterUrls: new Set((master.data.bookmarks || []).map((b: any) => this.normalizeUrl(b.url))) };
     }
 
     private normalizeUrl(url: string): string {
@@ -1515,9 +1562,9 @@ export class SyncManager {
             if (parsed.hash) {
                 normalized += parsed.hash;
             }
-            return normalized.toLowerCase();
+            return normalized;
         } catch {
-            return url.toLowerCase().trim();
+            return url.trim();
         }
     }
 
@@ -1544,75 +1591,18 @@ export class SyncManager {
      * Resolve a parent ID for creating a new item during sync down.
      * Tries masterParentId first, falls back to browser parentId mapping.
      */
-    private async resolveParentIdForSync(
-        masterParentId: string | null,
-        browserParentId: string | null,
-        localFolderMap: Map<string, string>,
-        newFolderIdMap: Record<string, string>,
-        folderTitle?: string
-    ): Promise<string> {
-        // First, try to find by masterParentId
+    private async resolveParentIdForSync(masterParentId: string | null, browserParentId: string | null,
+        localFolderMap: Map<string, string>, newFolderIdMap: Record<string, string>, _folderTitle?: string): Promise<string> {
         if (masterParentId) {
-            // Check in newly created folders this session
-            if (newFolderIdMap[masterParentId]) {
-                return newFolderIdMap[masterParentId];
-            }
-            // Check in existing local folders
-            const localId = localFolderMap.get(masterParentId);
-            if (localId) {
-                return localId;
-            }
+            const local = newFolderIdMap[masterParentId] || localFolderMap.get(masterParentId);
+            if (!local) throw new Error(`Parent folder is not available yet: ${masterParentId}`);
+            return local;
         }
-
-        // If the folder title matches a root folder name, map to the corresponding Chrome root ID
-        // This handles the case where the master collection has root-level folders from other browsers
-        // that should map to the current browser's native root folders
-        if (folderTitle) {
-            const normalizedTitle = folderTitle.toLowerCase().trim();
-            const rootFolderTitleMap: Record<string, string> = {
-                'bookmarks bar': '1',
-                'bookmarks toolbar': '1',
-                'toolbar': '1',
-                'favourites bar': '1',
-                'favorites bar': '1',
-                'other bookmarks': '2',
-                'unfiled bookmarks': '2',
-                'other': '2',
-                'other favourites': '2',
-                'other favorites': '2',
-                'mobile bookmarks': '3',
-                'mobile': '3',
-                'bookmarks menu': '2'
-            };
-            if (rootFolderTitleMap[normalizedTitle]) {
-                return rootFolderTitleMap[normalizedTitle];
-            }
-        }
-
-        // Fall back to browser root folder mapping
-        // Note: This mapping is used when syncing changes between browsers
-        // We need to map Firefox/Edge/Opera IDs to the current browser's root folder IDs
-        if (browserParentId) {
-            const rootMap: Record<string, string> = {
-                // Chrome/Brave/Chromium root IDs
-                '1': '1', // Bookmarks Bar
-                '2': '2', // Other Bookmarks
-                '3': '3', // Mobile Bookmarks
-                // Firefox root IDs
-                'toolbar_____': '1', // Firefox Bookmarks Toolbar -> Bookmarks Bar
-                'unfiled_____': '2', // Firefox Other Bookmarks -> Other Bookmarks
-                'mobile______': '3', // Firefox Mobile -> Mobile
-                'menu________': '2', // Firefox Bookmarks Menu -> Other Bookmarks
-                // Edge may use similar numeric IDs but with "Favourites" naming
-                // Opera may have different root structure
-            };
-            if (rootMap[browserParentId]) {
-                return rootMap[browserParentId];
-            }
-        }
-
-        // Default to Bookmarks Bar
-        return '1';
+        if (!this.roots) this.roots = new BookmarkRoots((await this.getBookmarkTree())[0]);
+        const role = browserParentId && BookmarkRoots.sourceKind(browserParentId);
+        if (role) return this.ensureLocalRoot(role);
+        if (!browserParentId || browserParentId === '0' || browserParentId === 'root________') return this.roots.fallback;
+        throw new Error(`Cannot resolve bookmark parent: ${browserParentId}`);
     }
 
     /**
@@ -1620,7 +1610,6 @@ export class SyncManager {
      * If the ack is lost, the next pull repeats the window. Apply is idempotent, so that's safe.
      */
     private async ackPull(cursor: number, changesApplied: number): Promise<void> {
-        try {
             const authToken = await this.storageManager.getAuthToken();
             const browserInstanceId = await this.storageManager.getBrowserInstanceId();
             const deviceId = await this.storageManager.getDeviceId();
@@ -1633,24 +1622,35 @@ export class SyncManager {
                     'Authorization': `Bearer ${authToken}`,
                     'X-Device-ID': deviceId,
                     'X-Browser-Instance-ID': browserInstanceId,
+                    'X-Sync-Version': '2',
                     ...collectionHeaders
                 },
                 body: JSON.stringify({ cursor, changesApplied })
             });
             if (!response.ok) {
-                console.warn(`Pull ack failed with status ${response.status}; the next pull will repeat this window`);
+                throw new Error(`Pull acknowledgement failed (${response.status}). Applied changes are saved and will be retried safely.`);
             }
-        } catch (error) {
-            console.warn('Pull ack failed; the next pull will repeat this window:', error);
-        }
     }
 
     // Top-level folder that stands for one of the browser's system roots, or null.
     // Matched by title, so it works across browsers: Chrome "Bookmarks bar", Edge "Favourites bar".
-    private systemRootKindOfMasterFolder(folder: any): '1' | '2' | '3' | null {
-        if (!folder || folder.masterParentId) return null; // nested folders are never system roots
-        const key = String(folder.title ?? '').trim().toLowerCase();
-        return SyncManager.ROOT_KIND_BY_NAME[key] ?? null;
+    private systemRootKindOfMasterFolder(folder: any): RootKind | null {
+        return BookmarkRoots.masterKind(folder) || null;
+    }
+
+    private async ensureLocalRoot(kind: RootKind, masterId?: string): Promise<string> {
+        if (!this.roots) this.roots = new BookmarkRoots((await this.getBookmarkTree())[0]);
+        const existing = this.roots.byKind.get(kind);
+        if (existing) return existing;
+        const details = { parentId: this.roots.fallback, title: ROOT_LABELS[kind] };
+        const created = masterId ? await this.createMasterNode(masterId, 'folder', details) : await this.createBookmarkNode(details);
+        this.roots.byKind.set(kind, created.id);
+        return created.id;
+    }
+
+    private async applyRemotePlacement(id: string, item: any, folders: Map<string, string>, created: Record<string, string>): Promise<void> {
+        const parentId = await this.resolveParentIdForSync(item.masterParentId, item.parentId, folders, created);
+        await this.moveBookmarkNode(id, { parentId, ...(Number.isInteger(item.position) ? { index: item.position } : {}) });
     }
 
     private static isSystemRootId(id: string): boolean {
@@ -1702,44 +1702,18 @@ export class SyncManager {
         }
     }
 
+    private async rememberServerIdentities(processed: any[]): Promise<void> {
+        const map = await this.storageManager.getMasterIdMap();
+        for (const item of processed) if (item.success && item.masterId && item.browserId) map[item.masterId] = { kind: item.type, localId: item.browserId };
+        await this.storageManager.setMasterIdMap(map);
+    }
+
     public async overwriteFromMaster(): Promise<any> {
-        const wasSuppressed = await this.storageManager.isQueueingSuppressed();
-        await this.storageManager.setQueueingSuppressed(true);
+        return this.withOperationLock(() => this.overwriteFromMasterUnlocked());
+    }
 
-        try {
-            console.log('Starting overwrite from master collection...');
-
-            await this.storageManager.clearQueuedChanges();
-
-            // Get the master collection from the server
-            const masterCollection = await this.fetchMasterCollection();
-            if (!masterCollection.success) {
-                throw new Error(masterCollection.error || 'Failed to fetch master collection');
-            }
-
-            // Clear local bookmarks (except root folders)
-            await this.clearLocalBookmarks();
-
-            // Restore bookmarks from master collection
-            await this.restoreFromMasterCollection(masterCollection.data);
-
-            // Update last sync timestamp
-            await this.storageManager.updateLastSync();
-
-            return { success: true };
-        } catch (error) {
-            console.error('Overwrite error:', error);
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error occurred'
-            };
-        } finally {
-            try {
-                await this.storageManager.setQueueingSuppressed(wasSuppressed);
-            } catch (error) {
-                console.error('Failed to restore queueing state after overwrite:', error);
-            }
-        }
+    private async overwriteFromMasterUnlocked(): Promise<any> {
+        return this.switchCollectionUnlocked((await this.storageManager.getCollectionId()) || '', await this.storageManager.getCollectionName());
     }
 
     public async fetchMasterCollectionPublic(): Promise<any> {
@@ -1751,29 +1725,38 @@ export class SyncManager {
      * Clears local bookmarks and restores from the target collection.
      */
     public async switchCollection(newCollectionId: string, newCollectionName: string): Promise<{ success: boolean; error?: string }> {
+        return this.withOperationLock(() => this.switchCollectionUnlocked(newCollectionId, newCollectionName));
+    }
+
+    private async switchCollectionUnlocked(newCollectionId: string, newCollectionName: string): Promise<{ success: boolean; error?: string }> {
         const wasSuppressed = await this.storageManager.isQueueingSuppressed();
         await this.storageManager.setQueueingSuppressed(true);
 
         try {
             console.log(`[SwitchCollection] Switching to collection: ${newCollectionName} (${newCollectionId})`);
 
-            await this.storageManager.clearQueuedChanges();
-
-            // Update stored collection BEFORE fetching so the header is sent correctly
-            await this.storageManager.setCollection(newCollectionId, newCollectionName);
-
-            const collectionData = await this.fetchMasterCollection();
+            const collectionData = await this.fetchMasterCollection(newCollectionId);
             if (!collectionData.success) {
                 throw new Error(collectionData.error || 'Failed to fetch collection data');
             }
-
+            const oldData = await this.storageManager.getData();
+            const oldTree = await this.getBookmarkTree();
+            await this.storageManager.saveReplacementBackup({ data: oldData, tree: oldTree });
+            await this.storageManager.setCollection(newCollectionId, newCollectionName);
             await this.clearLocalBookmarks();
             await this.restoreFromMasterCollection(collectionData.data);
+            // Retain actual user edits made during replacement; suppress only our expected API events.
+            await this.storageManager.removeQueuedChanges(oldData?.changes || []);
+            await this.storageManager.saveReplacementBackup(null);
             await this.storageManager.updateLastSync();
+            // Once the durable local replacement is complete, a lost acknowledgement must never
+            // roll it back: the server might have accepted the acknowledgement already.
+            if (collectionData.data.cursor !== undefined) await this.ackPull(collectionData.data.cursor, (collectionData.data.bookmarks || []).length + (collectionData.data.folders || []).length);
 
             console.log(`[SwitchCollection] Successfully switched to ${newCollectionName}`);
             return { success: true };
         } catch (error) {
+            await this.recoverReplacement();
             console.error('[SwitchCollection] Error:', error);
             return {
                 success: false,
@@ -1817,7 +1800,7 @@ export class SyncManager {
         }
     }
 
-    private async fetchMasterCollection(): Promise<any> {
+    private async fetchMasterCollection(collectionId?: string): Promise<any> {
         try {
             const authToken = await this.storageManager.getAuthToken();
             if (!authToken) {
@@ -1827,7 +1810,7 @@ export class SyncManager {
             const userId = await this.storageManager.getUserId();
             const browserInstanceId = await this.storageManager.getBrowserInstanceId();
 
-            const collectionHeaders = await this.getCollectionHeaders();
+            const collectionHeaders = collectionId ? { 'X-Collection-ID': collectionId, 'X-Sync-Version': '2' } : await this.getCollectionHeaders();
             const response = await fetch(`${this.API_ENDPOINT}/master-collection`, {
                 method: 'GET',
                 headers: {
@@ -1855,492 +1838,89 @@ export class SyncManager {
     }
 
     private async clearLocalBookmarks(): Promise<void> {
-        console.log('Clearing local bookmarks...');
-
-        // Get all bookmarks using safe wrapper
-        const tree = await this.getBookmarkTree();
-
-        // Log the tree structure for debugging
-        console.log('[clearLocalBookmarks] Tree structure:', JSON.stringify({
-            rootId: tree[0]?.id,
-            rootTitle: tree[0]?.title,
-            rootChildren: tree[0]?.children?.map(c => ({ id: c.id, title: c.title, childCount: c.children?.length || 0 }))
-        }));
-
-        // Opera-specific system folders that should NOT be cleared
-        // These are either system-managed or trash folders
-        const skipFolderTitles = new Set([
-            'bin',              // Opera trash
-            'trash',            // Alternative trash name
-            'speed dials',      // Opera speed dial
-            'pinboard',         // Opera pinboard
-            'unsynchronized pinboard'  // Opera unsynchronized pinboard
-        ]);
-
-        // Folders we SHOULD clear (user bookmark folders)
-        const clearFolderTitles = new Set([
-            'bookmarks bar',
-            'bookmarks toolbar',
-            'other bookmarks',
-            'unsorted bookmarks',
-            'imported bookmarks',
-            'unfiled bookmarks',
-            'bookmarks menu',
-            'mobile bookmarks',
-            'bookmarks',         // Opera uses just "Bookmarks" as the main folder
-            'my bookmarks',      // Some Opera versions
-            'favourites',        // Opera alternative name
-            'favorites',         // Opera alternative name (US spelling)
-            'favourites bar',    // Edge UK spelling
-            'favorites bar'      // Edge US spelling
-        ]);
-
-        // Process each root folder
-        const rootFolders = tree[0]?.children || [];
-
-        for (const rootFolder of rootFolders) {
-            const folderTitle = (rootFolder.title || '').toLowerCase();
-
-            // Skip Opera system folders
-            if (skipFolderTitles.has(folderTitle)) {
-                console.log(`[clearLocalBookmarks] SKIPPING system folder: ${rootFolder.title} (id: ${rootFolder.id})`);
-                continue;
-            }
-
-            // Only clear known bookmark folders, skip unknown ones to be safe
-            const isKnownFolder = clearFolderTitles.has(folderTitle);
-            if (!isKnownFolder) {
-                console.log(`[clearLocalBookmarks] SKIPPING unknown folder: ${rootFolder.title} (id: ${rootFolder.id})`);
-                continue;
-            }
-
-            console.log(`[clearLocalBookmarks] Processing root folder: ${rootFolder.title} (id: ${rootFolder.id}), children: ${rootFolder.children?.length || 0}`);
-
-            const children = rootFolder.children || [];
-
-            // Delete in reverse order to avoid index shifting issues
-            for (let i = children.length - 1; i >= 0; i--) {
-                const child = children[i];
-                try {
-                    if (!child.url) {
-                        console.log(`[clearLocalBookmarks] Removing folder: ${child.title} (id: ${child.id})`);
-                        await this.removeBookmarkTree(child.id);
-                    } else {
-                        console.log(`[clearLocalBookmarks] Removing bookmark: ${child.title} (id: ${child.id})`);
-                        await this.removeBookmarkNode(child.id);
-                    }
-                } catch (error) {
-                    console.error(`[clearLocalBookmarks] Error removing ${child.id} (${child.title}):`, error);
-                    // Continue with other bookmarks even if one fails
-                }
+        const tree = (await this.getBookmarkTree())[0];
+        this.roots = new BookmarkRoots(tree);
+        for (const root of tree.children || []) {
+            if (this.roots.excludedIds.has(root.id)) continue;
+            for (const child of [...(root.children || [])].reverse()) {
+                if (child.url) await this.removeBookmarkNode(child.id);
+                else await this.removeBookmarkTree(child.id);
             }
         }
-
-        // Verify deletion worked - only count items in clearable folders
-        const verifyTree = await this.getBookmarkTree();
-        let remainingCount = 0;
-        const foldersWithRemaining: string[] = [];
-
-        for (const rootFolder of verifyTree[0]?.children || []) {
-            const folderTitle = (rootFolder.title || '').toLowerCase();
-            if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
-                continue; // Don't count skipped folders
-            }
-            const count = rootFolder.children?.length || 0;
-            if (count > 0) {
-                remainingCount += count;
-                foldersWithRemaining.push(`${rootFolder.title}: ${count}`);
-            }
-        }
-
-        console.log(`[clearLocalBookmarks] Complete. Remaining items in clearable folders: ${remainingCount}`);
-
-        if (remainingCount > 0) {
-            console.warn(`[clearLocalBookmarks] Some items were not deleted! Folders: ${foldersWithRemaining.join(', ')}`);
-            console.warn('[clearLocalBookmarks] Attempting second pass...');
-
-            // Second pass - sometimes items remain due to timing issues
-            for (const rootFolder of verifyTree[0]?.children || []) {
-                const folderTitle = (rootFolder.title || '').toLowerCase();
-                if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
-                    continue;
-                }
-
-                for (const child of rootFolder.children || []) {
-                    try {
-                        if (!child.url) {
-                            await this.removeBookmarkTree(child.id);
-                        } else {
-                            await this.removeBookmarkNode(child.id);
-                        }
-                    } catch (error) {
-                        console.error(`[clearLocalBookmarks] Second pass error for ${child.id}:`, error);
-                    }
-                }
-            }
-
-            // Final verification
-            const finalTree = await this.getBookmarkTree();
-            let finalRemaining = 0;
-            for (const rootFolder of finalTree[0]?.children || []) {
-                const folderTitle = (rootFolder.title || '').toLowerCase();
-                if (skipFolderTitles.has(folderTitle) || !clearFolderTitles.has(folderTitle)) {
-                    continue;
-                }
-                finalRemaining += rootFolder.children?.length || 0;
-            }
-            console.log(`[clearLocalBookmarks] After second pass, remaining: ${finalRemaining}`);
-        }
+        const remaining = (await this.getBookmarkTree())[0].children?.filter(r => !this.roots!.excludedIds.has(r.id))
+            .reduce((sum, r) => sum + (r.children?.length || 0), 0) || 0;
+        if (remaining) throw new Error('Some local bookmarks could not be cleared; restore was stopped');
     }
 
     private async restoreFromMasterCollection(collection: any): Promise<void> {
-        console.log('Restoring from master collection...', collection);
-
-        // Get the root folders using safe wrapper
-        const tree = await this.getBookmarkTree();
-        const rootFolders: Record<string, string> = {};
-        const normalizeTitle = (value: string) => value.trim().toLowerCase();
-        const getFolderIdentifierCandidates = (folder: any): string[] => {
-            const ids = [folder?.masterId, folder?.browserId, folder?.id]
-                .filter((value) => value !== undefined && value !== null)
-                .map((value) => String(value).trim())
-                .filter((value) => value.length > 0);
-            return Array.from(new Set(ids));
-        };
-        const getFolderSourceId = (folder: any): string => getFolderIdentifierCandidates(folder)[0] || '';
-        const getFolderParentId = (folder: any): string => String(folder?.masterParentId ?? folder?.parentId ?? '');
-
-        // Map folder names to IDs
-        for (const rootNode of tree[0].children || []) {
-            rootFolders[normalizeTitle(rootNode.title)] = rootNode.id;
+        this.roots = new BookmarkRoots((await this.getBookmarkTree())[0]);
+        const localFolderMap = new Map<string, string>();
+        const map: MasterIdMap = {};
+        const pending = [...(collection.folders || [])];
+        while (pending.length) {
+            let progress = false;
+            for (let i = 0; i < pending.length;) {
+                const folder = pending[i];
+                if (folder.masterParentId && !localFolderMap.has(folder.masterParentId)) { i++; continue; }
+                const role = BookmarkRoots.masterKind(folder);
+                const parentId = role ? undefined : await this.resolveParentIdForSync(folder.masterParentId, folder.parentId, localFolderMap, {});
+                const localId = role ? await this.ensureLocalRoot(role, folder.masterId) : (await this.createBookmarkNode({ parentId: parentId!, title: folder.title,
+                    index: await this.safeIndex(parentId!, folder.position) })).id;
+                localFolderMap.set(folder.masterId, localId);
+                map[folder.masterId] = { kind: 'folder', localId };
+                pending.splice(i, 1); progress = true;
+            }
+            if (!progress) throw new Error('Collection has missing parents or a folder cycle');
         }
-
-        // Different browsers use different names for the bookmarks bar:
-        // - Chrome/Brave/Chromium: "Bookmarks Bar" (id: 1)
-        // - Firefox: "Bookmarks Toolbar" (id: toolbar_____)
-        // - Edge: "Favourites bar" or "Favorites bar"
-        // - Opera: "Bookmarks bar" (but may have additional folders like Pinboard, Bin)
-        const bookmarksBarId = rootFolders['bookmarks bar']
-            || rootFolders['bookmarks toolbar']
-            || rootFolders['favourites bar']    // Edge UK spelling
-            || rootFolders['favorites bar']     // Edge US spelling
-            || rootFolders['bookmarks']
-            || rootFolders['my bookmarks']
-            || '1';
-        const otherBookmarksId = rootFolders['other bookmarks']
-            || rootFolders['unfiled bookmarks']
-            || rootFolders['unsorted bookmarks']
-            || rootFolders['other favourites']  // Edge UK spelling
-            || rootFolders['other favorites']   // Edge US spelling 
-            || '2';
-        const bookmarksMenuId = rootFolders['bookmarks menu'];
-        const mobileBookmarksId = rootFolders['mobile bookmarks'] || '3';
-
-        // Create a map to track new IDs for folders
-        const folderIdMap: Record<string, string> = {};
-        const mapFolderIds = (folder: any, mappedBrowserFolderId: string): void => {
-            for (const id of getFolderIdentifierCandidates(folder)) {
-                folderIdMap[id] = mappedBrowserFolderId;
-            }
-        };
-
-        // Log detected browser folders for debugging
-        console.log('[restoreFromMasterCollection] Detected browser root folders:', {
-            allRootFolders: rootFolders,
-            resolved: {
-                bookmarksBarId,
-                otherBookmarksId,
-                bookmarksMenuId,
-                mobileBookmarksId
-            }
-        });
-
-        const resolveRootIdBySourceId = (sourceId: string): string | undefined => {
-            const normalizedSourceId = sourceId.trim().toLowerCase();
-            if (sourceId === '1') {
-                return bookmarksBarId;
-            }
-            if (sourceId === '2') {
-                return otherBookmarksId;
-            }
-            if (sourceId === '3') {
-                return mobileBookmarksId;
-            }
-            if (normalizedSourceId.startsWith('toolbar')) {
-                return bookmarksBarId;
-            }
-            if (normalizedSourceId.startsWith('menu')) {
-                return bookmarksMenuId || otherBookmarksId;
-            }
-            if (normalizedSourceId.startsWith('unfiled')) {
-                return otherBookmarksId;
-            }
-            if (normalizedSourceId.startsWith('mobile')) {
-                return mobileBookmarksId;
-            }
-            return undefined;
-        };
-
-        const isRootSystemFolder = (folder: any): boolean => {
-            const parentId = getFolderParentId(folder);
-            const sourceId = getFolderSourceId(folder);
-            const normalizedSourceId = sourceId.trim().toLowerCase();
-            if (sourceId === '1' || sourceId === '2' || sourceId === '3') {
-                return true;
-            }
-            if (normalizedSourceId.startsWith('toolbar')
-                || normalizedSourceId.startsWith('menu')
-                || normalizedSourceId.startsWith('unfiled')
-                || normalizedSourceId.startsWith('mobile')) {
-                return true;
-            }
-            const normalizedParentId = parentId.trim().toLowerCase();
-            if (parentId && parentId !== '0' && !normalizedParentId.startsWith('root')) {
-                return false;
-            }
-            const normalizedTitle = normalizeTitle(String(folder?.title || ''));
-            return normalizedTitle === 'bookmarks bar'
-                || normalizedTitle === 'bookmarks toolbar'
-                || normalizedTitle === 'bookmarks menu'
-                || normalizedTitle === 'other bookmarks'
-                || normalizedTitle === 'unfiled bookmarks'
-                || normalizedTitle === 'mobile bookmarks'
-                || normalizedTitle === 'bookmarks'      // Opera main folder
-                || normalizedTitle === 'my bookmarks'   // Some Opera versions
-                || normalizedTitle === 'unsorted bookmarks'
-                || normalizedTitle === 'favourites bar'   // Edge UK spelling
-                || normalizedTitle === 'favorites bar'    // Edge US spelling
-                || normalizedTitle === 'other favourites' // Edge UK spelling
-                || normalizedTitle === 'other favorites'; // Edge US spelling
-        };
-
-        const resolveRootIdByTitle = (title: string): string | undefined => {
-            const normalizedTitle = normalizeTitle(title);
-            // Bookmarks Bar equivalents across browsers
-            if (normalizedTitle === 'bookmarks bar'
-                || normalizedTitle === 'bookmarks toolbar'
-                || normalizedTitle === 'favourites bar'     // Edge UK
-                || normalizedTitle === 'favorites bar'      // Edge US
-                || normalizedTitle === 'bookmarks'          // Opera
-                || normalizedTitle === 'my bookmarks') {    // Some Opera versions
-                return bookmarksBarId;
-            }
-            // Other Bookmarks equivalents across browsers
-            if (normalizedTitle === 'other bookmarks'
-                || normalizedTitle === 'unfiled bookmarks'
-                || normalizedTitle === 'unsorted bookmarks'
-                || normalizedTitle === 'other favourites'   // Edge UK
-                || normalizedTitle === 'other favorites') { // Edge US
-                return otherBookmarksId;
-            }
-            if (normalizedTitle === 'bookmarks menu') {
-                return bookmarksMenuId || otherBookmarksId;
-            }
-            if (normalizedTitle === 'mobile bookmarks') {
-                return mobileBookmarksId;
-            }
-            return undefined;
-        };
-
-        const resolveParentId = (rawParentId?: unknown, folderTitle?: string): string | undefined => {
-            const parentId = rawParentId === undefined || rawParentId === null ? '' : String(rawParentId);
-            const normalizedParentId = parentId.trim().toLowerCase();
-            if (!parentId || parentId === '0') {
-                // If folder title matches a root folder name, map to the corresponding root ID
-                if (folderTitle) {
-                    const mappedByTitle = resolveRootIdByTitle(folderTitle);
-                    if (mappedByTitle) {
-                        return mappedByTitle;
-                    }
-                }
-                return bookmarksBarId;
-            }
-            if (folderIdMap[parentId]) {
-                return folderIdMap[parentId];
-            }
-            if (parentId === '1') {
-                return bookmarksBarId;
-            }
-            if (parentId === '2') {
-                return otherBookmarksId || bookmarksBarId;
-            }
-            if (parentId === '3') {
-                return mobileBookmarksId || bookmarksBarId;
-            }
-            if (normalizedParentId.startsWith('toolbar')) {
-                return bookmarksBarId;
-            }
-            if (normalizedParentId.startsWith('menu')) {
-                return otherBookmarksId || bookmarksBarId;
-            }
-            if (normalizedParentId.startsWith('unfiled')) {
-                return otherBookmarksId || bookmarksBarId;
-            }
-            if (normalizedParentId.startsWith('mobile')) {
-                return mobileBookmarksId || bookmarksBarId;
-            }
-            if (normalizedParentId.startsWith('root')) {
-                return bookmarksBarId;
-            }
-            return undefined;
-        };
-
-        const getSafeIndex = async (parentId: string, position?: number): Promise<number | undefined> => {
-            if (typeof position !== 'number' || Number.isNaN(position) || position < 0) {
-                return undefined;
-            }
-            try {
-                const children = await this.getBookmarkChildren(parentId);
-                return Math.min(position, children.length);
-            } catch {
-                return undefined;
-            }
-        };
-
-        const allFolders = Array.isArray(collection.folders) ? collection.folders : [];
-        const menuFolderIds = new Set<string>();
-
-        if (!bookmarksMenuId) {
-            const menuRoots = allFolders.filter((folder: any) => {
-                if (!folder) return false;
-                const sourceId = getFolderSourceId(folder);
-                const normalizedTitle = normalizeTitle(String(folder?.title || ''));
-                return normalizedTitle === 'bookmarks menu' || sourceId.trim().toLowerCase().startsWith('menu');
-            });
-
-            if (menuRoots.length) {
-                const menuRoot = menuRoots[0];
-                try {
-                    const created = await this.createBookmarkNode({
-                        parentId: otherBookmarksId || bookmarksBarId,
-                        title: menuRoot.title
-                    });
-                    mapFolderIds(menuRoot, created.id);
-                    menuFolderIds.add(getFolderSourceId(menuRoot));
-                } catch (error) {
-                    console.error('Error creating Bookmarks Menu container:', error);
-                }
-
-                for (let i = 1; i < menuRoots.length; i += 1) {
-                    const duplicate = menuRoots[i];
-                    mapFolderIds(duplicate, folderIdMap[getFolderSourceId(menuRoot)]);
-                    menuFolderIds.add(getFolderSourceId(duplicate));
-                }
-            }
+        for (const bookmark of [...(collection.bookmarks || [])].sort((a, b) => a.position - b.position)) {
+            const parentId = await this.resolveParentIdForSync(bookmark.masterParentId, bookmark.parentId, localFolderMap, {});
+            const local = await this.createBookmarkNode({ parentId, title: bookmark.title, url: bookmark.url, index: await this.safeIndex(parentId, bookmark.position) });
+            map[bookmark.masterId] = { kind: 'bookmark', localId: local.id };
         }
+        await this.storageManager.setMasterIdMap(map);
+    }
 
-        const pendingFolders = allFolders
-            .filter((folder: any) => {
-                if (!folder) {
-                    return false;
-                }
-                if (menuFolderIds.has(getFolderSourceId(folder))) {
-                    return false;
-                }
-                if (isRootSystemFolder(folder)) {
-                    const sourceId = getFolderSourceId(folder);
-                    const mappedRootId = resolveRootIdBySourceId(sourceId) ?? resolveRootIdByTitle(folder.title);
-                    if (mappedRootId) {
-                        mapFolderIds(folder, mappedRootId);
-                    }
-                    return false;
-                }
-                return true;
-            })
-            .sort((a: any, b: any) => {
-                // Sort by masterParentId first (or parentId as fallback), then by position
-                const aParent = String(a.masterParentId ?? a.parentId ?? '');
-                const bParent = String(b.masterParentId ?? b.parentId ?? '');
-                const parentCompare = aParent.localeCompare(bParent);
-                if (parentCompare !== 0) {
-                    return parentCompare;
-                }
-                const posA = typeof a.position === 'number' ? a.position : 0;
-                const posB = typeof b.position === 'number' ? b.position : 0;
-                return posA - posB;
-            });
+    private async safeIndex(parentId: string, position?: number): Promise<number | undefined> {
+        if (!Number.isInteger(position) || position! < 0) return undefined;
+        return Math.min(position!, (await this.getBookmarkChildren(parentId)).length);
+    }
 
-        const createFolderInBrowser = async (parentId: string, title: string, position?: number): Promise<chrome.bookmarks.BookmarkTreeNode> => {
-            const index = await getSafeIndex(parentId, position);
-            return this.createBookmarkNode({
-                parentId,
-                title,
-                ...(typeof index === 'number' ? { index } : {})
-            });
+    private async withOperationLock<T>(operation: () => Promise<T>): Promise<T> {
+        if (this.syncInProgress) throw new Error('Another sync operation is in progress. Please wait.');
+        this.syncInProgress = true;
+        try { return await operation(); } finally { this.syncInProgress = false; }
+    }
+
+    private async recoverReplacement(): Promise<void> {
+        const backup = await this.storageManager.getReplacementBackup();
+        if (!backup) return;
+        const current = await this.storageManager.getData();
+        if (current?.auth?.user.id !== backup.data?.auth?.user.id) throw new Error('Sign into the original account to recover the interrupted replacement');
+        await this.clearLocalBookmarks();
+        const liveTree = (await this.getBookmarkTree())[0];
+        const remapped = new Map<string, string>();
+        const restore = async (nodes: chrome.bookmarks.BookmarkTreeNode[], parentId: string) => {
+            for (const node of [...nodes].sort((a, b) => (a.index || 0) - (b.index || 0))) {
+                const created = await this.createBookmarkNode({ parentId, title: node.title, ...(node.url ? { url: node.url } : {}) });
+                remapped.set(node.id, created.id);
+                if (node.children) await restore(node.children, created.id);
+            }
         };
-
-        const remainingFolders = [...pendingFolders];
-        let madeProgress = true;
-
-        while (remainingFolders.length && madeProgress) {
-            madeProgress = false;
-            for (let i = 0; i < remainingFolders.length;) {
-                const folder = remainingFolders[i];
-                const parentId = resolveParentId(getFolderParentId(folder), folder.title);
-
-                if (!parentId) {
-                    i += 1;
-                    continue;
-                }
-
-                try {
-                    const newFolder = await createFolderInBrowser(parentId, folder.title, folder.position);
-                    mapFolderIds(folder, newFolder.id);
-                    remainingFolders.splice(i, 1);
-                    madeProgress = true;
-                } catch (error) {
-                    console.error(`Error creating folder ${folder.title}:`, error);
-                    remainingFolders.splice(i, 1);
-                }
-            }
+        for (const root of backup.tree[0].children || []) {
+            if (this.roots?.excludedIds.has(root.id)) continue;
+            const target = liveTree.children?.find(r => r.id === root.id);
+            if (!target) throw new Error('Original bookmark root is unavailable; backup is retained');
+            remapped.set(root.id, target.id);
+            await restore(root.children || [], target.id);
         }
-
-        if (remainingFolders.length) {
-            console.warn('Some folders could not resolve parents. Placing under Bookmarks Bar.', remainingFolders.map((folder: any) => folder.title));
-            for (const folder of remainingFolders) {
-                try {
-                    const newFolder = await createFolderInBrowser(bookmarksBarId, folder.title, folder.position);
-                    mapFolderIds(folder, newFolder.id);
-                } catch (error) {
-                    console.error(`Error creating folder ${folder.title}:`, error);
-                }
-            }
+        const masterIdMap: MasterIdMap = {};
+        for (const [masterId, value] of Object.entries(backup.data.masterIdMap || {}) as [string, any][]) {
+            masterIdMap[masterId] = { ...value, localId: value.localId ? remapped.get(value.localId) || null : null };
         }
-
-        // Then create all bookmarks
-        const bookmarks = (Array.isArray(collection.bookmarks) ? collection.bookmarks : [])
-            .sort((a: any, b: any) => {
-                // Sort by masterParentId first (or parentId as fallback), then by position
-                const aParent = String(a.masterParentId ?? a.parentId ?? '');
-                const bParent = String(b.masterParentId ?? b.parentId ?? '');
-                const parentCompare = aParent.localeCompare(bParent);
-                if (parentCompare !== 0) {
-                    return parentCompare;
-                }
-                const posA = typeof a.position === 'number' ? a.position : 0;
-                const posB = typeof b.position === 'number' ? b.position : 0;
-                return posA - posB;
-            });
-
-        let bmCreated = 0;
-        let bmFailed = 0;
-        for (const bookmark of bookmarks) {
-            try {
-                const parentId = resolveParentId(bookmark.masterParentId ?? bookmark.parentId) || bookmarksBarId;
-                const index = await getSafeIndex(parentId, bookmark.position);
-
-                await this.createBookmarkNode({
-                    parentId,
-                    title: bookmark.title,
-                    url: bookmark.url,
-                    ...(typeof index === 'number' ? { index } : {})
-                });
-                bmCreated++;
-            } catch (error) {
-                console.error(`Error creating bookmark ${bookmark.title}:`, error);
-                bmFailed++;
-            }
-        }
-        console.log(`[restoreFromMaster] Bookmark restore complete: ${bmCreated} created, ${bmFailed} failed out of ${bookmarks.length}`);
+        const changes = (backup.data.changes || []).map((change: any) => ({ ...change, data: { ...change.data,
+            browserId: remapped.get(change.data.browserId) || change.data.browserId,
+            parentId: remapped.get(change.data.parentId) || change.data.parentId } }));
+        await this.storageManager.setData({ ...backup.data, auth: current!.auth, changes, masterIdMap });
+        await this.storageManager.saveReplacementBackup(null);
     }
 }

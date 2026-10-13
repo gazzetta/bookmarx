@@ -39,6 +39,7 @@ test.describe('Dashboard — free tier', () => {
 
 test.describe('Dashboard — premium tier (requires BOOKMARX_PREMIUM_PASSWORD)', () => {
   test('no upgrade banner, premium badge visible', async ({ page, premiumAccount }) => {
+    if (!premiumAccount) return; // Fixture marks the test skipped when credentials are absent.
     await loginAs(page, premiumAccount);
     await page.goto('/dashboard');
 
@@ -54,6 +55,7 @@ test.describe('Dashboard — premium tier (requires BOOKMARX_PREMIUM_PASSWORD)',
   });
 
   test('premium user sees Infinity-equivalent limits', async ({ page, premiumAccount }) => {
+    if (!premiumAccount) return;
     await loginAs(page, premiumAccount);
     await page.goto('/dashboard');
 

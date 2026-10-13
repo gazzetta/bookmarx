@@ -187,8 +187,8 @@ export default function PrivacyPage() {
               <h2 className="font-display text-2xl font-bold text-ink mb-4">8. Contact Us</h2>
               <p className="text-ink-500 leading-relaxed">
                 If you have questions about this Privacy Policy, please contact us at{' '}
-                <a href="mailto:support@bookmarks.cc" className="text-terra-500 hover:text-terra-600 font-medium">
-                  support@bookmarks.cc
+                <a href="mailto:support@bookmarx.cc" className="text-terra-500 hover:text-terra-600 font-medium">
+                  support@bookmarx.cc
                 </a>.
               </p>
             </section>

@@ -23,22 +23,7 @@ export default function SessionDetailPage() {
   const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; action: 'rollback' | 'restore' | null }>({ isOpen: false, action: null })
   const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'success' })
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login')
-    }
-    if (!isLoading && user && !isPremium) {
-      router.push('/dashboard')
-    }
-  }, [isLoading, user, isPremium, router])
-
-  useEffect(() => {
-    if (token && sessionId && isPremium) {
-      loadSession()
-    }
-  }, [token, sessionId, isPremium])
-
-  const loadSession = async () => {
+  async function loadSession() {
     if (!token) return
     try {
       const data = await api.getSession(token, sessionId)
@@ -51,6 +36,23 @@ export default function SessionDetailPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login')
+    }
+    if (!isLoading && user && !isPremium) {
+      router.push('/dashboard')
+    }
+  }, [isLoading, user, isPremium, router])
+
+  useEffect(() => {
+    if (token && sessionId && isPremium) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Start the asynchronous API load when its account or route changes.
+      loadSession()
+    }
+  }, [token, sessionId, isPremium])
+
 
   const handleRollback = () => {
     if (!token) return

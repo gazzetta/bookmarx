@@ -1,0 +1,174 @@
+[
+  {
+    "browser": "Chromium",
+    "website": {
+      "heroRendered": true,
+      "status": 200,
+      "pageErrors": [],
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
+    },
+    "extension": {
+      "loaded": true,
+      "roots": [
+        {
+          "id": "1",
+          "title": "Bookmarks bar",
+          "folderType": "bookmarks-bar"
+        },
+        {
+          "id": "2",
+          "title": "Other bookmarks",
+          "folderType": "other"
+        }
+      ],
+      "localCrud": true,
+      "notificationApi": true,
+      "actionApi": true
+    }
+  },
+  {
+    "browser": "Chrome",
+    "website": {
+      "heroRendered": true,
+      "status": 200,
+      "pageErrors": [],
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+    },
+    "extension": {
+      "loaded": false,
+      "reason": "No service worker after 8 seconds; unpacked command-line loading not verified"
+    }
+  },
+  {
+    "browser": "Edge",
+    "website": {
+      "heroRendered": true,
+      "status": 200,
+      "pageErrors": [],
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+    },
+    "extension": {
+      "loaded": true,
+      "roots": [
+        {
+          "id": "1",
+          "title": "Favourites bar",
+          "folderType": "bookmarks-bar"
+        },
+        {
+          "id": "2",
+          "title": "Other favourites",
+          "folderType": "other"
+        }
+      ],
+      "localCrud": true,
+      "notificationApi": true,
+      "actionApi": true
+    }
+  },
+  {
+    "browser": "Opera",
+    "website": {
+      "heroRendered": true,
+      "status": 200,
+      "pageErrors": [],
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36 OPR/136.0.0.0"
+    },
+    "extension": {
+      "loaded": true,
+      "roots": [
+        {
+          "id": "1",
+          "title": "Bookmarks bar",
+          "folderType": "bookmarks-bar"
+        },
+        {
+          "id": "2",
+          "title": "Imported Bookmarks",
+          "folderType": "other"
+        },
+        {
+          "id": "7",
+          "title": "Pinboard"
+        },
+        {
+          "id": "6",
+          "title": "Speed Dials"
+        },
+        {
+          "id": "9",
+          "title": "Bin"
+        },
+        {
+          "id": "4",
+          "title": "Unsorted bookmarks"
+        },
+        {
+          "id": "8",
+          "title": "Unsynchronized Pinboard"
+        },
+        {
+          "id": "5",
+          "title": "Other bookmarks"
+        }
+      ],
+      "localCrud": true,
+      "notificationApi": true,
+      "actionApi": true
+    }
+  },
+  {
+    "browser": "Brave",
+    "website": {
+      "heroRendered": true,
+      "status": 200,
+      "pageErrors": [],
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+    },
+    "extension": {
+      "loaded": true,
+      "roots": [
+        {
+          "id": "1",
+          "title": "Bookmarks bar",
+          "folderType": "bookmarks-bar"
+        },
+        {
+          "id": "2",
+          "title": "Other bookmarks",
+          "folderType": "other"
+        }
+      ],
+      "localCrud": true,
+      "notificationApi": true,
+      "actionApi": true
+    }
+  },
+  {
+    "browser": "Helium",
+    "website": {
+      "heroRendered": true,
+      "status": 200,
+      "pageErrors": [],
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+    },
+    "extension": {
+      "loaded": true,
+      "roots": [
+        {
+          "id": "1",
+          "title": "Bookmarks bar",
+          "folderType": "bookmarks-bar"
+        },
+        {
+          "id": "2",
+          "title": "Other bookmarks",
+          "folderType": "other"
+        }
+      ],
+      "localCrud": true,
+      "notificationApi": true,
+      "actionApi": true
+    }
+  }
+]

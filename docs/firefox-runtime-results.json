@@ -1,0 +1,31 @@
+{
+  "browser": "Firefox",
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0",
+  "passed": true,
+  "roots": [
+    {
+      "id": "menu________",
+      "title": "Bookmarks Menu"
+    },
+    {
+      "id": "toolbar_____",
+      "title": "Bookmarks Toolbar"
+    },
+    {
+      "id": "unfiled_____",
+      "title": "Other Bookmarks"
+    },
+    {
+      "id": "mobile______",
+      "title": "Mobile Bookmarks"
+    }
+  ],
+  "checks": [
+    "initial upload",
+    "nested folders",
+    "duplicate URLs",
+    "native rename queue",
+    "remote rename/move",
+    "recursive delete"
+  ]
+}

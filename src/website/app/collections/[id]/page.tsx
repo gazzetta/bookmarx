@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { api, Collection, Folder, Bookmark, CollectionEvent, CollectionBrowser } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
 import ConfirmDialog from '@/components/ConfirmDialog'
+import BookmarkTransfer from '@/components/BookmarkTransfer'
 
 interface TreeItem {
   type: 'folder' | 'bookmark'
@@ -59,7 +60,7 @@ export default function CollectionViewPage() {
     }
   }, [notice])
 
-  const loadCollection = async () => {
+  async function loadCollection() {
     if (!token) return
     try {
       // Handle "default" alias - resolve to actual default collection ID
@@ -457,6 +458,7 @@ export default function CollectionViewPage() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto">
+        {token && collection && <BookmarkTransfer token={token} collectionId={collection.id} onImported={() => void loadCollection()} />}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-10">
           <div className="flex items-center gap-5">
             <Link

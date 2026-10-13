@@ -186,7 +186,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       type: 'MOVE',
       itemType,
       itemId,
-      parentId: newParentId || undefined,
+      parentId: newParentId,
       position: newIndex
     }
 
@@ -343,10 +343,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   addFolder: (parentId, title) => {
-    const tempId = `temp-${Date.now()}`
+    const tempId = `temp-${crypto.randomUUID()}`
     const change: EditorChange = {
       type: 'CREATE_FOLDER',
       itemType: 'folder',
+      itemId: tempId,
       parentId: parentId || undefined,
       title
     }
@@ -390,10 +391,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   addBookmark: (parentId, title, url) => {
-    const tempId = `temp-${Date.now()}`
+    const tempId = `temp-${crypto.randomUUID()}`
     const change: EditorChange = {
       type: 'CREATE_BOOKMARK',
       itemType: 'bookmark',
+      itemId: tempId,
       parentId: parentId || undefined,
       title,
       url
@@ -438,10 +440,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   importSourceItems: (sourceItems, targetParentId, sourceCollectionId) => {
+    const importId = crypto.randomUUID()
+    const copyTempIds: Record<string, string> = {}
     const change: EditorChange = {
       type: 'COPY_FROM',
       itemType: 'folder',
       sourceCollectionId,
+      copyTempIds,
       copyItems: sourceItems.map(item => ({
         masterId: item.masterId,
         type: item.type,
@@ -451,7 +456,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     const buildLocalItems = (items: ImportSourceItem[], parentId: string | null): TreeItem[] => {
       return items.map(item => {
-        const tempId = `import-${item.masterId}-${Date.now()}`
+        const tempId = `import-${importId}-${item.masterId}`
+        copyTempIds[item.masterId] = tempId
         const treeItem: TreeItem = {
           type: item.type,
           id: tempId,

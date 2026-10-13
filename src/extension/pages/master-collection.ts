@@ -70,14 +70,13 @@ class MasterCollectionView {
             const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
             const isPremium = auth.user.isPremium || auth.user.subscriptionTier === 'premium';
 
-            // Build user info with optional edit link
-            let userInfoHtml = `Signed in: ${auth.user.email} • Times shown in: ${timeZone}`;
-            if (isPremium) {
-                userInfoHtml += ` • <a href="${WEBSITE_BASE_URL}/collections/default/edit" target="_blank" style="color: #f59e0b; text-decoration: none;">✏️ Edit in Web</a>`;
-            } else {
-                userInfoHtml += ` • <a href="${WEBSITE_BASE_URL}/settings/subscription" target="_blank" style="color: #888; text-decoration: none;">⭐ Upgrade to Edit</a>`;
-            }
-            this.userInfo.innerHTML = userInfoHtml;
+            this.userInfo.textContent = `Signed in: ${auth.user.email} • Times shown in: ${timeZone} • `;
+            const link = document.createElement('a');
+            link.href = `${WEBSITE_BASE_URL}/${isPremium ? 'collections/default/edit' : 'settings/subscription'}`;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = isPremium ? 'Edit in Web' : 'Upgrade to Edit';
+            this.userInfo.appendChild(link);
 
             console.log('Fetching master collection for user:', userId);
             const tree = await this.fetchMasterCollection(userId, auth.token);
@@ -274,7 +273,7 @@ class MasterCollectionView {
                         Your bookmark collection is empty.
                     </p>
                     <div style="margin-top: 16px; color: #cbd5e1; font-size: 0.8em; font-family: monospace;">
-                        User ID: ${userId}
+                        Your bookmarks will appear after a successful sync.
                     </div>
                 </div>
             `;
@@ -293,7 +292,8 @@ class MasterCollectionView {
                 bookmarkDiv.className = 'bookmark';
 
                 const link = document.createElement('a');
-                link.href = node.url;
+                if (/^(https?|ftp):/i.test(node.url)) link.href = node.url;
+                else link.setAttribute('title', 'This URL can be used from your browser bookmarks or exported backup.');
                 link.className = 'bookmark-link';
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';

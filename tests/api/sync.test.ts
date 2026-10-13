@@ -7,7 +7,7 @@
 // ("Test backward compatibility with existing extension") — the regression
 // we're guarding against is stale-default-collection + stale-masterParentId
 // behaviour, which is exactly what the sync round-trip below exercises.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import {
   app, baseUrl, bearer, registerUser,
@@ -21,8 +21,10 @@ beforeAll(async () => { await dbReady; });
 
 // Two distinct devices per test so the same user can sync from multiple
 // browsers — the realistic case for a cross-browser product.
-const chrome = deviceInfo({ browser: 'Chrome', browserInstanceId: 'binst-chrome-sync' });
-const firefox = deviceInfo({ browser: 'Firefox', browserInstanceId: 'binst-firefox-sync' });
+let chrome = deviceInfo({ browser: 'Chrome', browserInstanceId: 'binst-chrome-sync' });
+let firefox = deviceInfo({ browser: 'Firefox', browserInstanceId: 'binst-firefox-sync' });
+
+beforeEach(() => { chrome = deviceInfo({ browser: 'Chrome' }); firefox = deviceInfo({ browser: 'Firefox' }); });
 
 async function initialSync(
   token: string,
@@ -112,20 +114,15 @@ describe('Sync: master-collection read-back', () => {
 });
 
 describe('Sync: status + delta sync', () => {
-  it('reports needsInitialSync=false on a brand-new account (default collection is auto-seeded with root folders)', async () => {
-    // resolveCollectionForSync (server.ts:51) bubbles users with no default
-    // collection through ensureDefaultCollection, which seeds standard root
-    // folders ("Bookmarks Bar", "Other Bookmarks", ...). So even a brand-new
-    // user lands here with collectionFolders.length > 0 and the empty-collection
-    // trigger for needsInitialSync never fires. This pins that contract so a
-    // future change to the seed logic doesn't silently flip it.
+  it('requires initial sync for a brand-new account despite seeded root folders', async () => {
+    // Native root placeholders do not mean a browser snapshot was imported.
     const u = await registerUser();
     const res = await request(app)
       .get(`${baseUrl}/sync/status`)
       .set('Authorization', bearer(u.token))
       .set('x-browser-instance-id', chrome.browserInstanceId);
     expect(res.status).toBe(200);
-    expect(res.body.data.needsInitialSync).toBe(false);
+    expect(res.body.data.needsInitialSync).toBe(true);
     // pendingChanges has the documented shape. We don't pin specific numbers
     // because the auto-seeded root folders show up as `addsFolders` for a
     // browser instance that has never synced — the exact count depends on

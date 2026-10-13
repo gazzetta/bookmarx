@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "BookMarx",
+  "version": "1.0.0",
+  "description": "Cross-browser bookmark synchronization system",
+  "permissions": [
+    "bookmarks",
+    "storage",
+    "identity",
+    "alarms",
+    "notifications"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bookmarx@example.com",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "bookmarksInfo",
+          "personallyIdentifyingInfo",
+          "authenticationInfo"
+        ],
+        "optional": []
+      }
+    }
+  },
+  "background": {
+    "scripts": [
+      "background/index.js"
+    ]
+  },
+  "action": {
+    "default_popup": "popup/index.html"
+  },
+  "host_permissions": [
+    "https://www.bookmarx.cc/*"
+  ],
+  "web_accessible_resources": []
+}

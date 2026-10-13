@@ -5,6 +5,7 @@ import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { db } from '../db/database';
 import { sendPasswordResetEmail } from '../utils/email';
+import { hasPremiumOverride } from '../middleware/auth';
 
 interface AuthUser {
     id: string;
@@ -35,13 +36,6 @@ const getGoogleClient = () => {
     return new OAuth2Client(googleClientId);
 };
 
-// Emails that are always treated as premium (e.g. admin/test accounts)
-const ALWAYS_PREMIUM_EMAILS = [
-    'qa@bookmarx.cc',
-];
-
-const isAlwaysPremiumEmail = (email: string): boolean =>
-    ALWAYS_PREMIUM_EMAILS.includes(email.toLowerCase());
 
 const buildUser = (record: {
     id: string;
@@ -58,8 +52,9 @@ const buildUser = (record: {
     isPremium: boolean;
 } => {
     const config = db.getAppConfig();
-    const alwaysPremium = isAlwaysPremiumEmail(record.email);
-    const tier = alwaysPremium ? 'premium' : ((record.subscriptionTier || 'free') as 'free' | 'premium');
+    const alwaysPremium = hasPremiumOverride(record.id);
+    const validPremium = record.subscriptionTier === 'premium' && (!record.subscriptionExpiresAt || record.subscriptionExpiresAt > Date.now() / 1000);
+    const tier = alwaysPremium || validPremium ? 'premium' : 'free';
     const limits = config.limits[tier] || config.limits.free;
 
     return {
@@ -78,7 +73,7 @@ const buildUser = (record: {
 
 const issueToken = (user: AuthUser): string => {
     const jwtSecret = getJwtSecret();
-    return jwt.sign({ sub: user.id, email: user.email }, jwtSecret, { expiresIn: getTokenExpiry() });
+    return jwt.sign({ sub: user.id, email: user.email, tokenVersion: db.getUserById(user.id)?.tokenVersion ?? 0 }, jwtSecret, { expiresIn: getTokenExpiry(), algorithm: 'HS256' });
 };
 
 const sendAuthResponse = (res: Response, data: AuthResponseData) => {
@@ -105,13 +100,21 @@ const ensureJwtSecret = (res: Response): boolean => {
 export const registerWithEmail = async (req: Request, res: Response) => {
     if (!ensureJwtSecret(res)) return;
 
-    const { email, password } = req.body as { email?: string; password?: string };
+    const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+    const password = req.body?.password;
 
     if (!email || !password) {
         return res.status(400).json({
             success: false,
             error: { message: 'Email and password are required' }
         });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
+        typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72) {
+        return res.status(400).json({ success: false, error: { message: 'Use a valid email and a password of at least 8 characters (maximum 72 bytes).' } });
+    }
+    if (!db.getAppConfig().features.registrationsEnabled) {
+        return res.status(403).json({ success: false, error: { message: 'Registration is temporarily unavailable' } });
     }
 
     const existingUser = db.getUserByEmail(email);
@@ -133,6 +136,7 @@ export const registerWithEmail = async (req: Request, res: Response) => {
             passwordHash,
             displayName
         });
+        db.ensureDefaultCollection(userId);
 
         const user = buildUser({ id: userId, email, displayName });
         const token = issueToken(user);
@@ -171,9 +175,10 @@ export const loginWithEmail = async (req: Request, res: Response) => {
     if (!ensureJwtSecret(res)) return;
 
     try {
-        const { email, password } = req.body as { email?: string; password?: string };
+        const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+        const password = req.body?.password;
 
-        if (!email || !password) {
+        if (!email || typeof password !== 'string' || Buffer.byteLength(password, 'utf8') > 72) {
             return res.status(400).json({
                 success: false,
                 error: { message: 'Email and password are required' }
@@ -216,6 +221,13 @@ export const loginWithEmail = async (req: Request, res: Response) => {
 export const loginWithGoogle = async (req: Request, res: Response) => {
     if (!ensureJwtSecret(res)) return;
 
+    const linkAccountId = (req as Request & { user?: { id: string } }).user?.id;
+    const linkAccount = linkAccountId ? db.getUserById(linkAccountId) : undefined;
+    if (linkAccountId && (!linkAccount?.passwordHash || typeof req.body.password !== 'string' ||
+        Buffer.byteLength(req.body.password, 'utf8') > 72 || !await bcrypt.compare(req.body.password, linkAccount.passwordHash))) {
+        return res.status(401).json({ success: false, error: { message: 'Confirm your current password to link Google' } });
+    }
+
     const { accessToken } = req.body as { accessToken?: string };
 
     if (!accessToken) {
@@ -242,6 +254,7 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
         
         let providerUserId: string | undefined;
         let email: string | undefined;
+        let emailVerified = false;
         
         // Try to verify as ID token (JWT) first - used by website
         try {
@@ -254,6 +267,7 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
             if (payload) {
                 providerUserId = payload.sub;
                 email = payload.email;
+                emailVerified = payload.email_verified === true;
             }
         } catch (idTokenError) {
             // Not an ID token, try as access token - used by extension
@@ -263,29 +277,49 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
             
             // Validate audience for access token
             const validAudience = (tokenInfo.aud === googleClientId) || (tokenInfo.aud === websiteClientId);
-            if (tokenInfo.aud && !validAudience) {
+            if (!validAudience) {
                 console.error('Audience mismatch. Expected one of:', [googleClientId, websiteClientId], 'Received:', tokenInfo.aud);
                 return res.status(401).json({
                     success: false,
                     error: { message: 'Google token audience mismatch' }
                 });
             }
+            const profileResponse = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
+                headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(15000) });
+            if (!profileResponse.ok) throw new Error('Google profile verification failed');
+            const profile = await profileResponse.json() as any;
+            if (profile.sub !== providerUserId || profile.email !== email) throw new Error('Google identity does not match');
+            emailVerified = profile.email_verified === true;
         }
 
-        if (!providerUserId || !email) {
+        if (!providerUserId || !email || !emailVerified) {
             return res.status(401).json({
                 success: false,
                 error: { message: 'Unable to verify Google token' }
             });
         }
+        email = email.trim().toLowerCase();
 
         let identity = db.getIdentity('google', providerUserId);
+        if (linkAccountId) {
+            const linked = db.transaction(() => {
+                const current = db.getUserById(linkAccountId);
+                if (!current || current.tokenVersion !== linkAccount?.tokenVersion || current.passwordHash !== linkAccount?.passwordHash) throw new Error('Your session changed; sign in again');
+                const existing = db.getIdentity('google', providerUserId!);
+                if (existing && existing.userId !== linkAccountId) throw new Error('This Google account is already linked to another BookMarx account');
+                if (!existing) db.createIdentity({ userId: linkAccountId, provider: 'google', providerUserId: providerUserId!, email });
+                return current;
+            });
+            const authUser = buildUser(linked);
+            return sendAuthResponse(res, { token: issueToken(authUser), user: authUser });
+        }
         let user = identity ? db.getUserById(identity.userId) : null;
 
         if (!user) {
             const existingUser = db.getUserByEmail(email);
             if (existingUser) {
-                user = existingUser;
+                return res.status(409).json({ success: false, error: { code: 'ACCOUNT_LINK_REQUIRED',
+                    message: 'An account already uses this email. Sign in with your existing password before linking Google in Settings → Account.' } });
             } else {
                 const userId = randomUUID();
                 const displayName = email.split('@')[0] || email;
@@ -401,7 +435,7 @@ export const resetPassword = async (req: Request, res: Response) => {
             });
         }
 
-        if (password.length < 8) {
+        if (typeof password !== 'string' || password.length < 8 || Buffer.byteLength(password, 'utf8') > 72) {
             return res.status(400).json({
                 success: false,
                 error: { message: 'Password must be at least 8 characters' }
@@ -436,17 +470,21 @@ export const resetPassword = async (req: Request, res: Response) => {
 
         // Hash the new password and update
         const passwordHash = await bcrypt.hash(password, 10);
-        const updated = db.updateUserPassword(resetToken.userId, passwordHash);
+        const updated = db.transaction(() => {
+            const live = db.getPasswordResetToken(token);
+            if (!live || live.usedAt || live.expiresAt < Math.floor(Date.now() / 1000)) return false;
+            const result = db.updateUserPassword(live.userId, passwordHash);
+            if (!result) throw new Error('Password update failed');
+            db.markPasswordResetTokenUsed(token);
+            return true;
+        });
 
         if (!updated) {
-            return res.status(500).json({
+            return res.status(400).json({
                 success: false,
-                error: { message: 'Failed to update password' }
+                error: { message: 'Reset token has expired or has already been used' }
             });
         }
-
-        // Mark the token as used
-        db.markPasswordResetTokenUsed(token);
 
         return res.json({
             success: true,

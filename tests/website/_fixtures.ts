@@ -1,3 +1,4 @@
+import { grantLocalTestPremium } from '../local-entitlements';
 // tests/website/_fixtures.ts
 //
 // Shared L2 fixtures for the BookMarx website Playwright suite.
@@ -160,11 +161,16 @@ export const test = base.extend<
   // requests it will SKIP (not fail) — this lets us ship the harness even
   // before the human has typed the password into `wsh setvar --workspace`.
   premiumAccount: async ({}, use) => {
-    if (!PREMIUM_PASSWORD) {
-      test.skip(true, 'BOOKMARX_PREMIUM_PASSWORD not set — premium-path tests skipped. Set via: wsh setvar --workspace BOOKMARX_PREMIUM_PASSWORD=<pw>');
+    let auth: AuthState;
+    if (PREMIUM_PASSWORD) auth = await loginUser(PREMIUM_EMAIL, PREMIUM_PASSWORD);
+    else if (['localhost', '127.0.0.1'].includes(new URL(BASE_URL).hostname)) {
+      const local = await registerFreeUser();
+      grantLocalTestPremium(BASE_URL, local.userId, local.email);
+      auth = await loginUser(local.email, local.password);
+    } else {
+      test.skip(true, 'Remote premium tests require explicit test-account credentials');
       return;
     }
-    const auth = await loginUser(PREMIUM_EMAIL, PREMIUM_PASSWORD);
     await use(auth);
     await cleanup(auth);
   },

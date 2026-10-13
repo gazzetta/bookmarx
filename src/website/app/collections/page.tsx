@@ -28,7 +28,7 @@ export default function CollectionsPage() {
     }
   }, [token])
 
-  const loadCollections = async () => {
+  async function loadCollections() {
     if (!token) return
     try {
       const data = await api.getCollections(token)

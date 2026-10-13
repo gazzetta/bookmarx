@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db/database';
 import { authenticate } from '../middleware/auth';
 import { requirePremium, checkCollectionLimit, AuthenticatedRequest, isPremium } from '../middleware/premium';
+import { applyCollectionChanges } from '../utils/collectionChanges';
 
 const router = Router();
 
@@ -14,8 +15,7 @@ router.get('/', authenticate, async (req: AuthenticatedRequest, res: Response) =
     try {
         const userId = req.user!.id;
 
-        // Ensure user has a default collection - MOVED to sync logic as per user request
-        // db.ensureDefaultCollection(userId);
+        db.ensureDefaultCollection(userId);
 
         const collections = db.getCollectionsByUserId(userId);
 
@@ -54,7 +54,7 @@ router.get('/:collectionId', authenticate, async (req: AuthenticatedRequest, res
         const userId = req.user!.id;
         const { collectionId } = req.params;
 
-        const collection = db.getCollectionById(collectionId, userId);
+        const collection = collectionId === 'default' ? db.getDefaultCollection(userId) : db.getCollectionById(collectionId, userId);
 
         if (!collection) {
             return res.status(404).json({
@@ -72,15 +72,15 @@ router.get('/:collectionId', authenticate, async (req: AuthenticatedRequest, res
                 error: {
                     code: 'PREMIUM_REQUIRED',
                     message: 'Access to non-default collections requires premium',
-                    upgradeUrl: 'https://www.bookmarx.cc/upgrade'
+                    upgradeUrl: 'https://www.bookmarx.cc/settings/subscription'
                 }
             });
         }
 
         // Get items in this collection
         // For now, collectionId null means default collection
-        const folders = db.getFoldersByCollection(collectionId, userId);
-        const bookmarks = db.getBookmarksByCollection(collectionId, userId);
+        const folders = db.getFoldersByCollection(collection.id, userId);
+        const bookmarks = db.getBookmarksByCollection(collection.id, userId);
 
         res.json({
             success: true,
@@ -303,251 +303,13 @@ router.post('/:collectionId/events/:eventId/rollback', authenticate, requirePrem
  * Used by the web-based collection editor
  */
 router.post('/:collectionId/changes', authenticate, requirePremium, async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user!.id;
+    const collection = req.params.collectionId === 'default' ? db.getDefaultCollection(userId) : db.getCollectionById(req.params.collectionId, userId);
+    if (!collection) return res.status(404).json({ success: false, error: { message: 'Collection not found' } });
     try {
-        const userId = req.user!.id;
-        const { collectionId } = req.params;
-        const { changes } = req.body;
-
-        if (!changes || !Array.isArray(changes)) {
-            return res.status(400).json({
-                success: false,
-                error: {
-                    message: 'Changes array is required'
-                }
-            });
-        }
-
-        // Verify collection exists and belongs to user
-        const collection = collectionId === 'default'
-            ? db.getDefaultCollection(userId)
-            : db.getCollectionById(collectionId, userId);
-
-        if (!collection) {
-            return res.status(404).json({
-                success: false,
-                error: {
-                    message: 'Collection not found'
-                }
-            });
-        }
-
-        const preChangeSnapshot = db.getCollectionSnapshot(collection.id, userId);
-
-        const { results, eventId } = db.transaction(() => {
-            const applyResults: { success: boolean; changeId?: string; error?: string }[] = [];
-
-            for (const change of changes) {
-                try {
-                    switch (change.type) {
-                        case 'move': {
-                            const { itemId, itemType, newParentId } = change;
-                            const targetParentBrowserId = newParentId
-                                ? db.getFolderBrowserIdByMasterId(newParentId, userId, collection.id)
-                                : '1';
-
-                            if (newParentId && !targetParentBrowserId) {
-                                throw new Error(`Target parent not found for move: ${newParentId}`);
-                            }
-
-                            if (itemType === 'folder') {
-                                db.updateFolder({
-                                    masterId: itemId,
-                                    parentId: targetParentBrowserId || undefined,
-                                    masterParentId: newParentId,
-                                    userId
-                                });
-                            } else {
-                                db.updateBookmark({
-                                    masterId: itemId,
-                                    parentId: targetParentBrowserId || undefined,
-                                    masterParentId: newParentId,
-                                    userId
-                                });
-                            }
-                            applyResults.push({ success: true, changeId: change.id });
-                            break;
-                        }
-                        case 'rename': {
-                            const { itemId, itemType, newTitle } = change;
-                            if (itemType === 'folder') {
-                                db.updateFolder({
-                                    masterId: itemId,
-                                    title: newTitle,
-                                    userId
-                                });
-                            } else {
-                                db.updateBookmark({
-                                    masterId: itemId,
-                                    title: newTitle,
-                                    userId
-                                });
-                            }
-                            applyResults.push({ success: true, changeId: change.id });
-                            break;
-                        }
-                        case 'update-url': {
-                            const { itemId, newUrl } = change;
-                            db.updateBookmark({
-                                masterId: itemId,
-                                url: newUrl,
-                                userId
-                            });
-                            applyResults.push({ success: true, changeId: change.id });
-                            break;
-                        }
-                        case 'delete': {
-                            const { itemId, itemType } = change;
-                            if (itemType === 'folder') {
-                                db.deleteFolder({
-                                    masterId: itemId,
-                                    userId,
-                                    recursive: true
-                                });
-                            } else {
-                                db.deleteBookmark({
-                                    masterId: itemId,
-                                    userId
-                                });
-                            }
-                            applyResults.push({ success: true, changeId: change.id });
-                            break;
-                        }
-                        case 'add-folder': {
-                            const { parentId, title } = change;
-                            const parentBrowserId = parentId
-                                ? db.getFolderBrowserIdByMasterId(parentId, userId, collection.id)
-                                : null;
-                            db.createFolder({
-                                browserId: `manual-folder-${Date.now()}-${change.id || Math.random().toString(36).slice(2)}`,
-                                title,
-                                parentId: parentBrowserId || '1',
-                                masterParentId: parentId || null,
-                                position: 0,
-                                dateAdded: Date.now(),
-                                userId,
-                                collectionId: collection.id,
-                                status: 'active'
-                            });
-                            applyResults.push({ success: true, changeId: change.id });
-                            break;
-                        }
-                        case 'add-bookmark': {
-                            const { parentId, title, url } = change;
-                            const parentBrowserId = parentId
-                                ? db.getFolderBrowserIdByMasterId(parentId, userId, collection.id)
-                                : null;
-                            db.createBookmark({
-                                browserId: `manual-bookmark-${Date.now()}-${change.id || Math.random().toString(36).slice(2)}`,
-                                title,
-                                url,
-                                parentId: parentBrowserId || '1',
-                                masterParentId: parentId || null,
-                                position: 0,
-                                userId,
-                                collectionId: collection.id,
-                                status: 'active',
-                                dateAdded: Date.now()
-                            });
-                            applyResults.push({ success: true, changeId: change.id });
-                            break;
-                        }
-                        case 'copy-from': {
-                            const { sourceCollectionId, copyItems: itemsToCopy } = change;
-                            if (!sourceCollectionId || !itemsToCopy) {
-                                applyResults.push({ success: false, changeId: change.id, error: 'Missing sourceCollectionId or copyItems' });
-                                break;
-                            }
-                            const sourceCol = sourceCollectionId === 'default'
-                                ? db.getDefaultCollection(userId)
-                                : db.getCollectionById(sourceCollectionId, userId);
-                            if (!sourceCol) {
-                                applyResults.push({ success: false, changeId: change.id, error: 'Source collection not found' });
-                                break;
-                            }
-                            db.copyItemsToCollection(
-                                collection.id,
-                                sourceCol.id,
-                                userId,
-                                itemsToCopy.map((item: any) => ({
-                                    masterId: item.masterId,
-                                    type: item.type,
-                                    targetParentId: item.targetParentId || null
-                                }))
-                            );
-                            applyResults.push({ success: true, changeId: change.id });
-                            break;
-                        }
-                        default:
-                            applyResults.push({
-                                success: false,
-                                changeId: change.id,
-                                error: `Unknown change type: ${change.type}`
-                            });
-                    }
-                } catch (err) {
-                    const error = err as Error;
-                    console.error('Error applying change:', change, error);
-                    applyResults.push({
-                        success: false,
-                        changeId: change.id,
-                        error: error.message
-                    });
-                }
-            }
-
-            const successCount = applyResults.filter(r => r.success).length;
-            const failCount = applyResults.filter(r => !r.success).length;
-
-            return {
-                results: applyResults,
-                eventId: successCount > 0
-                    ? db.createCollectionEvent({
-                        userId,
-                        collectionId: collection.id,
-                        type: 'MANUAL_EDIT',
-                        changesCount: successCount,
-                        snapshot: preChangeSnapshot,
-                        details: {
-                            attempted: changes.length,
-                            applied: successCount,
-                            failed: failCount,
-                            results: applyResults
-                        }
-                    })
-                    : null
-            };
-        });
-
-        const successCount = results.filter(r => r.success).length;
-        const failCount = results.filter(r => !r.success).length;
-
-        console.log(`Applied ${successCount}/${changes.length} changes to collection ${collectionId} for user ${userId}`);
-
-        // Update collection's updatedAt timestamp to trigger extension sync
-        // The updateCollection method automatically updates the timestamp
-        if (successCount > 0) {
-            db.updateCollection(collection.id, userId, {});
-        }
-
-        res.json({
-            success: failCount === 0,
-            data: {
-                applied: successCount,
-                failed: failCount,
-                eventId,
-                results
-            }
-        });
-    } catch (err) {
-        const error = err as Error;
-        console.error('Error applying collection changes:', error);
-        res.status(500).json({
-            success: false,
-            error: {
-                message: 'Failed to apply changes',
-                details: error.message
-            }
-        });
+        return res.json({ success: true, data: applyCollectionChanges(userId, collection.id, req.body?.changes) });
+    } catch (error) {
+        return res.status(400).json({ success: false, error: { message: error instanceof Error ? error.message : 'Changes could not be applied; nothing was saved' } });
     }
 });
 

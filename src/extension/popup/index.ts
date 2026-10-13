@@ -550,8 +550,8 @@ class PopupManager {
     private setInitialSyncUI(isInitialSync: boolean): void {
         if (isInitialSync) {
             this.initialSyncNoticeElement?.classList.remove('hidden');
-            this.statsContainerElement?.classList.add('hidden');
-            this.actionsContainerElement?.classList.add('hidden');
+            this.statsContainerElement?.classList.remove('hidden');
+            this.actionsContainerElement?.classList.remove('hidden');
             this.syncUpButton.textContent = '⬆ Run Initial Sync';
             this.syncUpButton.classList.add('initial-sync');
             this.syncUpButton.disabled = false;
@@ -807,7 +807,7 @@ class PopupManager {
         if (upgradeButton && !upgradeButton.hasAttribute('data-listener-attached')) {
             upgradeButton.setAttribute('data-listener-attached', 'true');
             upgradeButton.addEventListener('click', () => {
-                chrome.tabs.create({ url: `${WEBSITE_BASE_URL}/upgrade` });
+                chrome.tabs.create({ url: `${WEBSITE_BASE_URL}/settings/subscription` });
             });
         }
     }
@@ -1222,80 +1222,34 @@ class PopupManager {
         await this.updateUI();
     }
 
-    private getGoogleAccessToken(): Promise<string> {
-        return new Promise((resolve, reject) => {
-            chrome.identity.getAuthToken({ interactive: true }, (token) => {
-                if (chrome.runtime.lastError || !token) {
-                    reject(new Error(chrome.runtime.lastError?.message || 'Google authorization failed'));
-                    return;
-                }
-                resolve(token);
-            });
-        });
-    }
-
-    private showSuccess(message: string): void {
-        const errorContainer = document.getElementById('errorContainer');
-        if (errorContainer) {
-            errorContainer.innerHTML = `
-                <span>${message}</span>
-                <button class="dismiss-button">&times;</button>
-            `;
-            errorContainer.className = 'success-container';
-
-            const dismissButton = errorContainer.querySelector('.dismiss-button');
-            dismissButton?.addEventListener('click', () => {
-                errorContainer.className = 'toast-container hidden';
-            });
-
-            setTimeout(() => {
-                errorContainer.className = 'toast-container hidden';
-            }, 4000);
+    private showToast(message: string, success: boolean, offerUpgrade = false): void {
+        const container = document.getElementById('errorContainer');
+        if (!container) return;
+        const label = document.createElement('span');
+        label.textContent = message;
+        const dismiss = document.createElement('button');
+        dismiss.className = 'dismiss-button';
+        dismiss.textContent = '×';
+        dismiss.setAttribute('aria-label', 'Dismiss message');
+        dismiss.addEventListener('click', () => { container.className = 'toast-container hidden'; });
+        container.replaceChildren(label);
+        if (offerUpgrade) {
+            const link = document.createElement('a');
+            link.textContent = 'Upgrade to Premium';
+            link.href = `${WEBSITE_BASE_URL}/settings/subscription`;
+            link.className = 'upgrade-error-link';
+            link.addEventListener('click', event => { event.preventDefault(); chrome.tabs.create({ url: link.href }); });
+            container.appendChild(link);
         }
+        container.appendChild(dismiss);
+        container.className = success ? 'success-container' : 'error-container';
+        if (success) setTimeout(() => { container.className = 'toast-container hidden'; }, 4000);
     }
+
+    private showSuccess(message: string): void { this.showToast(message, true); }
 
     private showError(message: string, upgradeUrl?: string): void {
-        const errorContainer = document.getElementById('errorContainer');
-        if (errorContainer) {
-            const isLimitError = upgradeUrl || message.toLowerCase().includes('upgrade') || message.toLowerCase().includes('limit');
-
-            let html = `<span>${message}</span>`;
-
-            if (isLimitError) {
-                const url = upgradeUrl || `${WEBSITE_BASE_URL}/upgrade`;
-                html += `
-                    <div style="margin-top: 8px;">
-                        <a href="${url}" target="_blank" class="upgrade-error-link" style="
-                            display: inline-block;
-                            padding: 6px 12px;
-                            background: rgba(255,255,255,0.2);
-                            color: #fff;
-                            text-decoration: none;
-                            border-radius: 8px;
-                            font-weight: 600;
-                            font-size: 12px;
-                        ">Upgrade to Premium</a>
-                    </div>
-                `;
-            }
-
-            html += `<button class="dismiss-button">&times;</button>`;
-
-            errorContainer.innerHTML = html;
-            errorContainer.className = 'error-container';
-
-            const dismissButton = errorContainer.querySelector('.dismiss-button');
-            dismissButton?.addEventListener('click', () => {
-                errorContainer.className = 'toast-container hidden';
-            });
-
-            const upgradeLink = errorContainer.querySelector('.upgrade-error-link');
-            upgradeLink?.addEventListener('click', (e) => {
-                e.preventDefault();
-                const url = (e.target as HTMLAnchorElement).href;
-                chrome.tabs.create({ url });
-            });
-        }
+        this.showToast(message, false, Boolean(upgradeUrl) || /upgrade|limit/i.test(message));
     }
 
     private formatDate(date: Date): string {

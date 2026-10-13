@@ -22,6 +22,8 @@ async function start() {
   const handle = nextApp.getRequestHandler();
 
   const { app: apiApp } = await import('./backend/server');
+  const { dbReady } = await import('./backend/db/database');
+  await dbReady;
 
   await nextApp.prepare();
 

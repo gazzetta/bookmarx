@@ -46,6 +46,26 @@ function RegisterForm() {
 
   const plan = searchParams.get('plan')
 
+  async function handleGoogleCallback(response: { credential: string }) {
+    setGoogleLoading(true)
+    setError('')
+
+    try {
+      if (loginWithGoogle) {
+        await loginWithGoogle(response.credential)
+        if (plan === 'premium') {
+          router.push('/settings/subscription')
+        } else {
+          router.push('/dashboard')
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign up failed')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
   useEffect(() => {
     const script = document.createElement('script')
     script.src = 'https://accounts.google.com/gsi/client'
@@ -80,25 +100,6 @@ function RegisterForm() {
     }
   }, [])
 
-  const handleGoogleCallback = async (response: { credential: string }) => {
-    setGoogleLoading(true)
-    setError('')
-
-    try {
-      if (loginWithGoogle) {
-        await loginWithGoogle(response.credential)
-        if (plan === 'premium') {
-          router.push('/settings/subscription')
-        } else {
-          router.push('/dashboard')
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign up failed')
-    } finally {
-      setGoogleLoading(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

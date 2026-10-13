@@ -13,6 +13,18 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [sessionsLoading, setSessionsLoading] = useState(true)
 
+  async function loadSessions() {
+    if (!token) return
+    try {
+      const data = await api.getSessions(token)
+      setSessions(data.sessions || [])
+    } catch (error) {
+      console.error('Failed to load sessions:', error)
+    } finally {
+      setSessionsLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login')
@@ -24,21 +36,11 @@ export default function SessionsPage() {
 
   useEffect(() => {
     if (token && isPremium) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Start the asynchronous API load when its account or route changes.
       loadSessions()
     }
   }, [token, isPremium])
 
-  const loadSessions = async () => {
-    if (!token) return
-    try {
-      const data = await api.getSessions(token)
-      setSessions(data.sessions || [])
-    } catch (error) {
-      console.error('Failed to load sessions:', error)
-    } finally {
-      setSessionsLoading(false)
-    }
-  }
 
   const formatDate = (timestamp: number) => {
     // Handle both seconds (Unix) and milliseconds timestamps

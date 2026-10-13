@@ -349,7 +349,7 @@ export default function CollectionEditorPage() {
     }
   }, [token, collectionId, isPremium])
 
-  const loadCollection = async () => {
+  async function loadCollection() {
     if (!token) return
     try {
       // Handle "default" alias - resolve to actual default collection ID

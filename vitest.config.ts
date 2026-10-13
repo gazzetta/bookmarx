@@ -10,7 +10,7 @@ export default defineConfig({
   test: {
     // Only pick up root-tree tests/* files; the per-workspace Jest configs under
     // src/extension are intentionally left untouched for now.
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/audit/*.audit.ts'],
     pool: 'forks',
     isolate: true,
     environment: 'node',

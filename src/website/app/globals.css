@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500&family=Outfit:wght@300;400;500;600;700&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,7 +8,7 @@
    Warm, editorial, Claude-inspired aesthetic
    ═══════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500&family=Outfit:wght@300;400;500;600;700&display=swap');
+
 
 /* ─── CSS Custom Properties ─── */
 :root {

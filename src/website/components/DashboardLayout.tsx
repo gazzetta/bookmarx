@@ -55,6 +55,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               >
                 My Subscription
               </Link>
+              <Link href="/settings/account" className="block px-4 py-2 rounded-lg">Account settings</Link>
               <Link
                 href="/settings/browsers"
                 className="px-4 py-2 rounded-xl text-ink-500 dark:text-cream-500 hover:text-ink dark:hover:text-cream-100 hover:bg-cream-200/60 dark:hover:bg-white/10 transition-all text-sm font-medium"
@@ -126,6 +127,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     </svg>
                     My Subscription
                   </Link>
+                  <Link href="/settings/account" className="block px-3 py-2.5 text-sm rounded-xl">Account settings</Link>
                   <Link
                     href="/settings/browsers"
                     className="flex items-center gap-3 px-3 py-2.5 text-sm text-ink-500 dark:text-cream-500 hover:text-ink dark:hover:text-cream-100 hover:bg-cream-100 dark:hover:bg-white/[0.06] rounded-xl transition-colors"

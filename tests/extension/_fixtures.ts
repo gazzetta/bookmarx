@@ -1,3 +1,4 @@
+import { grantLocalTestPremium } from '../local-entitlements';
 // tests/extension/_fixtures.ts
 //
 // Shared L3 fixtures for the BookMarx extension Playwright suite.
@@ -234,29 +235,26 @@ export async function seedAuthInExtension(auth: AuthState): Promise<void> {
       subscriptionTier: auth.isPremium ? 'premium' : 'free',
     },
   };
-  await evalInBackground(async (data: any) => {
-    // @ts-ignore
-    return new Promise<void>((resolve) => {
-      // @ts-ignore
-      chrome.storage.local.get(null, (current: any) => {
-        // @ts-ignore
-        chrome.storage.local.set({ ...current, auth: data, userId: data.user.id }, () => {
-          resolve();
-        });
-      });
-    });
-  }, authData);
+  await sendFromTestPage({ action: 'setAuth', data: authData });
 }
 
 // Clear all extension storage (useful between tests)
 export async function clearExtensionStorage(): Promise<void> {
-  await evalInBackground(async () => {
-    // @ts-ignore
-    return new Promise<void>((resolve) => {
+  await sendFromTestPage({ action: 'clearStorage' });
+}
+
+async function sendFromTestPage(message: any): Promise<any> {
+  if (!_context || !_extensionId) throw new Error('Extension context is unavailable');
+  const page = await _context.newPage();
+  try {
+    await page.goto(`chrome-extension://${_extensionId}/popup/debug.html`);
+    const result: any = await page.evaluate(msg => new Promise(resolve => {
       // @ts-ignore
-      chrome.storage.local.clear(() => resolve());
-    });
-  });
+      chrome.runtime.sendMessage(msg, (response: any) => resolve(response));
+    }), message);
+    if (!result?.success) throw new Error(`Test message failed: ${JSON.stringify(result)}`);
+    return result;
+  } finally { await page.close(); }
 }
 
 // Get all extension storage
@@ -325,11 +323,20 @@ export const test = base.extend<ExtensionFixtures>({
     await cleanup(auth);
   },
   premiumAccount: async ({}, use) => {
-    if (!PREMIUM_PASSWORD) {
-      test.skip(true, 'BOOKMARX_PREMIUM_PASSWORD not set — premium-path tests skipped.');
+    let auth: AuthState;
+    if (PREMIUM_PASSWORD) auth = await loginUser(PREMIUM_EMAIL, PREMIUM_PASSWORD);
+    else if (['localhost', '127.0.0.1'].includes(new URL(BASE_URL).hostname)) {
+      const local = await registerFreeUser();
+      grantLocalTestPremium(BASE_URL, local.userId, local.email);
+      auth = await loginUser(local.email, local.password);
+    } else {
+      test.skip(true, 'Remote premium tests require explicit test-account credentials');
       return;
     }
-    const auth = await loginUser(PREMIUM_EMAIL, PREMIUM_PASSWORD);
+    if (!PREMIUM_PASSWORD) {
+      const seed = await postJSON('/capture', { title: 'Premium fixture bookmark', url: 'https://example.test/premium-fixture' }, auth.token);
+      if (!seed.success) throw new Error('Premium fixture bookmark could not be created');
+    }
     await use(auth);
     await cleanup(auth);
   },

@@ -20,7 +20,7 @@ declare const chrome: any;
 
 const EXTENSION_DIR = path.resolve(__dirname, '../../src/extension/dist');
 
-export type Engine = 'chromium' | 'msedge';
+export type Engine = 'chromium' | 'msedge' | 'brave' | 'opera' | 'helium';
 
 export interface Peer {
   label: string;
@@ -34,6 +34,9 @@ export interface Peer {
 const ENGINE_OPTS: Record<Engine, Record<string, unknown>> = {
   chromium: {},
   msedge: { channel: 'msedge' },
+  brave: { executablePath: process.env.BOOKMARX_BRAVE_EXE || 'C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe' },
+  opera: { executablePath: process.env.BOOKMARX_OPERA_EXE || 'C:/Program Files (x86)/Opera/136.0.6008.80/opera.exe' },
+  helium: { executablePath: process.env.BOOKMARX_HELIUM_EXE || path.join(os.homedir(), 'AppData/Local/imput/Helium/Application/chrome.exe') },
 };
 
 // 'opera' keeps the bundled Chromium binary but presents an Opera UA (OPR/ token).
@@ -110,11 +113,8 @@ export async function seedAuth(peer: Peer, auth: AuthState): Promise<void> {
       subscriptionTier: auth.isPremium ? 'premium' : 'free',
     },
   };
-  await inBackground(peer, (d: any) => new Promise<void>((resolve) => {
-    chrome.storage.local.get(null, (current: any) => {
-      chrome.storage.local.set({ ...current, auth: d, userId: d.user.id }, () => resolve());
-    });
-  }), data);
+  const result = await sendFromPopup<any>(peer, { action: 'setAuth', data });
+  if (!result?.success) throw new Error(`Authentication setup failed: ${JSON.stringify(result)}`);
 }
 
 export async function getStorage(peer: Peer): Promise<any> {
@@ -150,9 +150,12 @@ export interface LocalBookmark { id: string; parentId: string; title: string; ur
 
 export async function findLocalByUrl(peer: Peer, url: string): Promise<LocalBookmark[]> {
   return inBackground<LocalBookmark[]>(peer, (u: string) => new Promise((resolve) => {
-    chrome.bookmarks.search({ url: u }, (results: any[]) => resolve(results.map((r) => ({
-      id: r.id, parentId: r.parentId, title: r.title, url: r.url,
-    }))));
+    chrome.bookmarks.getTree((tree: any[]) => {
+      const results: any[] = [];
+      const walk = (node: any) => { if (node.url === u) results.push({ id: node.id, parentId: node.parentId, title: node.title, url: node.url }); node.children?.forEach(walk); };
+      tree[0].children.filter((root: any) => !root.unmodifiable && !['bin', 'trash', 'pinboard', 'speed dials', 'unsynchronized pinboard'].includes(root.title.toLowerCase())).forEach(walk);
+      resolve(results);
+    });
   }), url);
 }
 

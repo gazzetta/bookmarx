@@ -28,7 +28,7 @@ import request from 'supertest';
 import {
   app, baseUrl, bearer, registerUser,
   deviceInfo, syncMetadata, makeBookmark, makeFolder,
-  dbReady, type DeviceMeta,
+  dbReady, db, type DeviceMeta,
 } from '../helpers';
 
 beforeAll(async () => { await dbReady; });
@@ -375,7 +375,8 @@ describe('Cross-device sync: convergence + masterId invariants', () => {
     // browser-limit gate. Use the ALWAYS_PREMIUM_EMAILS allowlist entry
     // (auth.ts:39) so this user is premium from registration, bypassing
     // the browser-limit check but keeping everything else stock.
-    const premiumUser = await registerUser({ email: 'qa@bookmarx.cc' });
+    const premiumUser = await registerUser();
+    db.updateUserSubscription(premiumUser.userId, { subscriptionTier: 'premium' });
     const devices = await Promise.all([
       mkDevice(premiumUser, 'chrome', fp.chrome),
       mkDevice(premiumUser, 'firefox', fp.firefox),

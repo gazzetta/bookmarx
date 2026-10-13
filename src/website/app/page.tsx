@@ -76,7 +76,7 @@ const features = [
   {
     number: '02',
     title: 'Mobile Access',
-    description: 'Your entire bookmark library, right in your pocket. Save links on the go from iOS and Android with our native mobile apps.',
+    description: 'Use the website to browse your bookmark library on mobile. Native iOS and Android apps are planned.',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -116,7 +116,7 @@ const features = [
   {
     number: '06',
     title: 'Secure & Private',
-    description: 'Your bookmarks are encrypted and stored securely. We never sell your data, track your browsing, or share your information.',
+    description: 'Your bookmarks sync through your own account over HTTPS. We do not sell your bookmark data or track the pages you browse.',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -161,7 +161,7 @@ export default function HomePage() {
     },
     {
       question: 'Is my data secure?',
-      answer: 'Absolutely. All bookmarks are encrypted in transit and at rest. We use industry-standard JWT authentication and never share or sell your data. You can export or delete your data at any time.'
+      answer: 'Production connections use HTTPS to protect bookmarks in transit. Your account controls access to your library. You can export your bookmarks and delete bookmarks or collections.'
     },
     {
       question: 'Can I use BookMarx with multiple Google accounts?',
@@ -173,7 +173,7 @@ export default function HomePage() {
     },
     {
       question: `What's included in ${config.branding.premiumTitle}?`,
-      answer: `${config.branding.premiumTitle} unlocks unlimited bookmarks (vs ${config.limits.free.bookmarks} free), unlimited browser connections (vs ${config.limits.free.browsers} free), the web-based drag & drop editor, session history with rollback, multiple collections, and priority support.`
+      answer: `${config.branding.premiumTitle} includes up to ${config.limits.premium.bookmarks.toLocaleString()} bookmarks (vs ${config.limits.free.bookmarks} free) and ${config.limits.premium.browsers} browser profiles (vs ${config.limits.free.browsers} free), the web-based drag & drop editor, session history with rollback, multiple collections, and priority support.`
     },
   ]
 
@@ -235,7 +235,7 @@ export default function HomePage() {
               <div className="animate-fade-in-down" style={{ animationDelay: '0ms', animationFillMode: 'both' }}>
                 <div className="inline-flex items-center gap-2.5 bg-white/70 dark:bg-white/[0.06] backdrop-blur rounded-full px-4 py-2 mb-8 border border-cream-400/50 dark:border-white/10">
                   <span className="flex h-2 w-2 rounded-full bg-sage-500 animate-pulse"></span>
-                  <span className="text-sm font-medium text-ink-500 dark:text-cream-500">Now supporting 4 browsers + mobile</span>
+                  <span className="text-sm font-medium text-ink-500 dark:text-cream-500">Bookmarks across your Windows browsers</span>
                 </div>
               </div>
 
@@ -369,10 +369,10 @@ export default function HomePage() {
           <RevealSection>
             <div className="flex flex-wrap items-center justify-center gap-12 lg:gap-20">
               {[
-                { value: '50K+', label: 'Active Users' },
-                { value: '2M+', label: 'Bookmarks Synced' },
-                { value: '4', label: 'Browsers Supported' },
-                { value: '99.9%', label: 'Uptime' },
+                { value: 'HTML', label: 'Browser Bookmark Import' },
+                { value: 'JSON', label: 'Portable Backups' },
+                { value: 'Folders', label: 'Your Hierarchy Preserved' },
+                { value: 'HTTPS', label: 'Production Connections' },
               ].map((stat, i) => (
                 <div key={i} className="text-center group">
                   <div className="font-display text-3xl lg:text-4xl font-bold text-ink dark:text-cream-100 tracking-tight">{stat.value}</div>
@@ -541,11 +541,11 @@ export default function HomePage() {
                 <ul className="space-y-4 mb-8 flex-1">
                   {[
                     `Up to ${config.limits.premium.bookmarks.toLocaleString()} bookmarks`,
-                    'Unlimited browser connections',
+                    `Up to ${config.limits.premium.browsers} browser profiles`,
                     'Multiple collections',
                     'Web drag & drop editor',
                     'Session history & rollback',
-                    'Full mobile app access',
+                    'Bookmark file import & export',
                   ].map((item, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <svg className="w-5 h-5 text-terra-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -579,7 +579,7 @@ export default function HomePage() {
                 <ul className="space-y-4 mb-8 flex-1">
                   {[
                     `Everything in ${config.branding.premiumTitle}`,
-                    'Unlimited bookmarks',
+                    `Up to ${config.limits.premium.bookmarks.toLocaleString()} bookmarks`,
                     'Team sharing & collaboration',
                     'SSO integration',
                     'Priority support',

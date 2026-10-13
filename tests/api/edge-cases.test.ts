@@ -11,7 +11,7 @@
 //
 // Per TESTING-REGIME.md §7, these are the automatable L5 items. API-down
 // behaviour remains manual-only.
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import request from 'supertest';
 import {
   app, baseUrl, bearer, registerUser,
@@ -21,8 +21,10 @@ import {
 
 beforeAll(async () => { await dbReady; });
 
-const chrome = deviceInfo({ browser: 'Chrome', browserInstanceId: 'binst-edge-chrome' });
-const firefox = deviceInfo({ browser: 'Firefox', browserInstanceId: 'binst-edge-firefox' });
+let chrome = deviceInfo({ browser: 'Chrome', browserInstanceId: 'binst-edge-chrome' });
+let firefox = deviceInfo({ browser: 'Firefox', browserInstanceId: 'binst-edge-firefox' });
+
+beforeEach(() => { chrome = deviceInfo({ browser: 'Chrome' }); firefox = deviceInfo({ browser: 'Firefox' }); });
 
 async function initialSync(
   token: string,

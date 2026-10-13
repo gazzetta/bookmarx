@@ -2,7 +2,7 @@ import { BookmarkManager } from './BookmarkManager';
 import { SyncManager } from './SyncManager';
 import { StorageManager } from './StorageManager';
 import { detectBrowser } from './utils/browserDetect';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../config';
 
 class BackgroundService {
     private bookmarkManager: BookmarkManager;
@@ -10,9 +10,8 @@ class BackgroundService {
     private storageManager: StorageManager;
     private isInitialized: boolean = false;
     private readonly statusCheckAlarmName = 'sync-status-check';
-    // TEMP QA TEST: reduced from 5 minutes to 0.5 minutes (30s) for change-detection testing.
-    // REVERT to 5 after Section 2.8 testing completes.
-    private readonly statusCheckIntervalMinutes = 0.5;
+    // The development build keeps a short alarm cycle for regression tests.
+    private readonly statusCheckIntervalMinutes = API_BASE_URL.startsWith('https:') ? 5 : 0.5;
 
     constructor() {
         this.initializeServices();
@@ -27,8 +26,8 @@ class BackgroundService {
             this.bookmarkManager = new BookmarkManager(this.storageManager);
             this.syncManager = new SyncManager(this.storageManager);
 
-            await this.storageManager.initialize();
             await this.bookmarkManager.initialize();
+            await this.storageManager.initialize();
             await this.syncManager.initialize();
             await this.setupNotificationSchedule();
 
@@ -58,7 +57,7 @@ class BackgroundService {
                         sendResponse({ auth: null });
                         return;
                     }
-                    console.log('getAuthState handler - storage result:', storage);
+
                     sendResponse({ auth: storage.auth || null });
                 });
                 return true; // Keep the message channel open for async response
@@ -164,9 +163,10 @@ class BackgroundService {
                 (async () => {
                     try {
                         const redirectUrl = chrome.identity.getRedirectURL();
-                        const clientId = '669480413219-sv4vq2de70at057ra24jis15bftota8g.apps.googleusercontent.com';
+                        const clientId = GOOGLE_CLIENT_ID;
+                        const state = crypto.randomUUID();
                         const scopes = encodeURIComponent('email profile');
-                        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUrl)}&scope=${scopes}`;
+                        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=token&redirect_uri=${encodeURIComponent(redirectUrl)}&scope=${scopes}&state=${encodeURIComponent(state)}`;
 
                         console.log('[GoogleLogin] Redirect URL:', redirectUrl);
                         console.log('[GoogleLogin] Client ID:', clientId);
@@ -187,6 +187,7 @@ class BackgroundService {
                         });
 
                         const hashParams = new URLSearchParams(responseUrl.split('#')[1]);
+                        if (!responseUrl.startsWith(redirectUrl) || hashParams.get('state') !== state) throw new Error('Google authorization response does not match this sign-in attempt');
                         const accessToken = hashParams.get('access_token');
                         if (!accessToken) {
                             throw new Error('No access token in Google response');
@@ -772,7 +773,7 @@ class BackgroundService {
 
     private async handleFirstInstall(): Promise<void> {
         // Initialize extension data and settings
-        await this.storageManager.setDefaults();
+        await this.storageManager.initialize();
 
         // For now, just log that installation is complete
         console.log('BookMarx installed successfully');

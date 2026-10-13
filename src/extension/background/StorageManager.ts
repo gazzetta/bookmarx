@@ -9,6 +9,12 @@ export interface MasterIdEntry {
 export type MasterIdMap = Record<string, MasterIdEntry>;
 
 interface StorageData {
+    masterIdMap?: MasterIdMap;
+    pullFailure?: { since: number; attempts: number } | null;
+    accounts?: Record<string, Partial<StorageData>>;
+    notificationState?: any;
+    pendingSnapshot?: { signature: string; operationId: string } | null;
+    createIntents?: Record<string, any>;
     changes: QueuedChange[];
     lastSync: number;
     settings: {
@@ -27,8 +33,9 @@ interface StorageData {
     } | null;
     deviceId?: string;
     browserInstanceId?: string;
-    collectionId?: string;
-    collectionName?: string;
+    collectionId?: string | null;
+    collectionName?: string | null;
+    expectedEvents?: Array<{ eventId?: string; type: string; id?: string; title?: string; url?: string; parentId?: string; expires: number }>;
 }
 
 export class StorageManager {
@@ -98,22 +105,18 @@ export class StorageManager {
     }
 
     public async initialize(): Promise<void> {
-        const data = await this.getData();
-        if (!data || !data.browserInstanceId) {
-            await this.setDefaults();
-        }
+        await this.setDefaults();
     }
 
     public async setDefaults(): Promise<void> {
-        const deviceId = crypto.randomUUID();
-        const browserInstanceId = crypto.randomUUID();
-        const defaultsWithIds = {
-            ...this.defaults,
-            deviceId,
-            browserInstanceId
-        };
-        await this.localSet(defaultsWithIds);
-        console.log('Set defaults with deviceId and browserInstanceId:', { deviceId, browserInstanceId });
+        await this.exclusive(async () => {
+            const current = await this.getData();
+            await this.localSet({ ...this.defaults, ...current,
+                settings: { ...this.defaults.settings, ...current?.settings },
+                changes: current?.changes || [],
+                deviceId: current?.deviceId || crypto.randomUUID(), browserInstanceId: current?.browserInstanceId || crypto.randomUUID(),
+                suppressQueue: false });
+        });
     }
 
     public async getData(): Promise<StorageData | null> {
@@ -150,6 +153,8 @@ export class StorageManager {
         };
 
         const queuedChange: QueuedChange = {
+            operationId: crypto.randomUUID(),
+            collectionId: data.collectionId || null,
             ...change,
             timestamp: Date.now(),
             metadata,
@@ -163,6 +168,36 @@ export class StorageManager {
     public async isQueueingSuppressed(): Promise<boolean> {
         const data = await this.getData();
         return Boolean(data?.suppressQueue);
+    }
+
+    public expectBookmarkEvent(event: { type: string; id?: string; title?: string; url?: string; parentId?: string }): Promise<string> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            const events = (data?.expectedEvents || []).filter(e => e.expires > Date.now());
+            const eventId = crypto.randomUUID();
+            events.push({ ...event, eventId, expires: Date.now() + 30000 });
+            await this.localSet({ expectedEvents: events });
+            return eventId;
+        });
+    }
+
+    public cancelBookmarkEvent(eventId: string): Promise<void> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            await this.localSet({ expectedEvents: (data?.expectedEvents || []).filter(event => event.eventId !== eventId) });
+        });
+    }
+
+    public consumeBookmarkEvent(type: string, id: string, node?: Partial<chrome.bookmarks.BookmarkTreeNode>): Promise<boolean> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            const events = (data?.expectedEvents || []).filter(e => e.expires > Date.now());
+            const index = events.findIndex(e => e.type === type && (e.id ? e.id === id : e.title === node?.title && e.url === node?.url && e.parentId === node?.parentId));
+            if (index < 0) return false;
+            events.splice(index, 1);
+            await this.localSet({ expectedEvents: events });
+            return true;
+        });
     }
 
     public setQueueingSuppressed(suppressed: boolean): Promise<void> {
@@ -205,6 +240,63 @@ export class StorageManager {
         return data?.changes || [];
     }
 
+    public freezeOutgoingChanges(changes: any[]): Promise<any[]> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            const frozen = changes.map(change => {
+                const queued = data?.changes.find(item => item.operationId && item.operationId === change.operationId) as any;
+                if (!queued) return change;
+                queued.wireData ??= change.data;
+                return { ...change, data: queued.wireData };
+            });
+            if (data) await this.localSet({ changes: data.changes });
+            return frozen;
+        });
+    }
+
+    public beginSnapshot(payload: any): Promise<string> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            const signature = JSON.stringify([data?.userId, data?.collectionId || null, payload]);
+            const pending = data?.pendingSnapshot?.signature === signature ? data.pendingSnapshot : { signature, operationId: crypto.randomUUID() };
+            await this.localSet({ pendingSnapshot: pending });
+            return pending.operationId;
+        });
+    }
+
+    public completeSnapshot(): Promise<void> {
+        return this.exclusive(() => this.localSet({ pendingSnapshot: null }));
+    }
+
+    public async getCreateIntent(masterId: string): Promise<any> {
+        return (await this.getData())?.createIntents?.[masterId];
+    }
+
+    public saveCreateIntent(masterId: string, intent: any): Promise<void> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            await this.localSet({ createIntents: { ...data?.createIntents, [masterId]: intent } });
+        });
+    }
+
+    public finishMasterCreate(masterId: string, kind: 'folder' | 'bookmark', localId: string): Promise<void> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            const intents = { ...data?.createIntents };
+            delete intents[masterId];
+            await this.localSet({ createIntents: intents, masterIdMap: { ...data?.masterIdMap, [masterId]: { kind, localId } } });
+        });
+    }
+
+    public cancelMasterCreate(masterId: string): Promise<void> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            const intents = { ...data?.createIntents };
+            delete intents[masterId];
+            await this.localSet({ createIntents: intents });
+        });
+    }
+
     public async getQueuedChangesCount(): Promise<number> {
         const data = await this.getData();
         return data?.changes?.length || 0;
@@ -212,6 +304,17 @@ export class StorageManager {
 
     public clearQueuedChanges(): Promise<void> {
         return this.exclusive(() => this.clearQueuedChangesUnlocked());
+    }
+
+    public removeQueuedChanges(sent: any[]): Promise<void> {
+        return this.exclusive(async () => {
+            const data = await this.getData();
+            if (!data) return;
+            const ids = new Set(sent.map(c => c.operationId).filter(Boolean));
+            const legacy = new Set(sent.filter(c => !c.operationId).map(c => JSON.stringify(c)));
+            data.changes = data.changes.filter(c => c.operationId ? !ids.has(c.operationId) : !legacy.has(JSON.stringify(c)));
+            await this.localSet({ changes: data.changes });
+        });
     }
 
     private async clearQueuedChangesUnlocked(): Promise<void> {
@@ -243,7 +346,7 @@ export class StorageManager {
     }
 
     public async setMasterIdMap(map: MasterIdMap): Promise<void> {
-        await this.localSet({ masterIdMap: map });
+        await this.exclusive(() => this.localSet({ masterIdMap: map }));
     }
 
     // Retry count for a pull window that failed to apply cleanly. Keyed by the window start.
@@ -252,8 +355,11 @@ export class StorageManager {
         return (data.pullFailure as { since: number; attempts: number } | null) || null;
     }
 
+    public async saveReplacementBackup(backup: any): Promise<void> { await this.localSet({ replacementBackup: backup }); }
+    public async getReplacementBackup(): Promise<any> { return (await this.localGet('replacementBackup')).replacementBackup; }
+
     public async setPullFailure(value: { since: number; attempts: number } | null): Promise<void> {
-        await this.localSet({ pullFailure: value });
+        await this.exclusive(() => this.localSet({ pullFailure: value }));
     }
 
     public async debugCurrentState(): Promise<void> {
@@ -343,7 +449,8 @@ export class StorageManager {
         const data = await this.getData() || this.defaults;
         await this.setData({
             ...data,
-            collectionId: id || undefined,
+            ...((data.collectionId || null) !== (id || null) ? { masterIdMap: {}, pullFailure: null, lastSync: 0, notificationState: null } : {}),
+            collectionId: id || null,
             collectionName: name
         });
         console.log('Set collection:', { id, name });
@@ -370,8 +477,15 @@ export class StorageManager {
 
     private async setAuthUnlocked(auth: { token: string; user: { id: string; email: string; displayName: string | null } }): Promise<void> {
         const data = await this.getData() || this.defaults;
+        const changedAccount = data.userId !== auth.user.id;
+        const accounts = { ...data.accounts };
+        if (changedAccount && data.userId) accounts[data.userId] = this.accountState(data);
+        const restored = changedAccount ? accounts[auth.user.id] || {} : {};
         await this.setData({
             ...data,
+            ...(changedAccount ? { changes: [], lastSync: 0, collectionId: null, collectionName: null,
+                masterIdMap: {}, pullFailure: null, notificationState: null, pendingSnapshot: null, createIntents: {}, browserInstanceId: crypto.randomUUID(), ...restored } : {}),
+            accounts,
             auth,
             userId: auth.user.id
         });
@@ -383,11 +497,20 @@ export class StorageManager {
 
     private async clearAuthUnlocked(): Promise<void> {
         const data = await this.getData() || this.defaults;
+        const accounts = { ...data.accounts };
+        if (data.userId) accounts[data.userId] = this.accountState(data);
         await this.setData({
             ...data,
+            accounts, changes: [], lastSync: 0, collectionId: null, collectionName: null,
+            masterIdMap: {}, pullFailure: null, notificationState: null, pendingSnapshot: null, createIntents: {}, suppressQueue: false,
             auth: null,
             userId: ''
         });
+    }
+
+    private accountState(data: StorageData): Partial<StorageData> {
+        return { changes: data.changes, lastSync: data.lastSync, collectionId: data.collectionId, collectionName: data.collectionName,
+            masterIdMap: data.masterIdMap, pullFailure: data.pullFailure, pendingSnapshot: data.pendingSnapshot, createIntents: data.createIntents, browserInstanceId: data.browserInstanceId };
     }
 
     public async clearAllStorage(): Promise<void> {

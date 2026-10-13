@@ -7,6 +7,7 @@
     "build:chrome": "webpack --config webpack.config.js --env browser=chrome",
     "build:firefox": "webpack --config webpack.config.js --env browser=firefox",
     "build:all": "npm run build:chrome && npm run build:firefox",
+    "build:release": "webpack --config webpack.config.js --env browser=chrome --env production=true && webpack --config webpack.config.js --env browser=firefox --env production=true",
     "watch": "webpack --config webpack.config.js --watch",
     "watch:firefox": "webpack --config webpack.config.js --watch --env browser=firefox",
     "clean": "rimraf dist dist-firefox",

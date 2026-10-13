@@ -1,19 +1,9 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// BookMarx Extension – Central URL Configuration
-//
-// To switch between local dev and the live server:
-//   1. Comment out the LOCAL block below and uncomment the PRODUCTION block.
-//   2. In manifest.json → "host_permissions", replace:
-//        "http://localhost:*/*"  and  "http://127.0.0.1:*/*"
-//      with:
-//        "https://www.bookmarx.cc/*"
-//   3. Rebuild the extension:  npm run build
-// ─────────────────────────────────────────────────────────────────────────────
+// Development builds use localhost. npm run build:release sets production URLs
+// and matching manifest host permissions at build time; no source editing is required.
+declare const __BOOKMARX_API_BASE_URL__: string;
+declare const __BOOKMARX_WEBSITE_BASE_URL__: string;
+declare const __BOOKMARX_GOOGLE_CLIENT_ID__: string;
+export const API_BASE_URL = typeof __BOOKMARX_API_BASE_URL__ === 'undefined' ? 'http://localhost:3005' : __BOOKMARX_API_BASE_URL__;
+export const WEBSITE_BASE_URL = typeof __BOOKMARX_WEBSITE_BASE_URL__ === 'undefined' ? API_BASE_URL : __BOOKMARX_WEBSITE_BASE_URL__;
+export const GOOGLE_CLIENT_ID = (typeof __BOOKMARX_GOOGLE_CLIENT_ID__ === 'undefined' ? '' : __BOOKMARX_GOOGLE_CLIENT_ID__) || '669480413219-sv4vq2de70at057ra24jis15bftota8g.apps.googleusercontent.com';
 
-// ── LOCAL DEVELOPMENT (currently active) ─────────────────────────────────────
-export const API_BASE_URL     = 'http://localhost:3005';
-export const WEBSITE_BASE_URL = 'http://localhost:3005';
-
-// ── PRODUCTION – uncomment this block (and comment out LOCAL above) ───────────
-// export const API_BASE_URL     = 'https://www.bookmarx.cc';
-// export const WEBSITE_BASE_URL = 'https://www.bookmarx.cc';

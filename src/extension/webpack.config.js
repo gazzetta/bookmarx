@@ -5,14 +5,16 @@ const webpack = require('webpack');
 module.exports = (env, argv) => {
     const browser = env?.browser || 'chrome';
     const isFirefox = browser === 'firefox';
-    const outputDir = isFirefox ? 'dist-firefox' : 'dist';
     const manifestFile = isFirefox ? 'manifest.firefox.json' : 'manifest.json';
+    const production = env?.production === true || env?.production === 'true';
+    const outputDir = production ? (isFirefox ? 'dist-firefox-release' : 'dist-release') : (isFirefox ? 'dist-firefox' : 'dist');
+    const baseUrl = production ? 'https://www.bookmarx.cc' : 'http://localhost:3005';
 
     console.log(`Building for: ${browser}`);
 
     return {
-        mode: argv.mode || 'development',
-        devtool: 'source-map',
+        mode: production ? 'production' : argv.mode || 'development',
+        devtool: production ? false : 'source-map',
         entry: {
             'background/index': './background/index.ts',
             'popup/index': './popup/index.ts',
@@ -38,26 +40,36 @@ module.exports = (env, argv) => {
         plugins: [
             new webpack.DefinePlugin({
                 'process.env.BROWSER': JSON.stringify(browser),
-                'process.env.IS_FIREFOX': JSON.stringify(isFirefox)
+                'process.env.IS_FIREFOX': JSON.stringify(isFirefox),
+                '__BOOKMARX_API_BASE_URL__': JSON.stringify(baseUrl),
+                '__BOOKMARX_WEBSITE_BASE_URL__': JSON.stringify(baseUrl),
+                '__BOOKMARX_GOOGLE_CLIENT_ID__': JSON.stringify(process.env.BOOKMARX_GOOGLE_CLIENT_ID || '')
             }),
             new CopyPlugin({
                 patterns: [
                     { 
                         from: manifestFile,
-                        to: 'manifest.json'
+                        to: 'manifest.json',
+                        transform(content) {
+                            const manifest = JSON.parse(content.toString());
+                            manifest.host_permissions = production ? ['https://www.bookmarx.cc/*'] : ['http://localhost/*', 'http://127.0.0.1/*'];
+                            manifest.web_accessible_resources = [];
+                            if (isFirefox) delete manifest.key;
+                            return JSON.stringify(manifest, null, 2);
+                        }
                     },
                     { 
                         from: 'popup/index.html',
                         to: 'popup/index.html'
                     },
-                    { 
+                    ...(!production ? [{
                         from: 'popup/debug.html',
                         to: 'popup/debug.html'
                     },
                     { 
                         from: 'popup/debug.js',
                         to: 'popup/debug.js'
-                    },
+                    }] : []),
                     {
                         from: 'pages/master-collection.html',
                         to: 'pages/master-collection.html'

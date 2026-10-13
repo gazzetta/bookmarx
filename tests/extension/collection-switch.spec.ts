@@ -97,7 +97,7 @@ test.describe('Collection switch with pending changes', () => {
     // Queue should be cleared after discard
     const postSwitchStorage = await getExtensionStorage();
     // After discard, changes should be empty
-    expect(postSwitchStorage.changes?.length || 0).toBe(0);
+    await expect.poll(async () => (await getExtensionStorage()).changes?.length || 0).toBe(0);
 
     await popup.close();
   });

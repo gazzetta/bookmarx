@@ -41,19 +41,7 @@ export default function BrowserHistoryDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      router.push('/login')
-    }
-  }, [isLoading, user, router])
-
-  useEffect(() => {
-    if (token && browserInstanceId && historyId) {
-      loadHistoryDetail()
-    }
-  }, [token, browserInstanceId, historyId])
-
-  const loadHistoryDetail = async () => {
+  async function loadHistoryDetail() {
     if (!token) return
 
     setLoading(true)
@@ -71,6 +59,20 @@ export default function BrowserHistoryDetailPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push('/login')
+    }
+  }, [isLoading, user, router])
+
+  useEffect(() => {
+    if (token && browserInstanceId && historyId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Start the asynchronous API load when its account or route changes.
+      loadHistoryDetail()
+    }
+  }, [token, browserInstanceId, historyId])
+
 
   const formatDate = (timestamp: number | null | undefined) => {
     if (!timestamp) return 'N/A'

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { api, User, AuthResponse } from './api'
+import { api, User, AuthResponse, ApiError } from './api'
 
 interface AuthContextType {
   user: User | null
@@ -28,15 +28,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedUser = localStorage.getItem('bookmarx_user')
 
     if (storedToken && storedUser) {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate browser storage or initiate the asynchronous server refresh once on mount.
       setToken(storedToken)
-      setUser(JSON.parse(storedUser))
+      try { setUser(JSON.parse(storedUser)) } catch { localStorage.removeItem('bookmarx_user') }
       // Refresh user data from server
-      refreshUserData(storedToken)
+      void refreshUserData(storedToken).finally(() => setIsLoading(false))
+      return
     }
     setIsLoading(false)
   }, [])
 
-  const refreshUserData = async (authToken: string) => {
+  async function refreshUserData(authToken: string) {
     try {
       const userData = await api.getMe(authToken)
       setUser(userData)
@@ -44,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       // Token might be invalid, clear auth
       console.error('Failed to refresh user data:', error)
-      logout()
+      if (error instanceof ApiError && error.status === 401) logout()
     }
   }
 

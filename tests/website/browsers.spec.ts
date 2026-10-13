@@ -6,7 +6,7 @@
 // link near limit. Per TESTING-REGIME.md, we hit the real dev DB so we must
 // NOT mutate the user's existing browsers — `qa@bookmarx.cc` already
 // has 4 connected per the QA checklist.
-import { test, expect, loginAs } from './_fixtures';
+import { test, expect, loginAs, apiBase, trackBrowser } from './_fixtures';
 
 test.describe('Manage browsers page — free tier', () => {
   test('renders with 0 browsers for brand-new free user + shows limit', async ({ page, freeAccount }) => {
@@ -47,6 +47,12 @@ test.describe('Manage browsers page — premium tier (read-only, requires BOOKMA
       test.skip(true, 'Requires BOOKMARX_PREMIUM_PASSWORD');
       return;
     }
+    const instanceId = crypto.randomUUID();
+    const registration = await fetch(`${apiBase()}/sync/master-collection`, { headers: {
+      Authorization: `Bearer ${premiumAccount.token}`, 'X-Device-ID': crypto.randomUUID(), 'X-Browser-Instance-ID': instanceId,
+    }});
+    expect(registration.status).toBe(200);
+    trackBrowser(instanceId);
     await loginAs(page, premiumAccount);
     await page.goto('/settings/browsers');
 

@@ -96,10 +96,10 @@ test.describe('cross-browser sync — one account, two browsers', () => {
       const uA = url('iso-a');
       const uB = url('iso-b');
       await createBookmark(pa, '1', `XSYNC ISO-A ${runId}`, uA);
-      expect(await syncUp(pa)).toMatchObject({ success: true });
+      const result_pa = await syncUp(pa); expect(result_pa, JSON.stringify(result_pa)).toMatchObject({ success: true });
 
       await createBookmark(pb, '1', `XSYNC ISO-B ${runId}`, uB);
-      expect(await syncUp(pb)).toMatchObject({ success: true });
+      const result_pb = await syncUp(pb); expect(result_pb, JSON.stringify(result_pb)).toMatchObject({ success: true });
       await syncDown(pb);
 
       // Prove B's sync actually ran (its own bookmark is present) before asserting absence.
@@ -138,15 +138,15 @@ test.describe('cross-browser sync — one account, two browsers', () => {
       await createBookmark(p2, '1', `XSYNC CAP-2 ${runId}`, u2);
       await createBookmark(p3, '1', `XSYNC CAP-3 ${runId}`, u3);
 
-      expect(await syncUp(p1)).toMatchObject({ success: true });
-      expect(await syncUp(p2)).toMatchObject({ success: true });
+      const result_p1 = await syncUp(p1); expect(result_p1, JSON.stringify(result_p1)).toMatchObject({ success: true });
+      const result_p2 = await syncUp(p2); expect(result_p2, JSON.stringify(result_p2)).toMatchObject({ success: true });
 
       // Regression guard. The server returns 403 with BROWSER_LIMIT_REACHED. The delta path
       // must keep that code and upgradeUrl, not collapse it to "Server returned 403".
       const third = await syncUp(p3);
       expect(third, JSON.stringify(third)).toMatchObject({ success: false });
       expect(third.error?.code).toBe('BROWSER_LIMIT_REACHED');
-      expect(third.error?.upgradeUrl ?? '').toContain('/upgrade');
+      expect(third.error?.upgradeUrl ?? '').toContain('/settings/subscription');
 
       const d1 = (await getStorage(p1)).deviceId;
       expect(await serverUrls(account, d1), 'refused browser\'s bookmark must not reach the server').not.toContain(u3);

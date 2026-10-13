@@ -3,6 +3,7 @@ node_modules/
 
 # Next.js build output
 .next/
+.next-dev/
 out/
 src/website/.next/
 
@@ -50,6 +51,11 @@ src/extension/.env*
 Thumbs.db
 
 # Database
+.backups/
+*.db-wal
+*.db-shm
+.test-extension-profile/
+*.pem
 *.db
 *.db-journal
 *.sqlite

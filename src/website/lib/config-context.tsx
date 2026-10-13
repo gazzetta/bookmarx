@@ -66,6 +66,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
     }
 
     useEffect(() => {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate browser storage or initiate the asynchronous server refresh once on mount.
         fetchConfig()
     }, [])
 

@@ -8,7 +8,7 @@
 // contract even before physical-device testing is wired up.
 import { describe, it, expect, beforeAll } from 'vitest';
 import request from 'supertest';
-import { app, baseUrl, bearer, registerUser, deviceInfo, syncMetadata, dbReady } from '../helpers';
+import { app, baseUrl, bearer, registerUser, deviceInfo, syncMetadata, dbReady, uniqueDeviceId } from '../helpers';
 
 beforeAll(async () => { await dbReady; });
 
@@ -20,7 +20,7 @@ beforeAll(async () => { await dbReady; });
 // the device, THEN the share sheet can /capture against that registered row.
 async function registerMobileAppBrowser(token: string) {
   const device = deviceInfo({
-    browserInstanceId: 'mobile-app',
+    browserInstanceId: uniqueDeviceId('mobile-profile'),
     browser: 'BookMarx Mobile',
     deviceId: 'mobile-device-test',
   });

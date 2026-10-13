@@ -1,4 +1,4 @@
-// src/extension/components/OnboardingDialog.ts
+import { escapeHtml } from './escapeHtml';
 export interface CollectionInfo {
     id: string;
     name: string;
@@ -122,8 +122,8 @@ export class OnboardingDialog {
                 <label for="${id}">Collection for this option</label>
                 <select id="${id}" class="collection-select">
                     ${info.collections.map(c => `
-                        <option value="${c.id}" ${c.id === info.defaultCollectionId ? 'selected' : ''}>
-                            ${c.name} (${c.bookmarkCount} bookmarks, ${c.folderCount} folders)
+                        <option value="${escapeHtml(c.id)}" ${c.id === info.defaultCollectionId ? 'selected' : ''}>
+                            ${escapeHtml(c.name)} (${Number(c.bookmarkCount) || 0} bookmarks, ${Number(c.folderCount) || 0} folders)
                         </option>
                     `).join('')}
                 </select>

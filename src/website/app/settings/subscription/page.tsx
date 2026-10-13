@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
+import { useConfig } from '@/lib/config-context'
 import { api } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
 import AlertDialog from '@/components/AlertDialog'
 
 export default function SubscriptionPage() {
+  const { config } = useConfig()
   const router = useRouter()
   const { user, token, isLoading, isPremium, refreshUser } = useAuth()
 
@@ -19,14 +21,42 @@ export default function SubscriptionPage() {
   }, [isLoading, user, router])
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
+  const [paymentPending, setPaymentPending] = useState(false)
+  const [paymentError, setPaymentError] = useState<string | null>(null)
+  const returnHandled = useRef(false)
   const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean; title: string; message: string; variant: 'success' | 'error' }>({ isOpen: false, title: '', message: '', variant: 'error' })
+
+  const confirmReturn = async () => {
+    if (!token) return
+    const params = new URLSearchParams(window.location.search)
+    const orderID = params.get('token')
+    const subscriptionID = params.get('subscription_id')
+    setPaymentPending(true)
+    setPaymentError(null)
+    try {
+      if (params.get('plan') === 'lifetime' && orderID) await api.capturePayment(token, orderID)
+      else if (subscriptionID) await api.confirmSubscription(token, subscriptionID)
+      else throw new Error('Payment confirmation details are missing. Contact support before making another payment.')
+      await refreshUser()
+      router.replace('/settings/subscription')
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : 'Payment confirmation is pending. Please retry.')
+    } finally { setPaymentPending(false) }
+  }
+
+  useEffect(() => {
+    if (token && new URLSearchParams(window.location.search).get('success') === 'true' && !returnHandled.current) {
+      returnHandled.current = true
+      void confirmReturn()
+    }
+  }, [token])
 
   const handleUpgrade = async (plan: 'monthly' | 'yearly' | 'lifetime') => {
     if (!token) return
     setCheckoutLoading(plan)
     try {
       const result = await api.createCheckout(token, plan)
-      window.open(result.checkoutUrl, '_blank')
+      window.location.assign(result.checkoutUrl)
     } catch (err) {
       console.error('Failed to create checkout:', err)
       setAlertDialog({
@@ -65,6 +95,11 @@ export default function SubscriptionPage() {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto">
+        {paymentPending && <p role="status" className="mb-6">Confirming your payment…</p>}
+        {paymentError && <div role="alert" className="mb-6 rounded-xl border border-red-300 p-4">
+          <p>{paymentError}</p>
+          <button type="button" disabled={paymentPending} onClick={() => void confirmReturn()} className="mt-3 underline">Retry confirmation</button>
+        </div>}
         {/* Header */}
         <div className="mb-10 text-center md:text-left">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-cream-100">Subscription</h1>
@@ -219,13 +254,13 @@ export default function SubscriptionPage() {
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
               {[
-                { f: 'Bookmark Capacity', free: '250 Items', prem: '10,000+ Items' },
-                { f: 'Syncable Browsers', free: '2 Instances', prem: 'Unlimited' },
-                { f: 'Custom Collections', free: '1 Active', prem: 'Unlimited' },
+                { f: 'Bookmark Capacity', free: `${config.limits.free.bookmarks.toLocaleString()} Items`, prem: `${config.limits.premium.bookmarks.toLocaleString()} Items` },
+                { f: 'Syncable Browsers', free: `${config.limits.free.browsers} Profiles`, prem: `${config.limits.premium.browsers} Profiles` },
+                { f: 'Custom Collections', free: `${config.limits.free.collections} Collection`, prem: `${config.limits.premium.collections} Collections` },
                 { f: 'Visual Collection Editor', free: '✗', prem: '✓' },
                 { f: 'Session History & Undo', free: '✗', prem: '✓' },
-                { f: 'Mobile App Access', free: '✗', prem: '✓' },
-                { f: 'Auto-sync Frequency', free: 'Hourly', prem: 'Real-time' },
+                { f: 'Bookmark File Import & Export', free: '✓', prem: '✓' },
+                { f: 'Optional Automatic Sync', free: 'Every 5 minutes', prem: 'Every 5 minutes' },
                 { f: 'Personal Support', free: 'Best Effort', prem: 'Priority VIP' },
               ].map((row, idx) => (
                 <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-white/5 transition-colors">

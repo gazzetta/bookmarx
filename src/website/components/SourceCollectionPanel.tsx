@@ -239,33 +239,7 @@ export default function SourceCollectionPanel({
   const [loading, setLoading] = useState(false)
   const [loadingCollections, setLoadingCollections] = useState(true)
 
-  useEffect(() => {
-    loadCollections()
-  }, [])
-
-  useEffect(() => {
-    if (selectedCollectionId) {
-      loadSourceCollection()
-    }
-  }, [selectedCollectionId])
-
-  const loadCollections = async () => {
-    try {
-      const data = await api.getCollections(token)
-      const otherCollections = data.collections.filter(c => c.id !== currentCollectionId)
-      setCollections(otherCollections)
-      if (otherCollections.length > 0) {
-        setSelectedCollectionId(otherCollections[0].id)
-        onSourceCollectionChange?.(otherCollections[0].id)
-      }
-    } catch (error) {
-      console.error('Failed to load collections:', error)
-    } finally {
-      setLoadingCollections(false)
-    }
-  }
-
-  const loadSourceCollection = async () => {
+  async function loadSourceCollection() {
     setLoading(true)
     setSelectedSourceItems(new Set())
     try {
@@ -282,6 +256,36 @@ export default function SourceCollectionPanel({
       setLoading(false)
     }
   }
+
+  async function loadCollections() {
+    try {
+      const data = await api.getCollections(token)
+      const otherCollections = data.collections.filter(c => c.id !== currentCollectionId)
+      setCollections(otherCollections)
+      if (otherCollections.length > 0) {
+        setSelectedCollectionId(otherCollections[0].id)
+        onSourceCollectionChange?.(otherCollections[0].id)
+      }
+    } catch (error) {
+      console.error('Failed to load collections:', error)
+    } finally {
+      setLoadingCollections(false)
+    }
+  }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Start the asynchronous API load when its account or route changes.
+    loadCollections()
+  }, [])
+
+  useEffect(() => {
+    if (selectedCollectionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Start the asynchronous API load when its account or route changes.
+      loadSourceCollection()
+    }
+  }, [selectedCollectionId])
+
+
 
   const toggleFolder = (masterId: string) => {
     setExpandedFolders(prev => {

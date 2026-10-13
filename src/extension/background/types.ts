@@ -1,4 +1,6 @@
 export interface QueuedChange {
+    operationId?: string;
+    collectionId?: string | null;
     type: string;
     data: any;
     timestamp: number;

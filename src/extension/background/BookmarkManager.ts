@@ -1,4 +1,5 @@
 import { StorageManager } from './StorageManager';
+import { BookmarkRoots } from './utils/bookmarkRoots';
 
 interface ProcessedBookmark {
     id: string;
@@ -10,12 +11,25 @@ interface ProcessedBookmark {
 }
 
 export class BookmarkManager {
-    constructor(private storageManager: StorageManager) {
-        this._pendingUpdates = new Map();
+    constructor(private storageManager: StorageManager) {}
+
+    private getNode(id: string): Promise<chrome.bookmarks.BookmarkTreeNode> {
+        return new Promise((resolve, reject) => chrome.bookmarks.get(id, nodes => {
+            const error = chrome.runtime.lastError;
+            if (error || !nodes?.[0]) reject(new Error(error?.message || 'Bookmark no longer exists'));
+            else resolve(nodes[0]);
+        }));
     }
 
-    // Track pending updates with timeouts
-    private _pendingUpdates: Map<string, number>;
+    private isExcluded(id: string): Promise<boolean> {
+        return new Promise((resolve, reject) => chrome.bookmarks.getTree(tree => {
+            const error = chrome.runtime.lastError;
+            if (error) { reject(new Error(error.message)); return; }
+            const roots = new BookmarkRoots(tree[0]);
+            const contains = (node: chrome.bookmarks.BookmarkTreeNode): boolean => node.id === id || Boolean(node.children?.some(contains));
+            resolve(Boolean(tree[0].children?.some(root => roots.excludedIds.has(root.id) && contains(root))));
+        }));
+    }
 
     public async initialize(): Promise<void> {
         // Set up bookmark event listeners
@@ -27,9 +41,10 @@ export class BookmarkManager {
 
     private async handleBookmarkCreated(id: string, bookmark: chrome.bookmarks.BookmarkTreeNode): Promise<void> {
         try {
-            if (await this.storageManager.isQueueingSuppressed()) {
+            if (await this.storageManager.consumeBookmarkEvent('CREATE', id, bookmark)) {
                 return;
             }
+            if (await this.isExcluded(id)) return;
             // Process new bookmark
             const processedBookmark = await this.processBookmark(bookmark);
             const isFolder = !bookmark.url;
@@ -58,13 +73,14 @@ export class BookmarkManager {
     
     private async handleBookmarkRemoved(id: string, removeInfo?: chrome.bookmarks.BookmarkRemoveInfo): Promise<void> {
         try {
-            if (await this.storageManager.isQueueingSuppressed()) {
+            if (await this.storageManager.consumeBookmarkEvent('DELETE', id)) {
                 return;
             }
             const userId = await this.storageManager.getUserId();
             // The removed node says whether it was a bookmark or a folder. Sending the type avoids a
             // server-side guess, which picked the wrong table when browser ids repeated across browsers.
             const removed = removeInfo?.node;
+            if (removed?.parentId && await this.isExcluded(removed.parentId)) return;
             await this.storageManager.queueChange({
                 type: 'DELETE',
                 data: {
@@ -82,74 +98,41 @@ export class BookmarkManager {
     }
 
     private async handleBookmarkChanged(id: string, changeInfo: chrome.bookmarks.BookmarkChangeInfo): Promise<void> {
-        if (await this.storageManager.isQueueingSuppressed()) {
-            return;
-        }
-        // Cancel any pending update for this bookmark
-        if (this._pendingUpdates.has(id)) {
-            clearTimeout(this._pendingUpdates.get(id));
-            this._pendingUpdates.delete(id);
-            console.log(`Cancelled pending update for bookmark ${id}`);
-        }
-        
-        // Create a new timeout to process this update after a delay
-        const timeout = setTimeout(async () => {
-            try {
-                // Get current bookmark to include all necessary data
-                const [bookmark] = await chrome.bookmarks.get(id);
-                const userId = await this.storageManager.getUserId();
-                
-                // Determine if it's a folder or bookmark based on URL presence
-                const type = bookmark.url ? 'bookmark' : 'folder';
-                
-                // Queue for sync
-                await this.storageManager.queueChange({
-                    type: 'UPDATE',
-                    data: {
-                        type: type,
-                        browserId: id,
-                        userId,
-                        title: bookmark.title, // Use current values from bookmark
-                        url: bookmark.url,     // not changeInfo which might be outdated
-                        parentId: bookmark.parentId,
-                        index: bookmark.index,
-                        dateAdded: bookmark.dateAdded
-                    }
-                });
-                
-                if (type === 'bookmark') {
-                    console.log('Bookmark updated (after delay):', { id, type, finalTitle: bookmark.title });
-                } else {
-                    console.log('Folder updated (after delay):', { id, type, finalTitle: bookmark.title });
-                }
-                
-                // Remove from pending updates
-                this._pendingUpdates.delete(id);
-            } catch (error) {
-                console.error('Error handling bookmark change:', error);
-                this._pendingUpdates.delete(id);
-            }
-        }, 500); // 500ms delay to allow for rapid sequential updates
-        
-        // Store the timeout
-        this._pendingUpdates.set(id, timeout as unknown as number);
-        
-        console.log(`Scheduled update for bookmark ${id} with title "${changeInfo.title || '(unchanged)'}"`);
+        try {
+            if (await this.storageManager.consumeBookmarkEvent('UPDATE', id)) return;
+            if (await this.isExcluded(id)) return;
+            const bookmark = await this.getNode(id);
+            await this.storageManager.queueChange({ type: 'UPDATE', data: {
+                type: bookmark.url ? 'bookmark' : 'folder', browserId: id,
+                title: changeInfo.title ?? bookmark.title, url: changeInfo.url ?? bookmark.url,
+                parentId: bookmark.parentId, index: bookmark.index, dateAdded: bookmark.dateAdded
+            }});
+        } catch (error) { console.error('Error handling bookmark change:', error); }
     }
 
     private async handleBookmarkMoved(id: string, moveInfo: chrome.bookmarks.BookmarkMoveInfo): Promise<void> {
         try {
-            if (await this.storageManager.isQueueingSuppressed()) {
+            if (await this.storageManager.consumeBookmarkEvent('MOVE', id)) {
                 return;
             }
+            // Opera moves deleted bookmarks into its native Bin instead of emitting onRemoved.
+            const removed = await this.isExcluded(moveInfo.parentId);
+            if (removed && await this.storageManager.consumeBookmarkEvent('DELETE', id)) return;
             // Get the node to determine if it's a bookmark or folder
-            const nodes = await chrome.bookmarks.get(id);
-            const node = nodes[0];
+            const node = await this.getNode(id);
             const type = node.url ? 'bookmark' : 'folder';
             const userId = await this.storageManager.getUserId();
+            if (removed) {
+                await this.storageManager.queueChange({ type: 'DELETE', data: { type, browserId: id, title: node.title, url: node.url, userId } });
+                return;
+            }
+            if (await this.isExcluded(moveInfo.oldParentId)) {
+                await this.storageManager.queueChange({ type: 'CREATE', data: { type, browserId: id, userId, ...await this.processBookmark(node) } });
+                return;
+            }
 
             // Only queue if it's a real move (different parent folders)
-            if (moveInfo.parentId !== moveInfo.oldParentId) {
+            if (moveInfo.parentId !== moveInfo.oldParentId || moveInfo.index !== moveInfo.oldIndex) {
                 await this.storageManager.queueChange({
                     type: 'MOVE',
                     data: {

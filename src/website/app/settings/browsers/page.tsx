@@ -24,25 +24,14 @@ export default function BrowsersPage() {
     const [browsers, setBrowsers] = useState<Browser[]>([])
     const [loadingBrowsers, setLoadingBrowsers] = useState(true)
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [recentCutoff] = useState(() => Date.now() - 60 * 60 * 1000)
     const [error, setError] = useState<string | null>(null)
     const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null)
     const [nicknameInput, setNicknameInput] = useState<string>('')
     const [savingNickname, setSavingNickname] = useState(false)
     const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean; browserInstanceId: string | null }>({ isOpen: false, browserInstanceId: null })
 
-    useEffect(() => {
-        if (!isLoading && !user) {
-            router.push('/login')
-        }
-    }, [isLoading, user, router])
-
-    useEffect(() => {
-        if (token) {
-            fetchBrowsers()
-        }
-    }, [token])
-
-    const fetchBrowsers = async () => {
+      async function fetchBrowsers() {
         if (!token) return
 
         setLoadingBrowsers(true)
@@ -70,6 +59,20 @@ export default function BrowsersPage() {
             setLoadingBrowsers(false)
         }
     }
+
+  useEffect(() => {
+        if (!isLoading && !user) {
+            router.push('/login')
+        }
+    }, [isLoading, user, router])
+
+    useEffect(() => {
+        if (token) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- Start the asynchronous API load when its account or route changes.
+            fetchBrowsers()
+        }
+    }, [token])
+
 
     const handleUpdateNickname = async (browserInstanceId: string) => {
         if (!token) return
@@ -194,7 +197,7 @@ export default function BrowsersPage() {
     const isRecent = (timestamp: number | null) => {
         if (!timestamp) return false
         const ms = timestamp < 1e12 ? timestamp * 1000 : timestamp
-        const hourAgo = Date.now() - 60 * 60 * 1000
+        const hourAgo = recentCutoff
         return ms > hourAgo
     }
 

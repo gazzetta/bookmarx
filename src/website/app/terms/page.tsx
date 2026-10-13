@@ -203,8 +203,8 @@ export default function TermsPage() {
               <h2 className="font-display text-2xl font-bold text-ink mb-4">12. Contact</h2>
               <p className="text-ink-500 leading-relaxed">
                 For questions about these Terms, please contact us at{' '}
-                <a href="mailto:support@bookmarks.cc" className="text-terra-500 hover:text-terra-600 font-medium">
-                  support@bookmarks.cc
+                <a href="mailto:support@bookmarx.cc" className="text-terra-500 hover:text-terra-600 font-medium">
+                  support@bookmarx.cc
                 </a>.
               </p>
             </section>

@@ -25,6 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+// eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate browser storage or initiate the asynchronous server refresh once on mount.
     setMounted(true)
     const stored = localStorage.getItem('bookmarx-theme') as Theme | null
     if (stored === 'dark' || stored === 'light') {

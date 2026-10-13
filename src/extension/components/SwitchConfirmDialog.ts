@@ -1,3 +1,4 @@
+import { escapeHtml } from './escapeHtml';
 export type SwitchChoice = 'sync' | 'discard' | 'cancel';
 
 export class SwitchConfirmDialog {
@@ -16,7 +17,7 @@ export class SwitchConfirmDialog {
                 <div class="switch-confirm-message">
                     You have <strong>${pendingChanges}</strong> pending change${pendingChanges !== 1 ? 's' : ''}
                     that haven't been synced yet. What would you like to do before switching to
-                    <strong>${targetCollectionName}</strong>?
+                    <strong>${escapeHtml(targetCollectionName)}</strong>?
                 </div>
                 <div class="switch-confirm-options">
                     <button class="switch-option-btn primary" data-choice="sync">

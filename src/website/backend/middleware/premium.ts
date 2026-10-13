@@ -41,7 +41,7 @@ export function requirePremium(req: AuthenticatedRequest, res: Response, next: N
             error: {
                 code: 'PREMIUM_REQUIRED',
                 message: `This feature requires a ${premiumTitle} subscription`,
-                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/settings/subscription'
             }
         });
     }
@@ -56,7 +56,7 @@ export function requirePremium(req: AuthenticatedRequest, res: Response, next: N
             error: {
                 code: 'SUBSCRIPTION_EXPIRED',
                 message: `Your ${premiumTitle} subscription has expired`,
-                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/settings/subscription'
             }
         });
     }
@@ -108,7 +108,7 @@ export function checkBookmarkLimit(req: AuthenticatedRequest, res: Response, nex
                 limit: user.bookmarkLimit,
                 premiumLimit,
                 attemptedToAdd: totalNew,
-                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/settings/subscription'
             }
         });
     }
@@ -139,7 +139,18 @@ export function checkBrowserLimit(req: AuthenticatedRequest, res: Response, next
 
     console.log('[checkBrowserLimit] User:', user.id, 'Tier:', user.subscriptionTier, 'Limit:', user.browserLimit);
 
-    const browserInstanceId = req.body?.metadata?.deviceInfo?.browserInstanceId;
+    const bodyInstanceId = req.body?.metadata?.deviceInfo?.browserInstanceId;
+    const headerInstanceId = req.get('X-Browser-Instance-ID');
+    const browserInstanceId = headerInstanceId || bodyInstanceId;
+    if (bodyInstanceId && headerInstanceId && bodyInstanceId !== headerInstanceId) {
+        return res.status(400).json({ success: false, error: { code: 'DEVICE_MISMATCH', message: 'Browser identity does not match' } });
+    }
+    if (req.body?.deviceId && req.get('X-Device-ID') && req.body.deviceId !== req.get('X-Device-ID')) {
+        return res.status(400).json({ success: false, error: { code: 'DEVICE_MISMATCH', message: 'Device identity does not match' } });
+    }
+    if (Array.isArray(req.body?.changes) && req.body.changes.some((change: any) => change.metadata?.deviceInfo?.browserInstanceId && change.metadata.deviceInfo.browserInstanceId !== browserInstanceId)) {
+        return res.status(400).json({ success: false, error: { code: 'DEVICE_MISMATCH', message: 'Change browser identity does not match' } });
+    }
     if (!browserInstanceId) {
         console.log('[checkBrowserLimit] No browserInstanceId - allowing through');
         return next(); // Can't check without browserInstanceId
@@ -149,6 +160,9 @@ export function checkBrowserLimit(req: AuthenticatedRequest, res: Response, next
 
     // Check if this exact browser instance is already registered
     const existingBrowser = db.getBrowserByInstanceId(browserInstanceId);
+    if (existingBrowser && existingBrowser.userId !== user.id) {
+        return res.status(403).json({ success: false, error: { code: 'BROWSER_OWNERSHIP', message: 'Browser instance belongs to another account' } });
+    }
     console.log('[checkBrowserLimit] Existing browser:', existingBrowser ? 'Yes' : 'No');
 
     if (existingBrowser && existingBrowser.userId === user.id) {
@@ -174,24 +188,8 @@ export function checkBrowserLimit(req: AuthenticatedRequest, res: Response, next
 
     console.log('[checkBrowserLimit] At or over limit, checking abuse prevention...');
     // Check for potential abuse: same fingerprint trying to register multiple times
-    const deviceInfo = req.body?.metadata?.deviceInfo;
-
-    if (deviceInfo) {
-        const fingerprint = createBrowserFingerprint(deviceInfo);
-        const existingByFingerprint = db.getBrowserByFingerprint(user.id, fingerprint);
-
-        if (existingByFingerprint) {
-            // Same device trying to re-register - might be abuse
-            // Or legitimately cleared browser data - allow but log
-            console.warn(`Potential abuse detected: User ${user.id} attempting to register browser with same fingerprint. Existing: ${existingByFingerprint.browserInstanceId}, New: ${browserInstanceId}`);
-
-            // For now, auto-replace the old registration to be user-friendly
-            // This prevents abuse while not blocking legitimate use cases
-            db.deleteBrowser(existingByFingerprint.browserInstanceId, user.id);
-            console.log(`Auto-removed old browser registration ${existingByFingerprint.browserInstanceId} to make room for new one`);
-            return next();
-        }
-    }
+    // Profiles and machines with the same browser/OS are distinct registrations.
+    // Never evict an existing profile based on a user-agent fingerprint.
 
     // Get centralized settings for rate limits and messaging
     const config = db.getAppConfig();
@@ -211,7 +209,7 @@ export function checkBrowserLimit(req: AuthenticatedRequest, res: Response, next
                 registrationsThisPeriod: recentRegistrations,
                 limit: rateLimit,
                 periodDays: ratePeriodDays,
-                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/settings/subscription'
             }
         });
     }
@@ -224,7 +222,7 @@ export function checkBrowserLimit(req: AuthenticatedRequest, res: Response, next
             currentCount: browserCount,
             limit: user.browserLimit,
             premiumLimit: premiumBrowserLimit,
-            upgradeUrl: 'https://www.bookmarx.cc/upgrade'
+            upgradeUrl: 'https://www.bookmarx.cc/settings/subscription'
         }
     });
 }
@@ -276,7 +274,7 @@ export function checkCollectionLimit(req: AuthenticatedRequest, res: Response, n
                 currentCount: collectionCount,
                 limit: user.collectionLimit,
                 premiumLimit: premiumCollectionLimit,
-                upgradeUrl: 'https://www.bookmarx.cc/upgrade'
+                upgradeUrl: 'https://www.bookmarx.cc/settings/subscription'
             }
         });
     }

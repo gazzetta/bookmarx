@@ -44,6 +44,22 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const googleInitializedRef = useRef(false)
 
+  async function handleGoogleCallback(response: { credential: string }) {
+    setGoogleLoading(true)
+    setError('')
+
+    try {
+      if (loginWithGoogle) {
+        await loginWithGoogle(response.credential)
+        router.push('/dashboard')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign in failed')
+    } finally {
+      setGoogleLoading(false)
+    }
+  }
+
   const initializeGoogle = useCallback(() => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
 
@@ -72,6 +88,8 @@ export default function LoginPage() {
     }
   }, [loginWithGoogle])
 
+
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (window.google?.accounts) {
@@ -81,21 +99,6 @@ export default function LoginPage() {
     return () => clearTimeout(timer)
   }, [initializeGoogle])
 
-  const handleGoogleCallback = async (response: { credential: string }) => {
-    setGoogleLoading(true)
-    setError('')
-
-    try {
-      if (loginWithGoogle) {
-        await loginWithGoogle(response.credential)
-        router.push('/dashboard')
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Google sign in failed')
-    } finally {
-      setGoogleLoading(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

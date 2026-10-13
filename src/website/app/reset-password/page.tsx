@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -14,14 +14,10 @@ function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [requestError, setError] = useState('')
+  const error = !token ? 'Invalid or missing reset token. Please request a new password reset.' : requestError
   const [success, setSuccess] = useState(false)
 
-  useEffect(() => {
-    if (!token) {
-      setError('Invalid or missing reset token. Please request a new password reset.')
-    }
-  }, [token])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +36,7 @@ function ResetPasswordForm() {
     setIsLoading(true)
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/reset-password`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
