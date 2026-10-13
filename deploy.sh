@@ -206,14 +206,23 @@ $PM2_CMD delete bookmarx-api 2>/dev/null || true
 $PM2_CMD start "$WEBSITE_DIR/ecosystem.config.js" --env production
 $PM2_CMD save || true
 
-# Health check
-log_info "Health check..."
-sleep 3
-HEALTH_CHECK=$(curl -s "http://localhost:${APP_PORT}/health" || echo "failed")
-if echo "$HEALTH_CHECK" | grep -q "ok"; then
+# Health check: poll until the app responds. First boot compiles via tsx,
+# runs DB migrations and prepares Next, which takes well over 3 seconds,
+# so a single attempt is a guaranteed false negative on a fresh deploy.
+log_info "Health check (waiting up to 90s for first boot)..."
+HEALTH_OK=false
+for i in $(seq 1 30); do
+    HEALTH_CHECK=$(curl -s "http://localhost:${APP_PORT}/health" || echo "failed")
+    if echo "$HEALTH_CHECK" | grep -q "ok"; then
+        HEALTH_OK=true
+        break
+    fi
+    sleep 3
+done
+if [ "$HEALTH_OK" = true ]; then
     log_info "Health check passed."
 else
-    log_error "Health check failed. Showing recent logs:"
+    log_error "Health check failed after 90s. Showing recent logs:"
     $PM2_CMD logs bookmarx-api --lines 80 --nostream || true
     exit 1
 fi
