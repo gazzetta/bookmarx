@@ -13,12 +13,12 @@ module.exports = {
       env: {
         NODE_ENV: 'development',
         PORT: 3005,
-        DATABASE_PATH: '/home/gazza/bookmarx/src/website/data/bookmarx.db'
+        DATABASE_PATH: '/home/gazza/bookmarx-data/bookmarx.db'
       },
       env_production: {
         NODE_ENV: 'production',
         PORT: 3005,
-        DATABASE_PATH: '/home/gazza/bookmarx/src/website/data/bookmarx.db'
+        DATABASE_PATH: '/home/gazza/bookmarx-data/bookmarx.db'
       },
       error_file: '/var/log/bookmarx/error.log',
       out_file: '/var/log/bookmarx/out.log',

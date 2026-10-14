@@ -50,7 +50,9 @@ src/extension/.env*
 .DS_Store
 Thumbs.db
 
-# Database
+# Database — NEVER commit live database files. A tracked bookmarx.db-wal/.db-shm
+# caused two production outages (git reset --hard overwrites them mid-flight).
+# The live DB lives outside the repo at ~/bookmarx-data/ — see deploy.sh.
 .backups/
 *.db-wal
 *.db-shm

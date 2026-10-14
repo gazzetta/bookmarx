@@ -1,22 +1,32 @@
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const Database = require('../src/website/node_modules/better-sqlite3');
 const root = path.resolve(__dirname, '..');
-const source = process.env.DATABASE_PATH || path.join(root, 'src/website/data/bookmarx.db');
+const source = process.env.DATABASE_PATH || path.join(os.homedir(), 'bookmarx-data', 'bookmarx.db');
+const check = (file) => {
+    const db = new Database(file, { readonly: true, fileMustExist: true });
+    const ok = db.pragma('integrity_check', { simple: true }) === 'ok';
+    const fkViolations = db.pragma('foreign_key_check').length;
+    db.close();
+    if (!ok) throw new Error('Backup integrity check failed');
+    // FK violations reflect pre-existing data (e.g. salvaged rows), not a bad
+    // backup — warn but do not fail the backup over them.
+    if (fkViolations) console.warn(`warning: ${fkViolations} foreign key violations present in data`);
+};
 (async () => {
     if (process.argv[2] === '--verify') {
-        const file = path.resolve(process.argv[3] || '');
-        const backup = new Database(file, { readonly: true, fileMustExist: true });
-        if (backup.pragma('integrity_check', { simple: true }) !== 'ok' || backup.pragma('foreign_key_check').length) throw new Error('Backup integrity check failed');
-        backup.close(); console.log('Backup verified'); return;
+        check(path.resolve(process.argv[3] || ''));
+        console.log('Backup verified'); return;
     }
-    const folder = path.join(root, '.backups');
+    // Backups live outside the repo (with the DB) so git clean/reset can never
+    // delete them. Override the location with BOOKMARX_BACKUP_DIR.
+    const folder = process.env.BOOKMARX_BACKUP_DIR || path.join(os.homedir(), 'bookmarx-data', 'backups');
     fs.mkdirSync(folder, { recursive: true });
     const target = path.join(folder, `bookmarx-${new Date().toISOString().replace(/[:.]/g, '-')}.db`);
     const db = new Database(source, { readonly: true, fileMustExist: true });
     await db.backup(target);
     db.close();
-    const verification = new Database(target, { readonly: true });
-    if (verification.pragma('integrity_check', { simple: true }) !== 'ok' || verification.pragma('foreign_key_check').length) throw new Error('Backup integrity check failed');
-    verification.close(); console.log(target);
+    check(target);
+    console.log(target);
 })().catch(error => { console.error(error.message); process.exitCode = 1; });

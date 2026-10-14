@@ -1,4 +1,5 @@
 import fs from 'fs';
+import * as os from 'os';
 import path from 'path';
 import next from 'next';
 
@@ -6,7 +7,8 @@ const dev = process.env.NODE_ENV !== 'production';
 const port = Number(process.env.PORT || 3005);
 
 const websiteDir = process.cwd();
-const defaultDbPath = path.join(websiteDir, 'data', 'bookmarx.db');
+// DB lives outside the repo so git operations can never touch it.
+const defaultDbPath = path.join(os.homedir(), 'bookmarx-data', 'bookmarx.db');
 
 if (!process.env.DATABASE_PATH) {
   process.env.DATABASE_PATH = defaultDbPath;

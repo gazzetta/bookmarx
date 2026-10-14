@@ -27,6 +27,9 @@ REPO_URL="https://github.com/gazzetta/bookmarx.git"
 BRANCH="master"
 DOMAIN="www.bookmarx.cc"
 APP_PORT="3005"
+# The live database lives OUTSIDE the repo so that git reset/clean can never
+# touch it. Override with BOOKMARX_DATA_DIR if it moves.
+DATA_DIR="${BOOKMARX_DATA_DIR:-/home/gazza/bookmarx-data}"
 SITE_CONF="/etc/nginx/sites-available/bookmarx"
 LIMIT_CONF="/etc/nginx/conf.d/bookmarx-rate-limit.conf"
 
@@ -73,7 +76,7 @@ fi
 
 # Create required directories
 log_info "Creating directories..."
-mkdir -p "$REPO_DIR" "/var/log/bookmarx" "$WEBSITE_DIR/data"
+mkdir -p "$REPO_DIR" "/var/log/bookmarx" "$DATA_DIR"
 if [ "$IS_ROOT" = true ]; then
     chown -R "$APP_USER:$APP_USER" "$REPO_DIR" "/var/log/bookmarx"
 fi
@@ -82,16 +85,28 @@ fi
 cd "$REPO_DIR"
 if [ -d ".git" ]; then
     log_info "Pulling latest changes..."
-    # Snapshot the live database BEFORE resetting: if any database sidecar is
-    # ever tracked in git, `git reset --hard` overwrites it with a stale blob
-    # and the mismatched WAL/DB pair corrupts the database (happened twice,
-    # 2026-10-13 and 2026-10-14). Cheap insurance — restores are in .backups.
-    if [ -f "$WEBSITE_DIR/data/bookmarx.db" ]; then
-        DEPLOY_BK="$REPO_DIR/.backups/pre-deploy-$(date +%Y%m%d-%H%M%S)"
-        mkdir -p "$DEPLOY_BK"
-        cp -p "$WEBSITE_DIR/data"/bookmarx.db* "$DEPLOY_BK/" 2>/dev/null || true
-        if [ "$IS_ROOT" = true ]; then chown -R "$APP_USER:$APP_USER" "$DEPLOY_BK"; fi
-        log_info "Database snapshot saved to $DEPLOY_BK"
+    # Hard guard: a bookmarx.db* file tracked in git means a future
+    # `git reset --hard` will overwrite the live database sidecars and corrupt
+    # the DB (this exact bug caused outages on 2026-10-13 and 2026-10-14).
+    TRACKED_DB=$(run_as_app_user "cd \"$REPO_DIR\" && git ls-files | grep -E 'bookmarx\\.db(-wal|-shm|-journal)?$'" || true)
+    if [ -n "$TRACKED_DB" ]; then
+        log_error "Database files are tracked in git: $TRACKED_DB"
+        log_error "Deploy aborted — a git reset would corrupt the live database."
+        log_error "Fix: git rm --cached <file> && git commit && git push"
+        exit 1
+    fi
+    # Snapshot the live database before resetting — uses the SQLite online
+    # backup API (consistent even while the app is writing) and verifies the
+    # copy. Auto-restored below if the health check fails.
+    DEPLOY_BK=""
+    if [ -f "$DATA_DIR/bookmarx.db" ]; then
+        DEPLOY_BK=$(run_as_app_user "cd \"$REPO_DIR\" && DATABASE_PATH=\"$DATA_DIR/bookmarx.db\" node scripts/backup-database.cjs" 2>/dev/null | tail -1)
+        if [ -n "$DEPLOY_BK" ] && [ -f "$DEPLOY_BK" ]; then
+            log_info "Database snapshot saved to $DEPLOY_BK"
+        else
+            log_warn "Database snapshot failed — continuing without one"
+            DEPLOY_BK=""
+        fi
     fi
     run_as_app_user "cd \"$REPO_DIR\" && git fetch origin && git reset --hard \"origin/$BRANCH\""
 elif [ -n "$(ls -A "$REPO_DIR" 2>/dev/null)" ]; then
@@ -268,6 +283,20 @@ if [ "$HEALTH_OK" = true ]; then
 else
     log_error "Health check failed after 90s. Showing recent logs:"
     $PM2_CMD logs bookmarx-api --lines 80 --nostream || true
+    # Restore the pre-deploy database snapshot so a bad deploy cannot leave
+    # the site down on a corrupted/missing database. The backup file is a
+    # fully self-consistent db, so stale wal/shm sidecars are removed with it.
+    if [ -n "${DEPLOY_BK:-}" ] && [ -f "$DEPLOY_BK" ]; then
+        log_warn "Attempting to restore pre-deploy database snapshot..."
+        run_as_app_user "cp -p \"$DEPLOY_BK\" \"$DATA_DIR/bookmarx.db\" && rm -f \"$DATA_DIR/bookmarx.db-wal\" \"$DATA_DIR/bookmarx.db-shm\""
+        $PM2_CMD restart bookmarx-api >/dev/null 2>&1 || true
+        sleep 10
+        if curl -s "http://localhost:${APP_PORT}/health" | grep -q "ok"; then
+            log_warn "Database snapshot restored — app is healthy again."
+        else
+            log_error "Restore did not recover the app. Manual intervention needed."
+        fi
+    fi
     exit 1
 fi
 
