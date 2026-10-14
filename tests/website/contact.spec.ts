@@ -13,11 +13,11 @@ test('contact form preserves a failed message, then confirms only successful del
   const message = 'Please provide my account information.';
   await page.getByLabel('Message', { exact: true }).fill(message);
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Delivery unavailable');
+  await expect(page.locator('form').getByRole('alert')).toContainText('Delivery unavailable');
   await expect(page.getByLabel('Message', { exact: true })).toHaveValue(message);
   success = true;
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('delivered to our support inbox');
+  await expect(page.getByRole('status')).toContainText('submitted to our support team');
   expect(requests).toHaveLength(2);
   expect(requests[1]).toMatchObject({ email: 'customer@example.test', topic: 'Privacy request', message });
   await expect(page.locator('a[href^="mailto:"]')).toHaveCount(0);

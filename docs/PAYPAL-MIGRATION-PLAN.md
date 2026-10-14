@@ -35,7 +35,7 @@ PayPal Advanced Payments allows:
 - [ ] **1.3** Create a REST app in PayPal Developer Dashboard → get `Client ID` + `Client Secret`
 - [ ] **1.4** Set up sandbox credentials (separate `Client ID` + `Client Secret` for testing)
 - [ ] **1.5** Create subscription plans in PayPal:
-  - Monthly: $2.49/mo (no trial — billed immediately)
+  - Monthly: $2.49/mo with 7-day free trial
   - Yearly: $24.99/yr
   - Lifetime: $49.99 one-time (use Orders API, not Subscriptions)
 - [ ] **1.6** Note the PayPal plan IDs for monthly + yearly, and product ID for lifetime
@@ -165,7 +165,7 @@ PayPal Advanced Payments allows:
 
 1. **PayPal SDK vs raw REST**: Raw REST via `fetch` is recommended — `@paypal/checkout-server-sdk` is deprecated. PayPal's current REST API v2 is well-documented and straightforward.
 
-2. **Subscription plan IDs**: PayPal requires creating plans in their dashboard (or via API). Plans should have no trial configured — billing starts immediately. Plan IDs will differ between sandbox and live.
+2. **Subscription plan IDs**: PayPal requires creating plans in their dashboard (or via API). The monthly plan needs a 7-day trial configured. Plan IDs will differ between sandbox and live.
 
 3. **Customer portal**: Polar had a built-in customer portal. PayPal doesn't have an equivalent for subscriptions — users cancel from their PayPal account settings, or we build a cancel endpoint ourselves.
 

@@ -17,6 +17,9 @@ export function parseConsent(value: string | null): Consent | null {
 }
 
 export function clearAnalyticsCookies() {
+  for (const key of Object.keys(window)) {
+    if (key.startsWith('ga-disable-G-')) (window as unknown as Record<string, unknown>)[key] = true
+  }
   const domains = [undefined, location.hostname, `.${location.hostname}`]
   const parts = location.hostname.split('.')
   for (let i = 1; i < parts.length - 1; i++) domains.push(`.${parts.slice(i).join('.')}`)
@@ -61,6 +64,20 @@ export function CookieConsentProvider({ children }: { children: ReactNode }) {
     // Reload removes already-running vendor code when consent is withdrawn.
     if (consent?.analytics && !next.analytics) location.reload()
   }
+  useEffect(() => {
+    if (!consent) return
+    let timer: ReturnType<typeof setTimeout>
+    const checkExpiry = () => {
+      const remaining = consent.savedAt + CONSENT_MAX_AGE - Date.now()
+      if (remaining > 0) { timer = setTimeout(checkExpiry, Math.min(remaining, 2147483647)); return }
+      clearAnalyticsCookies()
+      try { localStorage.removeItem(CONSENT_KEY); localStorage.removeItem('bookmarx-theme') } catch { /* Optional storage. */ }
+      setConsent(null)
+      if (consent.analytics) location.reload()
+    }
+    checkExpiry()
+    return () => clearTimeout(timer)
+  }, [consent])
   return <Context.Provider value={{ consent, ready, settingsOpen, openSettings: () => setSettingsOpen(true),
     closeSettings: () => setSettingsOpen(false), save }}>{children}</Context.Provider>
 }

@@ -494,6 +494,7 @@ export default function HomePage() {
                     <span className="text-white/50">/month</span>
                   </div>
                   <p className="text-sm text-white/40 mt-1.5">or ${config.pricing.yearly / 100}/yr &middot; ${config.pricing.lifetime / 100} lifetime</p>
+                  <p className="text-sm text-terra-300 mt-1.5 font-semibold">7-day free trial included</p>
                 </div>
 
                 <ul className="space-y-4 mb-8 flex-1">

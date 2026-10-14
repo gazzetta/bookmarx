@@ -316,3 +316,11 @@ These came out of the extension/website surveys. The test specs above already ac
 Ordinary bookmark tests verify only freshly generated synthetic accounts in the isolated test database or a guarded localhost fixture. The dedicated verification tests leave accounts unverified. No test-only verification endpoint exists in the application. Test mail delivery is disabled; manual delivery to a real mailbox is a separate acceptance check.
 
 Do not run a Next.js production build against the same `.next` directory while the local dev server is serving browser tests: it can detach or reload the tested UI. Run builds before or after browser suites.
+
+## 11. Privacy choices and contact
+
+`tests/website/cookie-consent.spec.ts` intercepts a fake Google tag and proves no script loads before consent or after rejection, sanitised public-only page views after acceptance, withdrawal/cookie cleanup with necessary storage preserved, preference-only consent, and expiry both on reload and while a tab remains open. No test visits are sent to a real Google property. Ordinary website fixtures explicitly seed rejection of optional storage; the theme test grants preference persistence through the real settings UI.
+
+`tests/api/contact.test.ts` checks public form input validation, origin restrictions, honeypot suppression, real delivery-failure responses and submission limits using mocked email delivery in the isolated API test database. `tests/website/contact.spec.ts` checks preserved text after failure and confirmation after successful provider acceptance. A real receiving-inbox check is separate from these tests.
+
+Development configuration never exposes the live Google Analytics ID. Production uses the public `GOOGLE_ANALYTICS_ID` setting; the stream's Enhanced Measurement and data-sharing settings must also be reviewed before deployment. Website, extension and email templates no longer fetch Google Fonts; local font assets include their OFL licences.

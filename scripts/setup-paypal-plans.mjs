@@ -3,7 +3,7 @@
  * Run with: node --env-file=src/website/.env.local scripts/setup-paypal-plans.mjs
  *
  * Creates:
- *   - Product + Monthly Billing Plan (no trial — billed immediately)
+ *   - Product + Monthly Billing Plan (with 7-day free trial)
  *   - Product + Yearly Billing Plan
  *   - Product for Lifetime (one-time payment, no billing plan)
  *
@@ -19,10 +19,10 @@ const PLANS = [
   {
     key: "monthly",
     name: "BookMarx Premium Monthly",
-    description: "BookMarx Premium — monthly billing, no trial",
+    description: "BookMarx Premium — monthly billing with 7-day free trial",
     frequency: "MONTH",
     price: "2.49",
-    trialDays: 0,
+    trialDays: 7,
   },
   {
     key: "yearly",
@@ -138,7 +138,7 @@ async function createProduct(token, name, description) {
 async function createBillingPlan(token, productId, plan) {
   const billingCycles = [];
 
-  // Trial cycle (currently disabled — no trial on any plan)
+  // Trial cycle (monthly only — 7-day free trial)
   if (plan.trialDays > 0) {
     billingCycles.push({
       frequency: {

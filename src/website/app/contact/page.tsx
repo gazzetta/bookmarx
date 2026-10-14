@@ -23,10 +23,10 @@ export default function ContactPage() {
   const inputClass = 'w-full rounded-lg border border-cream-400 dark:border-white/30 bg-white dark:bg-[#242424] p-3'
   return <LegalPage title="Contact BookMarx">
     <section><h2>How can we help?</h2><p>Use this form for support, sales, privacy requests, cancellation, refunds or complaints. Include your account email where relevant. Do not send passwords, payment card details or sensitive bookmark contents.</p>
-      {sent ? <div role="status"><p>Your message has been delivered to our support inbox. We can reply to the email you supplied.</p><button type="button" className="underline" onClick={() => setSent(false)}>Send another message</button></div>
+      {sent ? <div role="status"><p>Your message has been submitted to our support team. We can reply to the email you supplied.</p><button type="button" className="underline" onClick={() => setSent(false)}>Send another message</button></div>
         : <form onSubmit={submit} className="space-y-5">
           <label className="block">Your email address<input className={inputClass} name="email" type="email" autoComplete="email" required maxLength={254} /></label>
-          <label className="block">Topic<select className={inputClass} name="topic" defaultValue="Support">{['Support', 'Sales', 'Privacy request', 'Cancellation or refund', 'Complaint'].map(topic => <option key={topic}>{topic}</option>)}</select></label>
+          <div><label htmlFor="contact-topic" className="block">Topic</label><select id="contact-topic" className={inputClass} name="topic" defaultValue="Support">{['Support', 'Sales', 'Privacy request', 'Cancellation or refund', 'Complaint'].map(topic => <option key={topic}>{topic}</option>)}</select></div>
           <label className="block">Message<textarea className={inputClass} name="message" rows={7} required minLength={10} maxLength={5000} /></label>
           <div hidden aria-hidden="true"><label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label></div>
           <p className="text-sm">We use these details to respond to your request. See our <Link href="/privacy">Privacy Policy</Link>. This form does not subscribe you to marketing.</p>

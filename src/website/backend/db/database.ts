@@ -1605,6 +1605,13 @@ export class DatabaseService {
         return stmt.get(userId);
     }
 
+    public hasSubscriptionHistory(userId: string, excludeExternalId?: string): boolean {
+        const row = (excludeExternalId
+            ? this.db.prepare(`SELECT 1 FROM subscriptions WHERE userId = ? AND (externalSubscriptionId IS NULL OR externalSubscriptionId != ?)`).get(userId, excludeExternalId)
+            : this.db.prepare(`SELECT 1 FROM subscriptions WHERE userId = ?`).get(userId)) as any;
+        return !!row;
+    }
+
     // Collection-based queries
     public getFoldersByCollection(collectionId: string | null, userId: string): any[] {
         if (collectionId === null || collectionId === 'default') {

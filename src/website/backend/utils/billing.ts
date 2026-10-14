@@ -47,6 +47,15 @@ export function applySubscription(subscription: any): boolean {
         if (existing?.status === 'refunded' && !(Math.floor(Date.parse(paid.time || '') / 1000) > (existing.endsAt || now))) return false;
         status = 'active';
     }
+    else if (subscription.status === 'ACTIVE' && !validPayment && Number.isFinite(end) && end > now
+        && checkout.planType === 'monthly' && end - now <= 8 * 86400) {
+        // 7-day free trial: PayPal reports ACTIVE with $0 / no payment yet and
+        // next_billing_time at trial end. Grant premium until trial end.
+        // One trial per user — a repeat subscription after any history gets no trial access.
+        if (existing?.status === 'refunded') return false;
+        if (!existing && db.hasSubscriptionHistory(checkout.userId, subscription.id)) return false;
+        status = 'active';
+    }
     else if (subscription.status === 'CANCELLED' && existing) status = 'cancelled';
     else if (!['SUSPENDED', 'EXPIRED'].includes(subscription.status)) return false;
     if (!existing && status !== 'active') return false;

@@ -70,6 +70,36 @@ describe('verified billing and independent entitlements', () => {
     expect(db.getUserById(user.userId).subscriptionTier).toBe('free');
   });
 
+  it('grants premium during the 7-day monthly trial with no payment yet', async () => {
+    const user = await monthly();
+    const subscription: any = { ...user.subscription, billing_info: {
+      next_billing_time: new Date(Date.now() + 7 * 86400000).toISOString(),
+    } };
+    delete subscription.billing_info.last_payment;
+    provider({ [`/v1/billing/subscriptions/${subscription.id}`]: subscription });
+    expect(applySubscription(subscription)).toBe(true);
+    const me = db.getUserById(user.userId);
+    expect(me.subscriptionTier).toBe('premium');
+    expect(me.subscriptionExpiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000) + 6 * 86400);
+    const response = await request(app).post('/api/v1/checkout/confirm-subscription')
+      .set('Authorization', bearer(user.token)).send({ subscriptionID: subscription.id });
+    expect(response.status).toBe(200); expect(response.body.success).toBe(true);
+  });
+
+  it('denies a repeat trial after prior subscription history', async () => {
+    const user = await monthly();
+    db.createSubscription({ userId: user.userId, planType: 'monthly', status: 'cancelled', amount: 249, currency: 'USD',
+      startsAt: Math.floor(Date.now() / 1000) - 60 * 86400, endsAt: Math.floor(Date.now() / 1000) - 30 * 86400,
+      paymentProvider: 'paypal', externalSubscriptionId: crypto.randomUUID() });
+    db.recomputeEntitlement(user.userId);
+    const trial: any = { ...user.subscription, id: crypto.randomUUID(), billing_info: {
+      next_billing_time: new Date(Date.now() + 7 * 86400000).toISOString(),
+    } };
+    db.recordPayPalCheckout(trial.id, user.userId, 'monthly', 249, 'USD', 'P-verified-monthly');
+    expect(applySubscription(trial)).toBe(false);
+    expect(db.getUserById(user.userId).subscriptionTier).toBe('free');
+  });
+
   it('keeps the original provider plan and price valid after the current plan configuration changes', async () => {
     const user = await monthly(); vi.stubEnv('PAYPAL_MONTHLY_PLAN_ID', 'P-new-price-plan');
     expect(applySubscription(user.subscription)).toBe(true);

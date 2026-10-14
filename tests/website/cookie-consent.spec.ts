@@ -2,12 +2,10 @@ import { test, expect } from '@playwright/test'
 
 async function configuredAnalytics(page: import('@playwright/test').Page) {
   let loads = 0
-  await page.route('**/api/v1/config', async route => {
-    const response = await route.fetch()
-    const body = await response.json()
-    body.data.analytics = { measurementId: 'G-TEST123' }
-    await route.fulfill({ json: body })
-  })
+  const response = await page.request.get('/api/v1/config')
+  const body = await response.json()
+  body.data.analytics = { measurementId: 'G-TEST123' }
+  await page.route('**/api/v1/config', route => route.fulfill({ json: body }))
   // Never send test visits to Google. Test the real consent/script boundary.
   await page.route('https://www.googletagmanager.com/**', async route => {
     loads++
@@ -84,4 +82,21 @@ test('expired choices require new consent and remove previous Analytics cookies'
   await expect(page.getByRole('heading', { name: 'Your privacy choices' })).toBeVisible()
   expect(loads()).toBe(0)
   expect((await page.context().cookies()).some(cookie => cookie.name === '_ga')).toBe(false)
+})
+
+test('an open tab also stops Analytics when its consent expires', async ({ page }) => {
+  const loads = await configuredAnalytics(page)
+  await page.clock.install()
+  await page.addInitScript(() => {
+    if (!localStorage.getItem('expiry-fixture')) {
+      localStorage.setItem('expiry-fixture', 'seeded')
+      localStorage.setItem('bookmarx-consent', JSON.stringify({ version: 1, savedAt: Date.now() - 180 * 86400000 + 60000, analytics: true, preferences: false }))
+    }
+  })
+  await page.goto('/')
+  await expect.poll(loads).toBe(1)
+  await page.clock.fastForward(61000)
+  await expect(page.getByRole('heading', { name: 'Your privacy choices' })).toBeVisible()
+  await expect(page.locator('#bookmarx-google-analytics')).toHaveCount(0)
+  expect(loads()).toBe(1)
 })
