@@ -8,6 +8,8 @@ import { defineConfig } from 'vitest/config';
 // file (see tests/setup.ts). No shared state between files by default.
 export default defineConfig({
   test: {
+    // Preserve the previous Vitest behavior across the v5 upgrade.
+    clearMocks: false,
     // Only pick up root-tree tests/* files; the per-workspace Jest configs under
     // src/extension are intentionally left untouched for now.
     include: ['tests/**/*.test.ts', 'tests/audit/*.audit.ts'],

@@ -56,7 +56,7 @@ export class LimitError extends Error {
 }
 
 export class SyncManager {
-    private syncInProgress: boolean = false;
+    private operationChain: Promise<unknown> = Promise.resolve();
     private readonly SYNC_RETRY_DELAY = 5000; // 5 seconds
     private readonly MAX_RETRY_ATTEMPTS = 3;
     private retryCount = 0;
@@ -308,7 +308,7 @@ export class SyncManager {
                     this.appConfig = result.data;
                 }
             }
-        } catch (error) {
+        } catch {
             console.warn('[SyncManager] Could not reach server for config, using defaults');
             this.appConfig = {
                 branding: { premiumTitle: 'Premium' },
@@ -322,14 +322,12 @@ export class SyncManager {
         return data?.settings?.autoSync || false;
     }
 
-    public async sync(): Promise<boolean> {
-        if (this.syncInProgress) {
-            console.log('Sync already in progress');
-            return false;
-        }
+    public sync(): Promise<boolean> {
+        return this.withOperationLock(() => this.syncUnlocked());
+    }
 
+    private async syncUnlocked(): Promise<boolean> {
         try {
-            this.syncInProgress = true;
             console.log('Starting sync process in background...');
 
             const authToken = await this.storageManager.getAuthToken();
@@ -388,8 +386,6 @@ export class SyncManager {
                 console.error('Sync error:', error);
             }
             throw error;
-        } finally {
-            this.syncInProgress = false;
         }
     }
 
@@ -1017,24 +1013,10 @@ export class SyncManager {
             throw new Error('Not authenticated');
         }
         const changes = await this.storageManager.getQueuedChanges();
-        const deviceId = await this.storageManager.getDeviceId();
 
         // Check if this is initial sync
         try {
-            const response = await fetch(`${this.API_ENDPOINT}/status`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${authToken}`,
-                    'X-Device-ID': deviceId
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to check sync status');
-            }
-
-            const status = await response.json();
+            const status = await this.getSyncStatus();
             const isInitialSync = status.data.needsInitialSync;
 
             // Count local changes by type
@@ -1290,8 +1272,7 @@ export class SyncManager {
                             folder.masterParentId,
                             folder.parentId,
                             localFolderMap,
-                            folderIdMap,
-                            folder.title
+                            folderIdMap
                         );
 
                         const newFolder = await this.createMasterNode(folder.masterId, 'folder', {
@@ -1592,7 +1573,7 @@ export class SyncManager {
      * Tries masterParentId first, falls back to browser parentId mapping.
      */
     private async resolveParentIdForSync(masterParentId: string | null, browserParentId: string | null,
-        localFolderMap: Map<string, string>, newFolderIdMap: Record<string, string>, _folderTitle?: string): Promise<string> {
+        localFolderMap: Map<string, string>, newFolderIdMap: Record<string, string>): Promise<string> {
         if (masterParentId) {
             const local = newFolderIdMap[masterParentId] || localFolderMap.get(masterParentId);
             if (!local) throw new Error(`Parent folder is not available yet: ${masterParentId}`);
@@ -1718,6 +1699,50 @@ export class SyncManager {
 
     public async fetchMasterCollectionPublic(): Promise<any> {
         return this.fetchMasterCollection();
+    }
+
+    /** Establish a snapshot baseline only when both libraries have no user items. */
+    public async baselineEmptyCollection(): Promise<{ success: boolean; data?: { baselined: boolean }; error?: string }> {
+        return this.withOperationLock(async () => {
+            try {
+                if ((await this.storageManager.getQueuedChanges()).length) return { success: true, data: { baselined: false } };
+                const tree = (await this.getBookmarkTree())[0];
+                const local = this.processBookmarkTree(tree);
+                if (local.bookmarks.length || local.folders.some(folder => !folder.rootKind)) {
+                    return { success: true, data: { baselined: false } };
+                }
+                const status = await this.getSyncStatus();
+                if (!status.success || status.data?.needsInitialSync ||
+                    !Object.values(status.data?.pendingChanges || {}).some(count => typeof count === 'number' && count > 0)) {
+                    return { success: true, data: { baselined: false } };
+                }
+                const snapshot = await this.fetchMasterCollection();
+                const data = snapshot.data;
+                if (!snapshot.success || !Array.isArray(data?.bookmarks) || data.bookmarks.length ||
+                    !Array.isArray(data?.folders) || !Number.isSafeInteger(data.cursor) || data.cursor < 0) {
+                    return { success: true, data: { baselined: false } };
+                }
+                const roots = new BookmarkRoots(tree);
+                const map: MasterIdMap = {};
+                for (const folder of data.folders) {
+                    // A user-created empty folder can have a system-looking name.
+                    // Baseline only explicitly canonical roots, never infer this from its title.
+                    if (!folder.rootKind || folder.masterParentId) return { success: true, data: { baselined: false } };
+                    const role = BookmarkRoots.masterKind(folder);
+                    const localId = role && roots.byKind.get(role);
+                    if (!localId) return { success: true, data: { baselined: false } };
+                    map[folder.masterId] = { kind: 'folder', localId };
+                }
+                // No native mutation or queue removal. Save root identities before acknowledging
+                // exactly this empty snapshot; edits arriving after its cursor remain pending.
+                await this.storageManager.setMasterIdMap(map);
+                await this.ackPull(data.cursor, 0);
+                await this.storageManager.updateLastSync();
+                return { success: true, data: { baselined: true } };
+            } catch (error) {
+                return { success: false, error: error instanceof Error ? error.message : String(error) };
+            }
+        });
     }
 
     /**
@@ -1885,10 +1910,10 @@ export class SyncManager {
         return Math.min(position!, (await this.getBookmarkChildren(parentId)).length);
     }
 
-    private async withOperationLock<T>(operation: () => Promise<T>): Promise<T> {
-        if (this.syncInProgress) throw new Error('Another sync operation is in progress. Please wait.');
-        this.syncInProgress = true;
-        try { return await operation(); } finally { this.syncInProgress = false; }
+    public withOperationLock<T>(operation: () => Promise<T>): Promise<T> {
+        const run = this.operationChain.then(operation, operation);
+        this.operationChain = run.then(() => undefined, () => undefined);
+        return run;
     }
 
     private async recoverReplacement(): Promise<void> {

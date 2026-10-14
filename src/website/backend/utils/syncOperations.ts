@@ -14,12 +14,15 @@ function validateItem(item: any, bookmark: boolean): void {
     if (bookmark) safeBookmarkUrl(item.url);
 }
 function parent(userId: string, collectionId: string, data: any, instanceId: string, aliases: Record<string, string> = {}): string | null {
+    if (data.parentId && aliases[data.parentId]) {
+        db.validateParent(userId, collectionId, aliases[data.parentId]);
+        return aliases[data.parentId];
+    }
     if (data.masterParentId !== undefined) {
         db.validateParent(userId, collectionId, data.masterParentId);
         return data.masterParentId;
     }
     if (!data.parentId || data.parentId === '0' || data.parentId === 'root________') return null;
-    if (aliases[data.parentId]) return aliases[data.parentId];
     const asMaster = db.getFoldersByCollection(collectionId, userId).find(f => f.masterId === data.parentId);
     if (asMaster) return asMaster.masterId;
     const own = db.getFoldersByCollection(collectionId, userId).find(f => f.browserId === data.parentId && f.browserInstanceId === instanceId);
@@ -37,7 +40,9 @@ export function applySync(userId: string, collectionId: string, body: any, maxim
     if (!Array.isArray(body?.changes) || body.changes.length > 10000 || !body.metadata?.deviceInfo?.browserInstanceId) throw new CustomError('Invalid sync payload', 400, 'INVALID_SYNC');
     const instanceId = body.metadata.deviceInfo.browserInstanceId;
     return db.transaction(() => {
+        const revisionBefore = db.getCollectionRevision(userId, collectionId);
         const results: any[] = [];
+        const aliases: Record<string, string> = {};
         for (const change of body.changes) {
             if (!change?.data) throw new CustomError('Invalid sync change', 400, 'INVALID_SYNC');
             const data = change.data;
@@ -48,7 +53,11 @@ export function applySync(userId: string, collectionId: string, body: any, maxim
             const hash = createHash('sha256').update(JSON.stringify({ type: change.type, data })).digest('hex');
             const operationId = change.operationId ? `sync:${instanceId}:${change.operationId}` : undefined;
             const previous = operationId && db.getMutationReceipt(userId, collectionId, operationId, hash);
-            if (previous) { results.push(previous); continue; }
+            if (previous) {
+                if (change.type === 'CREATE' && previous.browserId && previous.masterId) aliases[previous.browserId] = previous.masterId;
+                results.push(previous);
+                continue;
+            }
             const details = { ...data, id: data.id || data.browserId, browserId: data.browserId || data.id, userId, collectionId, metadata };
             let masterId = data.masterId;
             let duplicate = false;
@@ -57,9 +66,10 @@ export function applySync(userId: string, collectionId: string, body: any, maxim
                 const existing = db.findActiveCreatedMasterId(kind === 'bookmark' ? 'bookmarks' : 'folders', details.browserId, instanceId, userId, collectionId);
                 if (existing) { masterId = existing; duplicate = true; }
                 else {
-                    const masterParentId = parent(userId, collectionId, data, instanceId);
+                    const masterParentId = parent(userId, collectionId, data, instanceId, aliases);
                     masterId = (kind === 'bookmark' ? db.createBookmark({ ...details, masterParentId }) : db.createFolder({ ...details, masterParentId })).masterId;
                 }
+                if (masterId) aliases[details.browserId] = masterId;
             } else {
                 const row = db.findSyncItem(kind, details);
                 if (!row) throw new CustomError('Item not found in this account and collection', 404, 'ITEM_NOT_FOUND');
@@ -68,7 +78,7 @@ export function applySync(userId: string, collectionId: string, body: any, maxim
                 else if (change.type === 'UPDATE' || change.type === 'MOVE') {
                     if (data.title !== undefined && (typeof data.title !== 'string' || data.title.length > 10000)) throw new CustomError('Invalid title', 400, 'INVALID_ITEM');
                     if (kind === 'bookmark' && data.url !== undefined) safeBookmarkUrl(data.url);
-                    const masterParentId = data.parentId !== undefined || data.masterParentId !== undefined ? parent(userId, collectionId, data, instanceId) : undefined;
+                    const masterParentId = data.parentId !== undefined || data.masterParentId !== undefined ? parent(userId, collectionId, data, instanceId, aliases) : undefined;
                     kind === 'bookmark' ? db.updateBookmark({ ...details, masterParentId }) : db.updateFolder({ ...details, masterParentId });
                 } else throw new CustomError('Unsupported change type', 400, 'INVALID_SYNC');
             }
@@ -77,6 +87,7 @@ export function applySync(userId: string, collectionId: string, body: any, maxim
             results.push(result);
         }
         limits(userId, maximum);
+        db.rememberUploadedRevisions(userId, collectionId, instanceId, revisionBefore, results.map(item => item.masterId));
         db.markCollectionInitialized(userId, collectionId);
         db.createSyncHistory({ userId, deviceId: body.deviceId, collectionId, type: 'SYNC', status: 'SUCCESS',
             changesCount: results.length, details: { kind: 'push' }, metadata: body.metadata });
@@ -92,6 +103,7 @@ export function importBrowserSnapshot(userId: string, collectionId: string, body
     return db.transaction(() => {
         const previous = operationId && db.getMutationReceipt(userId, collectionId, operationId, hash);
         if (previous) return previous;
+        const revisionBefore = db.getCollectionRevision(userId, collectionId);
         const snapshot = db.getCollectionSnapshot(collectionId, userId);
         if (body.mode === 'replace') {
             for (const b of snapshot.bookmarks) db.deleteBookmark({ masterId: b.masterId, userId, collectionId });
@@ -130,6 +142,7 @@ export function importBrowserSnapshot(userId: string, collectionId: string, body
             processed.push({ success: true, type: 'bookmark', browserId: rawId, masterId: id });
         }
         limits(userId, maximum);
+        db.rememberUploadedRevisions(userId, collectionId, instanceId, revisionBefore, processed.map(item => item.masterId), true);
         db.markCollectionInitialized(userId, collectionId);
         db.createSyncHistory({ userId, deviceId: body.deviceId, collectionId, type: merge ? 'MERGE_IMPORT' : 'INITIAL_IMPORT', status: 'SUCCESS',
             changesCount: processed.length, sessionId, details: { kind: 'push' }, metadata: body.metadata });

@@ -428,7 +428,7 @@ class PopupManager {
             this.updateSyncInfo(data);
             await this.updateStats(data);
             await this.updateCollectionName();
-        } catch (error) {
+        } catch {
             this.showError('Failed to load extension data');
         }
     }
@@ -439,7 +439,7 @@ class PopupManager {
             if (result?.success && this.collectionNameElement) {
                 this.collectionNameElement.textContent = result.data?.collectionName || 'Master Collection';
             }
-        } catch (error) {
+        } catch {
             // Silently fail - keep the current name
         }
     }
@@ -945,6 +945,20 @@ class PopupManager {
             const isLoggedIn = storageData?.auth?.token;
             if (!isLoggedIn) {
                 console.log('[Onboarding] Not logged in, skipping');
+                return;
+            }
+
+            // An unpacked extension's files can be rebuilt while its old worker stays alive.
+            // Probe a long-standing message before sending the newly introduced action.
+            const runtime = await this.sendMessage({ action: 'getAuthState' });
+            if (!runtime?.capabilities?.emptyCollectionBaseline) {
+                this.showError('BookMarx has updated. Reload the extension on your browser’s Extensions page, then reopen BookMarx.');
+                return;
+            }
+            const baseline = await this.sendMessage({ action: 'baselineEmptyCollection' });
+            if (baseline?.success && baseline.data?.baselined) {
+                this.onboardingChecked = true;
+                await this.updateUI();
                 return;
             }
 

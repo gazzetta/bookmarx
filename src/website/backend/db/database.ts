@@ -1031,6 +1031,7 @@ export class DatabaseService {
                 UPDATE browsers SET currentCollectionId = ?
                 WHERE currentCollectionId = ? AND userId = ?
             `).run(defaultCollectionId, collectionId, userId);
+            this.db.prepare('DELETE FROM sync_applied_items WHERE collectionId = ? AND userId = ?').run(collectionId, userId);
             const result = this.db.prepare(`
                 DELETE FROM collections
                 WHERE id = ? AND userId = ? AND isDefault = 0
@@ -2218,12 +2219,37 @@ export class DatabaseService {
             .run(userId, browserInstanceId, collectionId, cursor);
     }
 
-    public getRevisionChanges(userId: string, collectionId: string, since: number, until: number): any {
+    public rememberUploadedRevisions(userId: string, collectionId: string, browserInstanceId: string,
+        since: number, masterIds: string[], includeRoots = false): void {
+        const remember = this.db.prepare(`INSERT INTO sync_applied_items(userId, collectionId, browserInstanceId, masterId, revision)
+            SELECT userId, collectionId, ?, masterId, MAX(revision) FROM sync_changes
+            WHERE userId = ? AND collectionId = ? AND masterId = ? AND (revision > ? OR
+                (? = 1 AND EXISTS (SELECT 1 FROM folders f WHERE f.masterId = sync_changes.masterId
+                    AND f.userId = sync_changes.userId AND f.collectionId = sync_changes.collectionId AND f.rootKind IS NOT NULL)))
+            GROUP BY userId, collectionId, masterId
+            ON CONFLICT(userId, collectionId, browserInstanceId, masterId)
+            DO UPDATE SET revision = MAX(revision, excluded.revision)`);
+        for (const masterId of new Set(masterIds)) remember.run(browserInstanceId, userId, collectionId, masterId, since, includeRoots ? 1 : 0);
+        // A native recursive delete already removed its descendants as well.
+        this.db.prepare(`INSERT INTO sync_applied_items(userId, collectionId, browserInstanceId, masterId, revision)
+            SELECT userId, collectionId, ?, masterId, MAX(revision) FROM sync_changes
+            WHERE userId = ? AND collectionId = ? AND revision > ? AND action = 'delete'
+            GROUP BY userId, collectionId, masterId
+            ON CONFLICT(userId, collectionId, browserInstanceId, masterId)
+            DO UPDATE SET revision = MAX(revision, excluded.revision)`)
+            .run(browserInstanceId, userId, collectionId, since);
+    }
+
+    public getRevisionChanges(userId: string, collectionId: string, since: number, until: number, browserInstanceId?: string): any {
         const rows = this.db.prepare(`SELECT c.* FROM sync_changes c JOIN (
             SELECT masterId, MAX(revision) AS revision FROM sync_changes
             WHERE userId = ? AND collectionId = ? AND revision > ? AND revision <= ? GROUP BY masterId
-        ) latest ON c.revision = latest.revision ORDER BY c.revision`)
-            .all(userId, collectionId, since, until) as any[];
+        ) latest ON c.revision = latest.revision
+        WHERE NOT EXISTS (SELECT 1 FROM sync_applied_items a WHERE a.userId = c.userId
+            AND a.collectionId = c.collectionId AND a.masterId = c.masterId
+            AND a.browserInstanceId = ? AND a.revision >= c.revision)
+        ORDER BY c.revision`)
+            .all(userId, collectionId, since, until, browserInstanceId || null) as any[];
         const changes: any = { creates: { folders: [], bookmarks: [] }, updates: { folders: [], bookmarks: [] }, deletes: { folders: [], bookmarks: [] } };
         for (const row of rows) changes[row.action === 'delete' ? 'deletes' : 'creates'][row.itemType === 'folder' ? 'folders' : 'bookmarks'].push(JSON.parse(row.itemJson));
         return changes;

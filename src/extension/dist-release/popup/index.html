@@ -1,181 +1,174 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=360">
-    <title>BookMarx</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="popup-container">
-        <!-- Toast messages -->
-        <div id="errorContainer" class="toast-container hidden"></div>
+<!doctype html><html lang=en><head><meta charset=UTF-8><meta name=viewport content="width=360"><title>BookMarx</title><link rel=stylesheet href=styles.css></head><body>
+    <div class=popup-container>
+        
+        <div id=errorContainer class="toast-container hidden"></div>
 
-        <!-- Header -->
-        <div class="popup-header">
-            <div class="header-brand">
-                <div class="header-logo">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        
+        <div class=popup-header>
+            <div class=header-brand>
+                <div class=header-logo>
+                    <svg viewBox="0 0 24 24" xmlns=http://www.w3.org/2000/svg>
                         <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
                     </svg>
                 </div>
-                <span class="header-title">BookMarx</span>
+                <span class=header-title>BookMarx</span>
             </div>
-            <div class="header-actions">
-                <button id="themeToggle" class="header-btn" title="Toggle theme">☀️</button>
-                <span id="syncStatus" class="sync-status"></span>
+            <div class=header-actions>
+                <button id=themeToggle class=header-btn title="Toggle theme">☀️</button>
+                <span id=syncStatus class=sync-status></span>
             </div>
         </div>
 
-        <!-- Auth: Logged Out -->
-        <div id="authLoggedOut" class="auth-container">
-            <div class="auth-panel">
-                <button id="googleLogin" class="auth-google-button">
-                    <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/></svg>
+        
+        <div id=authLoggedOut class=auth-container>
+            <div class=auth-panel>
+                <button id=googleLogin class=auth-google-button>
+                    <svg width=16 height=16 viewBox="0 0 48 48"><path fill=#FFC107 d=M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z /><path fill=#FF3D00 d=M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z /><path fill=#4CAF50 d=M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z /><path fill=#1976D2 d=M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z /></svg>
                     Sign in with Google
                 </button>
-                <div class="auth-separator">or</div>
-                <div class="auth-fields">
-                    <input type="email" id="emailInput" placeholder="Email">
-                    <div class="password-field-wrapper">
-                        <input type="password" id="passwordInput" placeholder="Password">
-                        <button id="togglePassword" class="toggle-password" type="button" title="Show password">
-                            <svg class="eye-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <div class=auth-separator>or</div>
+                <div class=auth-fields>
+                    <input type=email id=emailInput placeholder=Email>
+                    <div class=password-field-wrapper>
+                        <input type=password id=passwordInput placeholder=Password>
+                        <button id=togglePassword class=toggle-password type=button title="Show password">
+                            <svg class=eye-icon viewBox="0 0 24 24" xmlns=http://www.w3.org/2000/svg>
                                 <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                             </svg>
-                            <svg class="eye-off-icon hidden" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <svg class="eye-off-icon hidden" viewBox="0 0 24 24" xmlns=http://www.w3.org/2000/svg>
                                 <path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>
                             </svg>
                         </button>
                     </div>
                 </div>
-                <div class="auth-actions">
-                    <button id="emailLogin" class="auth-button">Sign In</button>
-                    <button id="emailRegister" class="auth-button secondary">Register</button>
+                <div class=auth-actions>
+                    <button id=emailLogin class=auth-button>Sign In</button>
+                    <button id=emailRegister class="auth-button secondary">Register</button>
                 </div>
             </div>
         </div>
 
-        <!-- Auth: Logged In -->
-        <div id="authLoggedIn" class="auth-container hidden">
-            <div class="auth-panel">
-                <div class="auth-user">
-                    <div id="userAvatar" class="user-avatar">?</div>
-                    <div class="user-info">
-                        <div id="authUserEmail" class="auth-user-email"></div>
-                        <span id="tierBadge" class="tier-badge tier-free">Free</span>
+        
+        <div id=authLoggedIn class="auth-container hidden">
+            <div class=auth-panel>
+                <div class=auth-user>
+                    <div id=userAvatar class=user-avatar>?</div>
+                    <div class=user-info>
+                        <div id=authUserEmail class=auth-user-email></div>
+                        <span id=tierBadge class="tier-badge tier-free">Free</span>
                     </div>
-                    <button id="logout" class="header-btn" title="Sign out">⏻</button>
+                    <button id=logout class=header-btn title="Sign out">⏻</button>
                 </div>
 
-                <!-- Collection Selector -->
-                <div id="collectionSelector" class="collection-selector-inline">
-                    <button id="collectionTrigger" class="collection-trigger">
-                        <div class="collection-trigger-left">
-                            <span class="collection-trigger-label">Collection</span>
-                            <span id="collectionName" class="collection-trigger-name">Master Collection</span>
+                
+                <div id=collectionSelector class=collection-selector-inline>
+                    <button id=collectionTrigger class=collection-trigger>
+                        <div class=collection-trigger-left>
+                            <span class=collection-trigger-label>Collection</span>
+                            <span id=collectionName class=collection-trigger-name>Master Collection</span>
                         </div>
-                        <span class="collection-trigger-chevron">▼</span>
+                        <span class=collection-trigger-chevron>▼</span>
                     </button>
-                    <div id="collectionDropdown" class="collection-dropdown hidden"></div>
+                    <div id=collectionDropdown class="collection-dropdown hidden"></div>
                 </div>
 
-                <!-- Upgrade CTA (free users) -->
-                <div id="upgradeCta" class="upgrade-cta hidden">
-                    <span class="upgrade-text">Unlock more collections &amp; browsers</span>
-                    <button id="upgradeBtn" class="upgrade-button">Upgrade</button>
+                
+                <div id=upgradeCta class="upgrade-cta hidden">
+                    <span class=upgrade-text>Unlock more collections & browsers</span>
+                    <button id=upgradeBtn class=upgrade-button>Upgrade</button>
                 </div>
             </div>
         </div>
 
-        <!-- Main body -->
-        <div class="popup-body">
-            <!-- Initial sync notice -->
-            <div id="initialSyncNotice" class="initial-sync hidden">
-                <div class="initial-sync-title">Welcome to BookMarx</div>
-                <div class="initial-sync-message">
+        
+        <div class=popup-body>
+            
+            <div id=initialSyncNotice class="initial-sync hidden">
+                <div class=initial-sync-title>Welcome to BookMarx</div>
+                <div class=initial-sync-message>
                     Your collection is empty. Run an initial sync to upload your browser bookmarks.
                 </div>
             </div>
 
-            <!-- Sync status card -->
-            <div id="statsContainer" class="status-card">
-                <div class="status-card-header">
-                    <span class="status-card-title">Sync Status</span>
-                    <span id="lastSync" class="last-sync">Never synced</span>
+            
+            <div id=statsContainer class=status-card>
+                <div class=status-card-header>
+                    <span class=status-card-title>Sync Status</span>
+                    <span id=lastSync class=last-sync>Never synced</span>
                 </div>
-                <div class="status-grid">
-                    <div class="status-col">
-                        <div class="status-col-label">Local Browser</div>
-                        <div class="status-row">
-                            <span class="status-row-label">Bookmarks</span>
-                            <span id="localBookmarksCount" class="status-row-value">0</span>
+                <div class=status-grid>
+                    <div class=status-col>
+                        <div class=status-col-label>Local Browser</div>
+                        <div class=status-row>
+                            <span class=status-row-label>Bookmarks</span>
+                            <span id=localBookmarksCount class=status-row-value>0</span>
                         </div>
-                        <div class="status-row">
-                            <span class="status-row-label">Folders</span>
-                            <span id="localFoldersCount" class="status-row-value">0</span>
+                        <div class=status-row>
+                            <span class=status-row-label>Folders</span>
+                            <span id=localFoldersCount class=status-row-value>0</span>
                         </div>
                     </div>
-                    <div class="status-col">
-                        <div class="status-col-label">Remote Collection</div>
-                        <div class="status-row">
-                            <span class="status-row-label">Bookmarks</span>
-                            <span id="remoteBookmarksCount" class="status-row-value">0</span>
+                    <div class=status-col>
+                        <div class=status-col-label>Remote Collection</div>
+                        <div class=status-row>
+                            <span class=status-row-label>Bookmarks</span>
+                            <span id=remoteBookmarksCount class=status-row-value>0</span>
                         </div>
-                        <div class="status-row">
-                            <span class="status-row-label">Folders</span>
-                            <span id="remoteFoldersCount" class="status-row-value">0</span>
+                        <div class=status-row>
+                            <span class=status-row-label>Folders</span>
+                            <span id=remoteFoldersCount class=status-row-value>0</span>
                         </div>
                     </div>
                 </div>
-                <div class="status-pending">
-                    <span>↑ <span id="pendingUpCount" class="pending-badge up">0</span> to push</span>
-                    <span>↓ <span id="pendingDownCount" class="pending-badge down">0</span> to pull</span>
+                <div class=status-pending>
+                    <span>↑ <span id=pendingUpCount class="pending-badge up">0</span> to push</span>
+                    <span>↓ <span id=pendingDownCount class="pending-badge down">0</span> to pull</span>
                 </div>
             </div>
 
-            <!-- Sync buttons -->
-            <div id="actionsContainer" class="sync-buttons">
-                <button id="syncUp" class="sync-button sync-up" disabled>⬆ Sync Up</button>
-                <button id="syncDown" class="sync-button sync-down" disabled>⬇ Sync Down</button>
+            
+            <div id=actionsContainer class=sync-buttons>
+                <button id=syncUp class="sync-button sync-up" disabled>⬆ Sync Up</button>
+                <button id=syncDown class="sync-button sync-down" disabled>⬇ Sync Down</button>
             </div>
 
-            <!-- Quick actions -->
-            <div class="actions-container">
-                <button id="overwriteFromMaster" class="action-button warning" disabled>Overwrite Local</button>
-                <button id="openManager" class="action-button" disabled>View Collection</button>
+            
+            <div class=actions-container>
+                <button id=overwriteFromMaster class="action-button warning" disabled>Overwrite Local</button>
+                <button id=openManager class=action-button disabled>View Collection</button>
             </div>
         </div>
 
-        <!-- Usage footer -->
-        <div id="usageFooter" class="usage-footer hidden">
-            <div class="usage-item">
-                <span>Bookmarks</span>&nbsp;
-                <span id="bookmarkUsage" class="usage-value">-</span>/<span id="bookmarkLimit">-</span>
+        
+        <div id=usageFooter class="usage-footer hidden">
+            <div class=usage-item>
+                <span>Bookmarks</span> 
+                <span id=bookmarkUsage class=usage-value>-</span>/<span id=bookmarkLimit>-</span>
             </div>
-            <div class="usage-item">
-                <span>Browsers</span>&nbsp;
-                <span id="browserUsage" class="usage-value">-</span>/<span id="browserLimit">-</span>
+            <div class=usage-item>
+                <span>Browsers</span> 
+                <span id=browserUsage class=usage-value>-</span>/<span id=browserLimit>-</span>
             </div>
-            <div class="usage-item">
-                <span>Collections</span>&nbsp;
-                <span id="collectionUsage" class="usage-value">-</span>/<span id="collectionLimit">-</span>
+            <div class=usage-item>
+                <span>Collections</span> 
+                <span id=collectionUsage class=usage-value>-</span>/<span id=collectionLimit>-</span>
             </div>
         </div>
 
-        <!-- Debug section (collapsed by default) -->
-        <div class="debug-section">
-            <button id="debugToggle" class="debug-toggle">Debug Tools ▾</button>
-            <div id="debugPanel" class="debug-buttons hidden">
-                <button id="debugStorage" class="action-button">Storage</button>
-                <button id="debugBookmarkData" class="action-button">Bookmarks</button>
-                <button id="clearStorage" class="action-button warning">Clear</button>
-                <button id="testNotification" class="action-button">Notify</button>
-                <button id="resetNotificationState" class="action-button">Reset</button>
+        
+        <div class=debug-section>
+            <button id=debugToggle class=debug-toggle>Debug Tools ▾</button>
+            <div id=debugPanel class="debug-buttons hidden">
+                <button id=debugStorage class=action-button>Storage</button>
+                <button id=debugBookmarkData class=action-button>Bookmarks</button>
+                <button id=clearStorage class="action-button warning">Clear</button>
+                <button id=testNotification class=action-button>Notify</button>
+                <button id=resetNotificationState class=action-button>Reset</button>
             </div>
         </div>
     </div>
 
-    <script src="index.js" type="module"></script>
-</body>
-</html>
+    <script src=index.js type=module></script>
+
+
+</body></html>

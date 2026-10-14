@@ -263,8 +263,6 @@ class MasterCollectionView {
         console.log('Rendering tree with nodes:', nodes);
 
         if (!Array.isArray(nodes) || nodes.length === 0) {
-            const auth = await this.getAuth();
-            const userId = auth?.user.id || 'unknown';
             parentElement.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">📭</div>

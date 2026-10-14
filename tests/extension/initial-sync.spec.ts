@@ -98,7 +98,13 @@ test.describe('Initial sync flow', () => {
       lastSync: postSyncStorage?.lastSync,
     });
 
+    // Reopen to read fresh server status, rather than a cached pre-upload count.
     await popup.close();
+    const afterSync = await openPopup(page);
+    await expect(afterSync.locator('#remoteBookmarksCount')).toHaveText('1', { timeout: 15000 });
+    await expect(afterSync.locator('#pendingDownCount')).toHaveText('0', { timeout: 15000 });
+    await expect(afterSync.locator('#pendingUpCount')).toHaveText('0', { timeout: 15000 });
+    await afterSync.close();
 
     // Get deviceId from extension storage for API verification
     const storage = await getExtensionStorage();

@@ -58,7 +58,7 @@ class BackgroundService {
                         return;
                     }
 
-                    sendResponse({ auth: storage.auth || null });
+                    sendResponse({ auth: storage.auth || null, capabilities: { emptyCollectionBaseline: true } });
                 });
                 return true; // Keep the message channel open for async response
             }
@@ -146,7 +146,7 @@ class BackgroundService {
             if (message.action === 'setAuth') {
                 (async () => {
                     try {
-                        await this.storageManager.setAuth(message.data);
+                        await this.syncManager.withOperationLock(() => this.storageManager.setAuth(message.data));
                         sendResponse({ success: true });
                     } catch (error) {
                         console.error('Set Auth Error:', error);
@@ -205,7 +205,7 @@ class BackgroundService {
                             throw new Error(payload.error?.message || 'Google login failed');
                         }
 
-                        await this.storageManager.setAuth(payload.data);
+                        await this.syncManager.withOperationLock(() => this.storageManager.setAuth(payload.data));
                         console.log('[GoogleLogin] Auth stored successfully');
                         sendResponse({ success: true, data: payload.data });
                     } catch (error) {
@@ -222,7 +222,7 @@ class BackgroundService {
             if (message.action === 'clearAuth') {
                 (async () => {
                     try {
-                        await this.storageManager.clearAuth();
+                        await this.syncManager.withOperationLock(() => this.storageManager.clearAuth());
                         sendResponse({ success: true });
                     } catch (error) {
                         console.error('Clear Auth Error:', error);
@@ -238,7 +238,7 @@ class BackgroundService {
             if (message.action === 'clearStorage') {
                 (async () => {
                     try {
-                        await this.storageManager.clearAllStorage();
+                        await this.syncManager.withOperationLock(() => this.storageManager.clearAllStorage());
                         sendResponse({ success: true });
                     } catch (error) {
                         console.error('Clear Storage Error:', error);
@@ -448,6 +448,13 @@ class BackgroundService {
                 return true;
             }
 
+            if (message.action === 'baselineEmptyCollection') {
+                this.syncManager.baselineEmptyCollection().then(sendResponse).catch(error => {
+                    sendResponse({ success: false, error: error instanceof Error ? error.message : String(error) });
+                });
+                return true;
+            }
+
             // Merge local bookmarks into master collection
             if (message.action === 'mergeIntoMaster') {
                 console.log('Received request to merge local bookmarks into master');
@@ -530,7 +537,8 @@ class BackgroundService {
                         };
 
                         const localCount = local.adds + local.updates + local.moves + local.deletes;
-                        const remoteCount = remote.adds + remote.updates + remote.moves + remote.deletes;
+                        const remoteCount = (remote.adds || 0) + (remote.updates || 0) + (remote.moves || 0) + (remote.deletes || 0) +
+                            (remote.addsFolders || 0) + (remote.updatesFolders || 0) + (remote.deletesFolders || 0);
                         await this.maybeNotifySyncStatus(localCount, remoteCount);
 
                         sendResponse({
@@ -554,6 +562,8 @@ class BackgroundService {
                 })();
                 return true; // Keep the message channel open for async response
             }
+            sendResponse({ success: false, error: { code: 'UNSUPPORTED_MESSAGE', message: 'This background version does not support the requested action.' } });
+            return false;
         });
     }
 
@@ -565,6 +575,11 @@ class BackgroundService {
     }
 
     private async checkSyncStatusAndNotify(): Promise<void> {
+        await this.syncManager.baselineEmptyCollection();
+        return this.syncManager.withOperationLock(() => this.checkSyncStatusAndNotifyUnlocked());
+    }
+
+    private async checkSyncStatusAndNotifyUnlocked(): Promise<void> {
         try {
             console.log('[Notifications] Checking sync status...');
             const authToken = await this.storageManager.getAuthToken();
@@ -592,7 +607,8 @@ class BackgroundService {
                 moves: 0,
                 deletes: 0
             };
-            const remoteCount = remote.adds + remote.updates + remote.moves + remote.deletes;
+            const remoteCount = (remote.adds || 0) + (remote.updates || 0) + (remote.moves || 0) + (remote.deletes || 0) +
+                (remote.addsFolders || 0) + (remote.updatesFolders || 0) + (remote.deletesFolders || 0);
 
             // Check if collection has been updated since last sync
             const collectionUpdatedAt = serverStatus?.data?.collectionUpdatedAt;
@@ -604,7 +620,7 @@ class BackgroundService {
                 const notified = await this.showNotification(
                     'bookmarx-collection-updated',
                     'BookMarx: Collection updated',
-                    'Your collection has been updated on the website. Click to sync changes.'
+                    'Your master collection has changed. Click to review and sync the changes.'
                 );
                 if (notified) {
                     await this.setNotificationState({
@@ -632,6 +648,7 @@ class BackgroundService {
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${authToken}`,
+            'X-Sync-Version': '2',
             'X-Browser-Instance-ID': browserInstanceId
         };
         if (collectionId) {

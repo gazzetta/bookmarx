@@ -2,6 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { app, db, dbReady, registerUser, bearer, deviceInfo, syncMetadata } from '../helpers';
 import { bookmarksToHtml, parseBookmarkFile, validateBookmarkItems } from '../../src/website/backend/utils/bookmarkFiles';
+import { up as backfillAppliedRevisions } from '../../src/website/backend/db/migrations/009-browser-applied-revisions';
 
 beforeAll(async () => { await dbReady; });
 async function account() {
@@ -18,6 +19,72 @@ const details = (u: any, id: string, position = 0) => ({ browserId: id, title: i
   userId: u.userId, collectionId: u.collectionId, parentId: '1', position, metadata: syncMetadata(u.device) });
 
 describe('revision and retry integrity', () => {
+  it('backfills an existing successful upload without hiding later changes', async () => {
+    const u = await account();
+    const initial = await request(app).post('/api/v1/sync/initial').set(headers(u)).send({
+      operationId: 'previous-upload', deviceId: u.device.deviceId, folders: [],
+      bookmarks: ['known', 'edited'].map(id => ({ id, title: id, url: `https://example.test/${id}`, parentId: '2' })),
+      metadata: syncMetadata(u.device) });
+    expect(initial.status).toBe(200);
+    const editedId = initial.body.data.processed.find((item: any) => item.browserId === 'edited').masterId;
+    db.updateBookmark({ masterId: editedId, userId: u.userId, collectionId: u.collectionId, title: 'Later website edit' });
+    const raw = (db as any).db;
+    raw.prepare('DELETE FROM sync_applied_items WHERE userId = ?').run(u.userId);
+    backfillAppliedRevisions(raw);
+    const pending = await request(app).get('/api/v1/sync/pending').set(headers(u));
+    expect(pending.body.data.changes.creates.bookmarks.map((b: any) => [b.masterId, b.title])).toEqual([[editedId, 'Later website edit']]);
+  });
+
+  it('does not offer the first browser its own initial upload, but offers it to another browser', async () => {
+    const u = await account();
+    const body = { operationId: 'initial-other-bookmarks', deviceId: u.device.deviceId,
+      folders: [{ id: '1', title: 'Bookmarks bar', parentId: '0', rootKind: 'bar' },
+        { id: '2', title: 'Other bookmarks', parentId: '0', rootKind: 'other' }],
+      bookmarks: [{ id: 'example', title: 'Example Domain', url: 'https://example.com/', parentId: '2' }],
+      metadata: syncMetadata(u.device) };
+    expect((await request(app).post('/api/v1/sync/initial').set(headers(u)).send(body)).status).toBe(200);
+    const ownStatus = await request(app).get('/api/v1/sync/status').set(headers(u));
+    expect(ownStatus.body.data.pendingChanges.adds).toBe(0);
+    expect(ownStatus.body.data.pendingChanges.addsFolders).toBe(0);
+    const ownPull = await request(app).get('/api/v1/sync/pending').set(headers(u));
+    expect(ownPull.body.data.changes.creates.bookmarks).toHaveLength(0);
+    expect(ownPull.body.data.changes.creates.folders).toHaveLength(0);
+    const peer = { ...u, device: deviceInfo() };
+    db.registerBrowser({ ...peer.device, userId: u.userId, currentCollectionId: u.collectionId, userAgent: 'peer' });
+    const peerStatus = await request(app).get('/api/v1/sync/status').set(headers(peer));
+    const peerPull = await request(app).get('/api/v1/sync/pending').set(headers(peer));
+    expect(peerStatus.body.data.pendingChanges.adds).toBe(1);
+    expect(peerPull.body.data.changes.creates.bookmarks).toHaveLength(1);
+  });
+
+  it('suppresses only known own revisions and retains a later peer edit after a push and retry', async () => {
+    const u = await account();
+    const push = (actor: any, changes: any[]) => request(app).post('/api/v1/sync').set(headers(actor))
+      .send({ changes, deviceId: actor.device.deviceId, metadata: syncMetadata(actor.device) });
+    const create = { type: 'CREATE', operationId: 'create-example', data: { type: 'bookmark', id: 'example',
+      title: 'Example', url: 'https://example.com/', parentId: '2' } };
+    const first = await push(u, [create]);
+    expect(first.status).toBe(200);
+    const masterId = first.body.data.processed[0].masterId;
+    const peer = { ...u, device: deviceInfo() };
+    db.registerBrowser({ ...peer.device, userId: u.userId, currentCollectionId: u.collectionId, userAgent: 'peer' });
+    expect((await push(peer, [{ type: 'UPDATE', operationId: 'peer-rename',
+      data: { type: 'bookmark', masterId, title: 'Renamed by peer' } }])).status).toBe(200);
+    expect((await push(u, [create])).status).toBe(200);
+    expect((await push(u, [{ ...create, operationId: 'second-create', data: { ...create.data, id: 'second', title: 'Second' } }])).status).toBe(200);
+    const status = await request(app).get('/api/v1/sync/status').set(headers(u));
+    expect(status.body.data.pendingChanges.adds).toBe(1);
+    const pull = await request(app).get('/api/v1/sync/pending').set(headers(u));
+    expect(pull.body.data.changes.creates.bookmarks.map((b: any) => [b.masterId, b.title])).toEqual([[masterId, 'Renamed by peer']]);
+    expect((await push(u, [{ type: 'UPDATE', operationId: 'own-newer-rename',
+      data: { type: 'bookmark', masterId, title: 'Newer local title' } }])).status).toBe(200);
+    const afterOwnEdit = await request(app).get('/api/v1/sync/pending').set(headers(u));
+    expect(afterOwnEdit.body.data.changes.creates.bookmarks).toHaveLength(0);
+    expect((await push(peer, [{ type: 'DELETE', operationId: 'peer-delete', data: { type: 'bookmark', masterId } }])).status).toBe(200);
+    const deletion = await request(app).get('/api/v1/sync/pending').set(headers(u));
+    expect(deletion.body.data.changes.deletes.bookmarks.map((b: any) => b.masterId)).toEqual([masterId]);
+  });
+
   it('acknowledges only an offered snapshot and delivers edits committed after it', async () => {
     const u = await account();
     db.createBookmark(details(u, 'before'));
@@ -57,6 +124,25 @@ describe('revision and retry integrity', () => {
     expect(db.getBookmarksByCollection(u.collectionId, u.userId)).toHaveLength(1);
     body.changes[0].data.title = 'Reused ID with different contents';
     expect((await request(app).post('/api/v1/sync').set(headers(u)).send(body)).status).toBe(400);
+  });
+
+  it('resolves a restored folder parent within the same create batch, including an idempotent retry', async () => {
+    const u = await account();
+    const body = { deviceId: u.device.deviceId, metadata: syncMetadata(u.device), changes: [
+      { operationId: 'restore-folder', type: 'CREATE', data: { type: 'folder', id: 'restored-folder', browserId: 'restored-folder', title: 'Restored folder', parentId: '1', position: 0 } },
+      { operationId: 'restore-child', type: 'CREATE', data: { type: 'bookmark', id: 'restored-child', browserId: 'restored-child', title: 'Restored child', url: 'https://example.test/restored', parentId: 'restored-folder', masterParentId: 'deleted-parent-master-id', position: 0 } },
+    ] };
+    const first = await request(app).post('/api/v1/sync').set(headers(u)).send(body);
+    expect(first.status, first.text).toBe(200);
+    const parentId = first.body.data.processed[0].masterId;
+    const child = db.getBookmarksByCollection(u.collectionId, u.userId).find((item: any) => item.browserId === 'restored-child');
+    expect(child?.masterParentId).toBe(parentId);
+
+    const retry = await request(app).post('/api/v1/sync').set(headers(u)).send(body);
+    expect(retry.status, retry.text).toBe(200);
+    expect(retry.body.data.processed).toEqual(first.body.data.processed);
+    expect(db.getFoldersByCollection(u.collectionId, u.userId).filter((item: any) => item.browserId === 'restored-folder')).toHaveLength(1);
+    expect(db.getBookmarksByCollection(u.collectionId, u.userId).filter((item: any) => item.browserId === 'restored-child')).toHaveLength(1);
   });
 
   it('reindexes mixed bookmark/folder siblings when an item moves to the front', async () => {

@@ -21,6 +21,14 @@ export class BookmarkManager {
         }));
     }
 
+    private getSubtree(id: string): Promise<chrome.bookmarks.BookmarkTreeNode> {
+        return new Promise((resolve, reject) => chrome.bookmarks.getSubTree(id, nodes => {
+            const error = chrome.runtime.lastError;
+            if (error || !nodes?.[0]) reject(new Error(error?.message || 'Bookmark subtree no longer exists'));
+            else resolve(nodes[0]);
+        }));
+    }
+
     private isExcluded(id: string): Promise<boolean> {
         return new Promise((resolve, reject) => chrome.bookmarks.getTree(tree => {
             const error = chrome.runtime.lastError;
@@ -127,7 +135,7 @@ export class BookmarkManager {
                 return;
             }
             if (await this.isExcluded(moveInfo.oldParentId)) {
-                await this.storageManager.queueChange({ type: 'CREATE', data: { type, browserId: id, userId, ...await this.processBookmark(node) } });
+                await this.queueRestoredSubtree(id, userId);
                 return;
             }
 
@@ -154,6 +162,25 @@ export class BookmarkManager {
         } catch (error) {
             console.error('Error handling bookmark move:', error);
         }
+    }
+
+    private async queueRestoredSubtree(id: string, userId: string): Promise<void> {
+        const root = await this.getSubtree(id);
+        const changes: Array<{ type: string; data: any }> = [];
+        const visit = async (node: chrome.bookmarks.BookmarkTreeNode): Promise<void> => {
+            changes.push({
+                type: 'CREATE',
+                data: {
+                    type: node.url ? 'bookmark' : 'folder',
+                    browserId: node.id,
+                    userId,
+                    ...await this.processBookmark(node)
+                }
+            });
+            for (const child of node.children || []) await visit(child);
+        };
+        await visit(root);
+        await this.storageManager.queueChanges(changes);
     }
 
     private async processBookmark(

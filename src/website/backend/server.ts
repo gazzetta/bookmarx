@@ -454,7 +454,7 @@ app.get('/api/v1/sync/status', authenticate, async (req: Request, res: Response)
             // Same window as an acknowledged pull (see /sync/pending), so the count matches what a pull returns.
             if (req.get('X-Sync-Version') === '2') {
                 const cursor = db.getPullCursor(userId, browserInstanceId, collectionId);
-                const c = db.getRevisionChanges(userId, collectionId, cursor.revision, db.getCollectionRevision(userId, collectionId));
+                const c = db.getRevisionChanges(userId, collectionId, cursor.revision, db.getCollectionRevision(userId, collectionId), browserInstanceId);
                 pendingChanges = { adds: c.creates.bookmarks.length, addsFolders: c.creates.folders.length,
                     updates: 0, updatesFolders: 0, moves: 0, deletes: c.deletes.bookmarks.length, deletesFolders: c.deletes.folders.length };
             } else pendingChanges = db.getPendingChangesForBrowser(userId, browserInstanceId, Math.max(lastSyncSeconds - 1, 0), collectionId);
@@ -768,7 +768,7 @@ app.get('/api/v1/sync/pending', authenticate, checkBrowserLimit, async (req: Req
         const cursor = revisionMode ? db.getCollectionRevision(userId, collectionId) : Math.floor(Date.now() / 1000);
 
         // Get pending changes (delta from other browsers)
-        const changes = revisionMode ? db.getRevisionChanges(userId, collectionId, windowStart, cursor) : db.getPendingChangesDetails(userId, browserInstanceId, windowStart, collectionId);
+        const changes = revisionMode ? db.getRevisionChanges(userId, collectionId, windowStart, cursor, browserInstanceId) : db.getPendingChangesDetails(userId, browserInstanceId, windowStart, collectionId);
         if (revisionMode) db.offerPull(userId, browserInstanceId, collectionId, cursor);
 
         const total = changes.creates.folders.length + changes.creates.bookmarks.length +
