@@ -82,6 +82,17 @@ fi
 cd "$REPO_DIR"
 if [ -d ".git" ]; then
     log_info "Pulling latest changes..."
+    # Snapshot the live database BEFORE resetting: if any database sidecar is
+    # ever tracked in git, `git reset --hard` overwrites it with a stale blob
+    # and the mismatched WAL/DB pair corrupts the database (happened twice,
+    # 2026-10-13 and 2026-10-14). Cheap insurance — restores are in .backups.
+    if [ -f "$WEBSITE_DIR/data/bookmarx.db" ]; then
+        DEPLOY_BK="$REPO_DIR/.backups/pre-deploy-$(date +%Y%m%d-%H%M%S)"
+        mkdir -p "$DEPLOY_BK"
+        cp -p "$WEBSITE_DIR/data"/bookmarx.db* "$DEPLOY_BK/" 2>/dev/null || true
+        if [ "$IS_ROOT" = true ]; then chown -R "$APP_USER:$APP_USER" "$DEPLOY_BK"; fi
+        log_info "Database snapshot saved to $DEPLOY_BK"
+    fi
     run_as_app_user "cd \"$REPO_DIR\" && git fetch origin && git reset --hard \"origin/$BRANCH\""
 elif [ -n "$(ls -A "$REPO_DIR" 2>/dev/null)" ]; then
     # Folder already has files (e.g. a pre-staged .env) but is not a git repo yet,
