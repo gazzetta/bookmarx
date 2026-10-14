@@ -211,7 +211,7 @@ class MasterCollectionView {
                 const node: BookmarkNode = {
                     id: folder.masterId,
                     title: folder.title,
-                    dateAdded: folder.createdAt,
+                    createdAt: folder.createdAt,
                     children: [],
                     type: 'folder'
                 };
@@ -224,7 +224,7 @@ class MasterCollectionView {
                     id: bookmark.masterId,
                     title: bookmark.title,
                     url: bookmark.url,
-                    dateAdded: bookmark.createdAt,
+                    createdAt: bookmark.createdAt,
                     type: 'bookmark',
                     browserId: bookmark.browserId
                 };
@@ -338,6 +338,7 @@ class MasterCollectionView {
                 // Simplified meta for cleaner look, hover for details? 
                 // For now keeping it simple
                 dateInfo.textContent = dbAdded.split(',')[0]; // Just the date
+                dateInfo.title = `Added to collection: ${dbAdded}`;
                 meta.appendChild(document.createTextNode(' '));
                 meta.appendChild(dateInfo);
 
