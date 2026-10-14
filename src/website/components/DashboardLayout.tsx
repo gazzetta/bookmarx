@@ -1,10 +1,11 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import Footer from './Footer'
 import ThemeToggle from './ThemeToggle'
+import EmailVerificationPanel from './EmailVerificationPanel'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -12,6 +13,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { user, logout, isPremium } = useAuth()
 
   const handleLogout = () => {
@@ -154,7 +156,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 lg:px-12 pt-24 pb-12">
-        {children}
+        {user && !user.emailVerified && <EmailVerificationPanel />}
+        {(!user || user.emailVerified || ['/settings/account', '/settings/subscription'].includes(pathname)) && children}
       </main>
 
       <Footer />

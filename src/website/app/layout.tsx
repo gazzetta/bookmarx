@@ -3,6 +3,9 @@ import './globals.css'
 import { AuthProvider } from '@/lib/auth-context'
 import { ConfigProvider } from '@/lib/config-context'
 import { ThemeProvider } from '@/lib/theme-context'
+import { CookieConsentProvider } from '@/lib/cookie-consent'
+import CookieConsent from '@/components/CookieConsent'
+import GoogleAnalytics from '@/components/GoogleAnalytics'
 
 export const metadata: Metadata = {
   title: 'BookMarx — Sync Bookmarks Across Every Browser',
@@ -24,19 +27,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-      </head>
       <body className="font-sans antialiased bg-cream-100 dark:bg-[#1A1A1A] text-ink dark:text-cream-100 transition-colors duration-300">
-        <ThemeProvider>
-          <ConfigProvider>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
-          </ConfigProvider>
-        </ThemeProvider>
+        <ConfigProvider>
+          <CookieConsentProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                {children}
+                <GoogleAnalytics />
+                <CookieConsent />
+              </AuthProvider>
+            </ThemeProvider>
+          </CookieConsentProvider>
+        </ConfigProvider>
       </body>
     </html>
   )

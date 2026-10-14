@@ -11,7 +11,7 @@
                         <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
                     </svg>
                 </div>
-                <span class=header-title>BookMarx</span>
+                <a class=header-title href=https://www.bookmarx.cc/ target=_blank rel="noopener noreferrer" title="Open the BookMarx website">BookMarx</a>
             </div>
             <div class=header-actions>
                 <button id=themeToggle class=header-btn title="Toggle theme">☀️</button>
@@ -57,8 +57,21 @@
                         <div id=authUserEmail class=auth-user-email></div>
                         <span id=tierBadge class="tier-badge tier-free">Free</span>
                     </div>
-                    <button id=logout class=header-btn title="Sign out">⏻</button>
+                    <button id=logout type=button class="header-btn sign-out-btn" title="Sign out" aria-label="Sign out">
+                        <svg width=20 height=20 viewBox="0 0 24 24" fill=none stroke=currentColor stroke-width=2 stroke-linecap=round stroke-linejoin=round aria-hidden=true focusable=false>
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <path d="m17 16 4-4-4-4M21 12H9"/>
+                        </svg>
+                    </button>
                 </div>
+
+                <section id=emailVerificationNotice class="verification-panel hidden" aria-labelledby=verificationHeading>
+                    <h2 id=verificationHeading>Verify your email</h2>
+                    <p>Confirm your email address to unlock bookmarks, imports and browser sync. Check your inbox and junk folder for the confirmation email.</p>
+                    <button id=resendVerification type=button class=auth-button>Resend confirmation email</button>
+                    <button id=refreshVerification type=button class="auth-button secondary">I have verified my email</button>
+                    <p id=verificationStatus role=status></p>
+                </section>
 
                 
                 <div id=collectionSelector class=collection-selector-inline>

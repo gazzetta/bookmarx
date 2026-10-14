@@ -13,11 +13,14 @@ export interface User {
   browserLimit: number
   collectionLimit: number
   isPremium: boolean
+  emailVerified: boolean
+  emailVerifiedAt: number | null
 }
 
 export interface AuthResponse {
   token: string
   user: User
+  verificationEmailSent?: boolean
 }
 
 export interface Collection {
@@ -124,6 +127,7 @@ export interface UserStats {
 }
 
 export interface AppConfig {
+  analytics?: { measurementId: string | null }
   branding: {
     appName: string
     premiumTitle: string

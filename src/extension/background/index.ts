@@ -58,7 +58,7 @@ class BackgroundService {
                         return;
                     }
 
-                    sendResponse({ auth: storage.auth || null, capabilities: { emptyCollectionBaseline: true } });
+                    sendResponse({ auth: storage.auth || null, capabilities: { emptyCollectionBaseline: true, emailVerification: true } });
                 });
                 return true; // Keep the message channel open for async response
             }
@@ -445,6 +445,23 @@ class BackgroundService {
                             error: error instanceof Error ? error.message : 'Unknown error'
                         });
                     });
+                return true;
+            }
+
+            if (message.action === 'refreshAuth' || message.action === 'resendVerification') {
+                this.syncManager.withOperationLock(async () => {
+                    const auth = (await this.storageManager.getData())?.auth;
+                    if (!auth) return { success: false, error: { message: 'Sign in first.' } };
+                    const refresh = message.action === 'refreshAuth';
+                    const response = await fetch(`${API_BASE_URL}/api/v1/auth/${refresh ? 'me' : 'resend-verification'}`, {
+                        method: refresh ? 'GET' : 'POST', headers: { Authorization: `Bearer ${auth.token}` }, signal: AbortSignal.timeout(15000) });
+                    const result = await response.json();
+                    if (!response.ok || !result.success) return result;
+                    if (refresh && JSON.stringify(auth.user) !== JSON.stringify(result.data)) {
+                        await this.storageManager.setAuth({ token: auth.token, user: result.data });
+                    }
+                    return result;
+                }).then(sendResponse).catch(() => sendResponse({ success: false, error: { message: 'Could not reach BookMarx. Please try again.' } }));
                 return true;
             }
 

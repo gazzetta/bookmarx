@@ -170,70 +170,156 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        {/* Upgrade Options (for free users) */}
+        {/* Upgrade Options (for free users) — matches homepage pricing panels */}
         {!isPremium && (
           <>
             <div className="mb-10">
               <h2 className="text-2xl font-bold text-slate-900 dark:text-cream-100">Unlock Full Potential</h2>
-              <p className="text-slate-600 dark:text-cream-500 mt-2">All plans include the same Premium features. Choose your billing cycle:</p>
+              <p className="text-slate-600 dark:text-cream-500 mt-2">Start free and upgrade when you need more. No hidden fees.</p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 mb-16">
-              {/* Monthly */}
-              <div className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 dark:hover:shadow-terra-500/5 transition-all">
-                <h3 className="font-bold text-slate-600 dark:text-cream-500 uppercase tracking-widest text-xs">Premium · Monthly</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-slate-900 dark:text-cream-100">$2.49</span>
-                  <span className="text-slate-400 dark:text-white/40 font-bold">/mo</span>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto mb-8">
+              {/* Free Plan */}
+              <div className="bg-white dark:bg-[#242424] rounded-3xl p-8 border border-cream-300 dark:border-white/[0.06] h-full flex flex-col">
+                <div className="mb-8">
+                  <h3 className="font-display text-lg font-semibold text-ink dark:text-cream-100 mb-2">Free</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-display text-4xl font-bold text-ink dark:text-cream-100">$0</span>
+                    <span className="text-ink-400 dark:text-white/40">/forever</span>
+                  </div>
                 </div>
-                <p className="text-sm text-green-600 mt-4 font-bold">7-day free trial included</p>
+
+                <ul className="space-y-4 mb-8 flex-1">
+                  {[
+                    `Up to ${config.limits.free.bookmarks} bookmarks`,
+                    `${config.limits.free.browsers} browser connections`,
+                    'View-only Master Collection',
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-sage-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-ink-600 dark:text-white/80">{item}</span>
+                    </li>
+                  ))}
+                  {['Web editor', 'Session history & rollback', 'Mobile app access'].map((item, i) => (
+                    <li key={`no-${i}`} className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-ink-200 dark:text-white/15 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span className="text-ink-300 dark:text-white/25">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
                 <button
-                  onClick={() => handleUpgrade('monthly')}
-                  className="w-full mt-8 bg-slate-900 dark:bg-cream-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-ink py-4 rounded-2xl font-bold transition-all shadow-lg shadow-slate-900/10 dark:shadow-none active:scale-[0.98]"
+                  type="button"
+                  disabled
+                  className="block w-full text-center border-2 border-cream-400 dark:border-white/15 text-ink dark:text-cream-100 px-6 py-3.5 rounded-xl font-semibold opacity-60 cursor-default"
                 >
-                  Join Monthly
+                  Current Plan
                 </button>
               </div>
 
-              {/* Yearly */}
-              <div className="group relative bg-white dark:bg-[#242424] rounded-[2rem] border-2 border-primary-500 dark:border-terra-500 p-8 shadow-2xl shadow-primary-500/10 dark:shadow-terra-500/15 scale-105 z-10">
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary-600 dark:bg-terra-500 text-white text-[10px] font-black uppercase tracking-[0.2em] px-5 py-1.5 rounded-full shadow-lg">
-                  Most Popular
+              {/* Premium Plan */}
+              <div className="pricing-popular rounded-3xl p-8 text-white relative h-full flex flex-col lg:scale-[1.03]">
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-terra-500 text-white text-xs font-bold px-4 py-1.5 rounded-full tracking-wide">
+                  MOST POPULAR
                 </div>
-                <h3 className="font-bold text-primary-600 dark:text-terra-400 uppercase tracking-widest text-xs">Premium · Yearly</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-slate-900 dark:text-cream-100">$24.99</span>
-                  <span className="text-slate-400 dark:text-white/40 font-bold">/yr</span>
+
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-white/80 mb-2 font-display">{config.branding.premiumTitle}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-display text-4xl font-bold text-white">${config.pricing.monthly / 100}</span>
+                    <span className="text-white/50">/month</span>
+                  </div>
+                  <p className="text-sm text-white/40 mt-1.5">or ${config.pricing.yearly / 100}/yr &middot; ${config.pricing.lifetime / 100} lifetime</p>
                 </div>
-                <p className="text-sm text-green-600 mt-4 font-bold flex items-center gap-1.5">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  Save $4.89 vs monthly
-                </p>
-                <button
-                  onClick={() => handleUpgrade('yearly')}
-                  className="w-full mt-8 bg-primary-600 dark:bg-terra-500 hover:bg-primary-700 dark:hover:bg-terra-600 text-white py-4 rounded-2xl font-bold transition-all shadow-xl shadow-primary-500/25 dark:shadow-terra-500/15 active:scale-[0.98]"
-                >
-                  Join Yearly
-                </button>
+
+                <ul className="space-y-4 mb-8 flex-1">
+                  {[
+                    `Up to ${config.limits.premium.bookmarks.toLocaleString()} bookmarks`,
+                    `Up to ${config.limits.premium.browsers} browser profiles`,
+                    'Multiple collections',
+                    'Web drag & drop editor',
+                    'Session history & rollback',
+                    'Bookmark file import & export',
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-terra-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-white/90">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => handleUpgrade('monthly')}
+                    disabled={checkoutLoading !== null}
+                    className="block w-full text-center bg-terra-500 hover:bg-terra-600 disabled:opacity-60 text-white px-6 py-3.5 rounded-xl font-semibold transition-all hover:shadow-glow"
+                  >
+                    {checkoutLoading === 'monthly' ? 'Redirecting…' : `Join Monthly · $${config.pricing.monthly / 100}/mo`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpgrade('yearly')}
+                    disabled={checkoutLoading !== null}
+                    className="block w-full text-center bg-white/10 hover:bg-white/15 disabled:opacity-60 text-white px-6 py-3.5 rounded-xl font-semibold border border-white/15 transition-all"
+                  >
+                    {checkoutLoading === 'yearly' ? 'Redirecting…' : `Join Yearly · $${config.pricing.yearly / 100}/yr`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpgrade('lifetime')}
+                    disabled={checkoutLoading !== null}
+                    className="block w-full text-center bg-white/10 hover:bg-white/15 disabled:opacity-60 text-white px-6 py-3.5 rounded-xl font-semibold border border-white/15 transition-all"
+                  >
+                    {checkoutLoading === 'lifetime' ? 'Redirecting…' : `Get Lifetime · $${config.pricing.lifetime / 100}`}
+                  </button>
+                </div>
               </div>
 
-              {/* Lifetime */}
-              <div className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-200 hover:shadow-xl hover:shadow-primary-500/5 dark:hover:shadow-terra-500/5 transition-all">
-                <h3 className="font-bold text-slate-600 dark:text-cream-500 uppercase tracking-widest text-xs">Premium · Lifetime</h3>
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-slate-900 dark:text-cream-100">$49.99</span>
+              {/* Enterprise Plan */}
+              <div className="bg-white dark:bg-[#242424] rounded-3xl p-8 border border-cream-300 dark:border-white/[0.06] h-full flex flex-col">
+                <div className="mb-8">
+                  <h3 className="font-display text-lg font-semibold text-ink dark:text-cream-100 mb-2">Enterprise</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-display text-4xl font-bold text-ink dark:text-cream-100">Custom</span>
+                  </div>
+                  <p className="text-sm text-ink-400 dark:text-white/40 mt-1.5">Contact us for pricing</p>
                 </div>
-                <p className="text-sm text-slate-500 dark:text-white/50 mt-4 font-medium italic">Own BookMarx forever.</p>
-                <button
-                  onClick={() => handleUpgrade('lifetime')}
-                  className="w-full mt-8 border-2 border-slate-200 dark:border-white/10 hover:border-primary-600 dark:hover:border-terra-400 hover:text-primary-600 dark:hover:text-terra-400 text-slate-900 dark:text-cream-100 py-4 rounded-2xl font-bold transition-all active:scale-[0.98]"
+
+                <ul className="space-y-4 mb-8 flex-1">
+                  {[
+                    `Everything in ${config.branding.premiumTitle}`,
+                    `Up to ${config.limits.premium.bookmarks.toLocaleString()} bookmarks`,
+                    'Team sharing & collaboration',
+                    'SSO integration',
+                    'Priority support',
+                    'Custom onboarding',
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <svg className="w-5 h-5 text-sage-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span className="text-ink-600 dark:text-white/80">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Link
+                  href="/contact"
+                  className="block w-full text-center border-2 border-cream-400 dark:border-white/15 hover:border-ink dark:hover:border-white/40 hover:bg-ink dark:hover:bg-white/10 hover:text-cream-100 text-ink dark:text-cream-100 px-6 py-3.5 rounded-xl font-semibold transition-all"
                 >
-                  Get Lifetime
-                </button>
+                  Contact Sales
+                </Link>
               </div>
             </div>
+
+            <p className="text-center text-sm text-slate-500 dark:text-white/40 mb-16">Secure payments powered by <span className="font-semibold text-slate-700 dark:text-white/70">PayPal</span></p>
           </>
         )}
 

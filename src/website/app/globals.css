@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500&family=Outfit:wght@300;400;500;600;700&display=swap');
+@font-face { font-family: 'Outfit'; src: url('/fonts/outfit.ttf') format('truetype'); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Fraunces'; src: url('/fonts/fraunces.ttf') format('truetype'); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: 'Fraunces'; src: url('/fonts/fraunces-italic.ttf') format('truetype'); font-style: italic; font-weight: 100 900; font-display: swap; }
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

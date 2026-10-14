@@ -10,7 +10,7 @@ interface AuthContextType {
   isPremium: boolean
   login: (email: string, password: string) => Promise<void>
   loginWithGoogle: (credential: string) => Promise<void>
-  register: (email: string, password: string) => Promise<void>
+  register: (email: string, password: string) => Promise<AuthResponse>
   logout: () => void
   refreshUser: () => Promise<void>
 }
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setToken(storedToken)
       try { setUser(JSON.parse(storedUser)) } catch { localStorage.removeItem('bookmarx_user') }
       // Refresh user data from server
-      void refreshUserData(storedToken).finally(() => setIsLoading(false))
+      void refreshUserData(storedToken).catch(() => {}).finally(() => setIsLoading(false))
       return
     }
     setIsLoading(false)
@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Token might be invalid, clear auth
       console.error('Failed to refresh user data:', error)
       if (error instanceof ApiError && error.status === 401) logout()
+      throw error
     }
   }
 
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(response.user)
     localStorage.setItem('bookmarx_token', response.token)
     localStorage.setItem('bookmarx_user', JSON.stringify(response.user))
+    return response
   }
 
   const logout = () => {

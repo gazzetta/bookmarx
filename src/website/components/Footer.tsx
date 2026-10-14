@@ -1,51 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import BrowserIcon from '@/components/BrowserIcon'
 import { useConfig } from '@/lib/config-context'
 import { useAuth } from '@/lib/auth-context'
 
-const ChromeIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5">
-    <circle cx="12" cy="12" r="10" fill="#4285F4" />
-    <circle cx="12" cy="12" r="4" fill="white" />
-    <path d="M12 6l5.2 9h-10.4L12 6z" fill="#34A853" />
-    <path d="M21.9 10.5C22 11 22 11.5 22 12c0 3-1.4 5.8-3.6 7.7L13.2 10 18 10c.8 0 2.4 0 3.9.5z" fill="#FBBC05" />
-    <path d="M12 22c-3 0-5.8-1.4-7.7-3.6L9.5 10 6 10c-.8 0-2.4 0-3.9.5C2 11 2 11.5 2 12c0 5.5 4.5 10 10 10z" fill="#EA4335" />
-  </svg>
-)
 
-const FirefoxIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5">
-    <circle cx="12" cy="12" r="10" fill="url(#footer-firefox-gradient)" />
-    <defs>
-      <linearGradient id="footer-firefox-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#FF9500" />
-        <stop offset="100%" stopColor="#FF3366" />
-      </linearGradient>
-    </defs>
-    <path d="M12 5c-3.9 0-7 3.1-7 7s3.1 7 7 7 7-3.1 7-7-3.1-7-7-7zm0 12c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z" fill="white" opacity="0.5" />
-  </svg>
-)
-
-const EdgeIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5">
-    <circle cx="12" cy="12" r="10" fill="url(#footer-edge-gradient)" />
-    <defs>
-      <linearGradient id="footer-edge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0078D4" />
-        <stop offset="100%" stopColor="#00BCF2" />
-      </linearGradient>
-    </defs>
-    <path d="M12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5z" fill="white" opacity="0.5" />
-  </svg>
-)
-
-const BraveIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-5 h-5">
-    <circle cx="12" cy="12" r="10" fill="#FB542B" />
-    <path d="M12 6l3 2v8l-3 2-3-2V8l3-2z" fill="white" opacity="0.9" />
-  </svg>
-)
 
 export default function Footer() {
   const { config } = useConfig()
@@ -76,10 +36,10 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2.5 bg-white/[0.06] p-2.5 rounded-xl border border-white/[0.06]">
-                <ChromeIcon />
-                <FirefoxIcon />
-                <EdgeIcon />
-                <BraveIcon />
+                <BrowserIcon browser="chrome" className="w-5 h-5" />
+                <BrowserIcon browser="firefox" className="w-5 h-5" />
+                <BrowserIcon browser="edge" className="w-5 h-5" />
+                <BrowserIcon browser="brave" className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -111,7 +71,7 @@ export default function Footer() {
                   <li><Link href="/register" className="text-white/60 hover:text-white transition-colors text-[15px]">Register</Link></li>
                 </>
               )}
-              <li><Link href="mailto:support@bookmarks.cc" className="text-white/60 hover:text-white transition-colors text-[15px]">Contact Us</Link></li>
+              <li><Link href="/contact" className="text-white/60 hover:text-white transition-colors text-[15px]">Help & requests</Link></li>
             </ul>
           </div>
 
@@ -121,13 +81,9 @@ export default function Footer() {
             <ul className="space-y-3.5">
               <li><Link href="/privacy" className="text-white/60 hover:text-white transition-colors text-[15px]">Privacy Policy</Link></li>
               <li><Link href="/terms" className="text-white/60 hover:text-white transition-colors text-[15px]">Terms of Service</Link></li>
+              <li><Link href="/cookies" className="text-white/60 hover:text-white transition-colors text-[15px]">Cookies & local storage</Link></li>
             </ul>
 
-            <div className="mt-10 p-5 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
-              <p className="text-[11px] text-white/30 font-medium tracking-wider uppercase mb-1.5">Trusted by over</p>
-              <p className="font-display text-2xl font-bold text-white">50,000+</p>
-              <p className="text-sm text-white/40">active users worldwide</p>
-            </div>
           </div>
         </div>
 
@@ -136,7 +92,7 @@ export default function Footer() {
           <p className="text-sm text-white/30">
             &copy; {new Date().getFullYear()} {config.branding.appName}. All rights reserved.
           </p>
-          <Link href="https://bookmarx.cc" target="_blank" className="text-sm text-white/30 hover:text-white/60 transition-colors">
+          <Link href="https://www.bookmarx.cc/" target="_blank" rel="noopener noreferrer" className="text-sm text-white/30 hover:text-white/60 transition-colors">
             Made by BookMarx
           </Link>
         </div>

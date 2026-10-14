@@ -13,9 +13,8 @@
 //     *did* share a path, foreign-key fixtures would leak between them.
 //   - `JWT_SECRET` must be a fixed test value so `json web token` verification
 //     works without depending on the developer's real `.env.local`.
-//   - We deliberately do NOT set `RESEND_API_KEY` so `sendPasswordResetEmail`
-//     short-circuits to a console.log (see backend/utils/email.ts:25-32),
-//     letting the forgot-password flow be exercised without real email.
+//   - We explicitly clear `RESEND_API_KEY` so dotenv cannot fill it from a
+//     developer configuration and the unit/API suite never sends real mail.
 //
 // Do not import anything app-side here; only Node built-ins.
 
@@ -48,7 +47,7 @@ function ensureTestEnv(): void {
   // Defensive: never hit Polar/Resend/Google network paths during the suite.
   if (!('POLAR_ACCESS_TOKEN' in process.env)) process.env.POLAR_ACCESS_TOKEN = '';
   if (!('GOOGLE_CLIENT_ID' in process.env)) process.env.GOOGLE_CLIENT_ID = '';
-  if (!('RESEND_API_KEY' in process.env)) delete process.env.RESEND_API_KEY;
+  process.env.RESEND_API_KEY = '';
 }
 
 ensureTestEnv();

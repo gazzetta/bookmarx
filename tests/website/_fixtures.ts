@@ -1,4 +1,4 @@
-import { grantLocalTestPremium } from '../local-entitlements';
+import { grantLocalTestPremium, verifyLocalTestEmail } from '../local-entitlements';
 // tests/website/_fixtures.ts
 //
 // Shared L2 fixtures for the BookMarx website Playwright suite.
@@ -99,6 +99,7 @@ export async function registerFreeUser(): Promise<AuthState> {
   const password = 'Sup3rSecret!123';
   const body = await postJSON('/auth/register', { email, password });
   if (!body?.success) throw new Error(`free user registration failed: ${JSON.stringify(body)}`);
+  verifyLocalTestEmail(BASE_URL, body.data.user.id, email);
   return {
     email, password,
     token: body.data.token,
@@ -148,6 +149,16 @@ export const test = base.extend<
     premiumAccount: AuthState | null;
   }
 >({
+  // Ordinary account/bookmark suites model a visitor who rejected optional
+  // storage. cookie-consent.spec.ts uses fresh contexts to exercise the banner.
+  page: async ({ page }, use) => {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('bookmarx-consent')) localStorage.setItem('bookmarx-consent', JSON.stringify({
+        version: 1, savedAt: Date.now(), analytics: false, preferences: false
+      }));
+    });
+    await use(page);
+  },
   // Lazy-registered free user per spec file (per `beforeAll` semantics once).
   // Note: Playwright binds `test.use` workers + beforeAll per-work, not per-test,
   // so the fixture itself is created the first time it's requested in each file.

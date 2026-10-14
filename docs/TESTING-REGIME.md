@@ -305,4 +305,14 @@ These came out of the extension/website surveys. The test specs above already ac
 - Old clients (no header) keep the legacy path, which moves the watermark on the GET.
 - Creates are idempotent. A re-sent create returns the stored item, and a failed create comes back as `success: false` so the queue is kept.
 
-**Known gaps, not covered by automation.** The test profile path only supports Chromium-family browsers, so the Firefox sideload and real Opera/Brave root-folder mapping are still manual (L4).
+**Installed-browser coverage.** `windows-matrix.spec.ts` uses real installed Chromium-family browsers. `tests/audit/firefox-probe.cjs` sideloads the Firefox build and checks its native roots and callback APIs. Normal branded Chrome still requires the user's manual unpacked-extension check.
+
+## 10. Email verification
+
+`tests/api/email-verification.test.ts` checks the server gate, token hashing, expiry, replay, concurrent consumption/resend, email binding, delivery failure, and Google email authority. Unverified accounts can register/login but cannot access sync, collections, bookmarks, sessions, capture, or browser management APIs. Existing JWTs unlock after confirmation because the gate reads current database status.
+
+`tests/extension/email-verification.spec.ts` checks the real popup gate, preservation of queued edits after denied sync, the fragment-based website link, explicit confirmation POST, and upload after verification with the same session. Website registration tests expect the verification page and blocked dashboard.
+
+Ordinary bookmark tests verify only freshly generated synthetic accounts in the isolated test database or a guarded localhost fixture. The dedicated verification tests leave accounts unverified. No test-only verification endpoint exists in the application. Test mail delivery is disabled; manual delivery to a real mailbox is a separate acceptance check.
+
+Do not run a Next.js production build against the same `.next` directory while the local dev server is serving browser tests: it can detach or reload the tested UI. Run builds before or after browser suites.

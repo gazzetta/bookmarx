@@ -3,51 +3,11 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import BrowserIcon from '@/components/BrowserIcon'
 import { useAuth } from '@/lib/auth-context'
 import DashboardLayout from '@/components/DashboardLayout'
 
-const ChromeIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-10 h-10">
-    <circle cx="12" cy="12" r="10" fill="#4285F4" />
-    <circle cx="12" cy="12" r="4" fill="white" />
-    <path d="M12 6l5.2 9h-10.4L12 6z" fill="#34A853" />
-    <path d="M21.9 10.5C22 11 22 11.5 22 12c0 3-1.4 5.8-3.6 7.7L13.2 10 18 10c.8 0 2.4 0 3.9.5z" fill="#FBBC05" />
-    <path d="M12 22c-3 0-5.8-1.4-7.7-3.6L9.5 10 6 10c-.8 0-2.4 0-3.9.5C2 11 2 11.5 2 12c0 5.5 4.5 10 10 10z" fill="#EA4335" />
-  </svg>
-)
 
-const FirefoxIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-10 h-10">
-    <circle cx="12" cy="12" r="10" fill="url(#ff-gradient)" />
-    <defs>
-      <linearGradient id="ff-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#FF9500" />
-        <stop offset="100%" stopColor="#FF3366" />
-      </linearGradient>
-    </defs>
-    <path d="M12 5c-3.9 0-7 3.1-7 7s3.1 7 7 7 7-3.1 7-7-3.1-7-7-7zm0 12c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z" fill="white" opacity="0.3" />
-  </svg>
-)
-
-const EdgeIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-10 h-10">
-    <circle cx="12" cy="12" r="10" fill="url(#edge-gradient)" />
-    <defs>
-      <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0078D4" />
-        <stop offset="100%" stopColor="#00BCF2" />
-      </linearGradient>
-    </defs>
-    <path d="M12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5z" fill="white" opacity="0.3" />
-  </svg>
-)
-
-const BraveIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-10 h-10">
-    <circle cx="12" cy="12" r="10" fill="#FB542B" />
-    <path d="M12 6l3 2v8l-3 2-3-2V8l3-2z" fill="white" opacity="0.9" />
-  </svg>
-)
 
 export default function InstallPage() {
   const router = useRouter()
@@ -92,7 +52,7 @@ export default function InstallPage() {
               className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-300 dark:hover:border-terra-500/20 hover:shadow-xl hover:shadow-primary-500/5 transition-all text-center"
             >
               <div className="flex justify-center mb-4">
-                <ChromeIcon />
+                <BrowserIcon browser="chrome" className="w-10 h-10" />
               </div>
               <h3 className="font-bold text-slate-900 dark:text-cream-100">Chrome</h3>
               <p className="text-sm text-slate-500 dark:text-white/50 mt-1 mb-4">Also works on Brave & Edge</p>
@@ -113,7 +73,7 @@ export default function InstallPage() {
               className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-300 dark:hover:border-terra-500/20 hover:shadow-xl hover:shadow-primary-500/5 transition-all text-center"
             >
               <div className="flex justify-center mb-4">
-                <FirefoxIcon />
+                <BrowserIcon browser="firefox" className="w-10 h-10" />
               </div>
               <h3 className="font-bold text-slate-900 dark:text-cream-100">Firefox</h3>
               <p className="text-sm text-slate-500 dark:text-white/50 mt-1 mb-4">Mozilla Add-ons</p>
@@ -134,7 +94,7 @@ export default function InstallPage() {
               className="group bg-white dark:bg-[#242424] rounded-3xl border border-slate-200 dark:border-white/[0.06] p-8 hover:border-primary-300 dark:hover:border-terra-500/20 hover:shadow-xl hover:shadow-primary-500/5 transition-all text-center"
             >
               <div className="flex justify-center mb-4">
-                <EdgeIcon />
+                <BrowserIcon browser="edge" className="w-10 h-10" />
               </div>
               <h3 className="font-bold text-slate-900 dark:text-cream-100">Edge</h3>
               <p className="text-sm text-slate-500 dark:text-white/50 mt-1 mb-4">Microsoft Edge Add-ons</p>

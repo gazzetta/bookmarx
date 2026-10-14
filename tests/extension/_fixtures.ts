@@ -1,4 +1,4 @@
-import { grantLocalTestPremium } from '../local-entitlements';
+import { grantLocalTestPremium, verifyLocalTestEmail } from '../local-entitlements';
 // tests/extension/_fixtures.ts
 //
 // Shared L3 fixtures for the BookMarx extension Playwright suite.
@@ -62,6 +62,7 @@ export async function registerFreeUser(): Promise<AuthState> {
   const password = 'Sup3rSecret!123';
   const body = await postJSON('/auth/register', { email, password });
   if (!body?.success) throw new Error(`free user registration failed: ${JSON.stringify(body)}`);
+  verifyLocalTestEmail(BASE_URL, body.data.user.id, email);
   return {
     email, password,
     token: body.data.token,

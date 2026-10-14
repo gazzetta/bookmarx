@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import BrowserIcon from '@/components/BrowserIcon'
 import { useState, useEffect } from 'react'
 import { useConfig } from '@/lib/config-context'
 import { useAuth } from '@/lib/auth-context'
@@ -9,49 +10,6 @@ import Footer from '@/components/Footer'
 import ThemeToggle from '@/components/ThemeToggle'
 
 // ─── Browser Icons ───
-const ChromeIcon = ({ className = "w-8 h-8" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="10" fill="#4285F4" />
-    <circle cx="12" cy="12" r="4" fill="white" />
-    <path d="M12 6l5.2 9h-10.4L12 6z" fill="#34A853" />
-    <path d="M21.9 10.5C22 11 22 11.5 22 12c0 3-1.4 5.8-3.6 7.7L13.2 10 18 10c.8 0 2.4 0 3.9.5z" fill="#FBBC05" />
-    <path d="M12 22c-3 0-5.8-1.4-7.7-3.6L9.5 10 6 10c-.8 0-2.4 0-3.9.5C2 11 2 11.5 2 12c0 5.5 4.5 10 10 10z" fill="#EA4335" />
-  </svg>
-)
-
-const FirefoxIcon = ({ className = "w-8 h-8" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="10" fill="url(#firefox-gradient)" />
-    <defs>
-      <linearGradient id="firefox-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#FF9500" />
-        <stop offset="100%" stopColor="#FF3366" />
-      </linearGradient>
-    </defs>
-    <path d="M12 5c-3.9 0-7 3.1-7 7s3.1 7 7 7 7-3.1 7-7-3.1-7-7-7zm0 12c-2.8 0-5-2.2-5-5s2.2-5 5-5 5 2.2 5 5-2.2 5-5 5z" fill="white" opacity="0.3" />
-  </svg>
-)
-
-const EdgeIcon = ({ className = "w-8 h-8" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="10" fill="url(#edge-gradient)" />
-    <defs>
-      <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#0078D4" />
-        <stop offset="100%" stopColor="#00BCF2" />
-      </linearGradient>
-    </defs>
-    <path d="M12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5z" fill="white" opacity="0.3" />
-  </svg>
-)
-
-const BraveIcon = ({ className = "w-8 h-8" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className}>
-    <circle cx="12" cy="12" r="10" fill="#FB542B" />
-    <path d="M12 6l3 2v8l-3 2-3-2V8l3-2z" fill="white" opacity="0.9" />
-  </svg>
-)
-
 // ─── Simple wrapper for consistent className usage (no hidden-by-default) ───
 function RevealSection({ children, className = '', delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   return (
@@ -201,7 +159,7 @@ export default function HomePage() {
 
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              {user ? (
+              {isLoading ? null : user ? (
                 <Link
                   href="/dashboard"
                   className="bg-ink dark:bg-cream-100 hover:bg-ink-900 dark:hover:bg-white text-cream-100 dark:text-ink px-6 py-2.5 rounded-xl text-[15px] font-semibold transition-all hover:shadow-elevated"
@@ -271,10 +229,10 @@ export default function HomePage() {
                 <div className="flex items-center gap-5">
                   <span className="text-sm text-ink-400 dark:text-white/40 font-medium">Works with</span>
                   <div className="browser-icons">
-                    <div className="browser-icon"><ChromeIcon /></div>
-                    <div className="browser-icon"><FirefoxIcon /></div>
-                    <div className="browser-icon"><EdgeIcon /></div>
-                    <div className="browser-icon"><BraveIcon /></div>
+                    <div className="browser-icon"><BrowserIcon browser="chrome" /></div>
+                    <div className="browser-icon"><BrowserIcon browser="firefox" /></div>
+                    <div className="browser-icon"><BrowserIcon browser="edge" /></div>
+                    <div className="browser-icon"><BrowserIcon browser="brave" /></div>
                   </div>
                 </div>
               </div>
@@ -595,7 +553,7 @@ export default function HomePage() {
                 </ul>
 
                 <Link
-                  href="mailto:support@bookmarks.cc"
+                  href="/contact"
                   className="block w-full text-center border-2 border-cream-400 dark:border-white/15 hover:border-ink dark:hover:border-white/40 hover:bg-ink dark:hover:bg-white/10 hover:text-cream-100 text-ink dark:text-cream-100 px-6 py-3.5 rounded-xl font-semibold transition-all"
                 >
                   Contact Sales

@@ -40,24 +40,19 @@ test.describe('Landing page (/)', () => {
 
   test('theme toggle persists across navigation (bookmarx-theme key)', async ({ page }) => {
     await page.goto('/');
-
-    // The theme toggle button is the one in the navbar. Per
-    // src/website/lib/theme-context.tsx:45 it stores to 'bookmarx-theme' and
-    // the html element gets a class. The button itself has no stable aria
-    // label, so we match a button inside the header region.
+    await page.getByRole('button', { name: 'Cookie settings', exact: true }).click();
+    await page.getByLabel('Remember my light/dark theme between visits').check();
+    await page.getByRole('button', { name: 'Save choices', exact: true }).click();
     const header = page.locator('header').first();
     const themeButton = header.getByRole('button', { name: /☀|🌙|dark|light|toggle/i }).first();
-
-    if (await themeButton.isVisible().catch(() => false)) {
-      await themeButton.click();
-      // After the click, the html element should carry 'dark' (or removed)
-      // some asymmetry; the actual class assignment depends on the page.
-      // The robust assertion is that localStorage persists across reload.
-      // Reload the page and verify the html tag's className still reflects dark.
-      const classNameAfterClick = await page.locator('html').evaluate(el => el.className);
-      await page.goto('/');
-      const classNameAfterReload = await page.locator('html').evaluate(el => el.className);
-      expect(classNameAfterReload).toBe(classNameAfterClick);
-    }
+    await expect(themeButton).toBeVisible();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('bookmarx-theme'))).not.toBeNull();
+    const before = await page.evaluate(() => localStorage.getItem('bookmarx-theme'));
+    await themeButton.click();
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('bookmarx-theme'))).toBe(before === 'dark' ? 'light' : 'dark');
+    const chosen = await page.evaluate(() => localStorage.getItem('bookmarx-theme'));
+    await page.reload();
+    await expect.poll(() => page.locator('html').evaluate(el => el.classList.contains('dark'))).toBe(chosen === 'dark');
+    expect(await page.evaluate(() => localStorage.getItem('bookmarx-theme'))).toBe(chosen);
   });
 });

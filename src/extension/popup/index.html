@@ -19,7 +19,7 @@
                         <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
                     </svg>
                 </div>
-                <span class="header-title">BookMarx</span>
+                <a class="header-title" href="https://www.bookmarx.cc/" target="_blank" rel="noopener noreferrer" title="Open the BookMarx website">BookMarx</a>
             </div>
             <div class="header-actions">
                 <button id="themeToggle" class="header-btn" title="Toggle theme">☀️</button>
@@ -72,6 +72,14 @@
                         </svg>
                     </button>
                 </div>
+
+                <section id="emailVerificationNotice" class="verification-panel hidden" aria-labelledby="verificationHeading">
+                    <h2 id="verificationHeading">Verify your email</h2>
+                    <p>Confirm your email address to unlock bookmarks, imports and browser sync. Check your inbox and junk folder for the confirmation email.</p>
+                    <button id="resendVerification" type="button" class="auth-button">Resend confirmation email</button>
+                    <button id="refreshVerification" type="button" class="auth-button secondary">I have verified my email</button>
+                    <p id="verificationStatus" role="status"></p>
+                </section>
 
                 <!-- Collection Selector -->
                 <div id="collectionSelector" class="collection-selector-inline">

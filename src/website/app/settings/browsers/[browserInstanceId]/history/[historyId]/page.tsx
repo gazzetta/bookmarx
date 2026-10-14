@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import { api, Bookmark, BrowserHistoryBrowserInfo, BrowserHistoryEntry, Folder } from '@/lib/api'
 import DashboardLayout from '@/components/DashboardLayout'
+import BrowserIcon from '@/components/BrowserIcon'
 
 interface SyncDetails {
   changesProcessed?: number
@@ -85,17 +86,6 @@ export default function BrowserHistoryDetailPage() {
       minute: '2-digit',
       second: '2-digit',
     })
-  }
-
-  const getBrowserIcon = (name: string) => {
-    const lower = name.toLowerCase()
-    if (lower.includes('chrome')) return '🌐'
-    if (lower.includes('firefox')) return '🦊'
-    if (lower.includes('edge')) return '📘'
-    if (lower.includes('brave')) return '🦁'
-    if (lower.includes('safari')) return '🧭'
-    if (lower.includes('opera')) return '🎭'
-    return '🔍'
   }
 
   const getTypeLabel = (type: string) => {
@@ -278,7 +268,7 @@ export default function BrowserHistoryDetailPage() {
           <>
             <div className="mb-10 flex items-start gap-4">
               <div className="w-14 h-14 bg-slate-50 dark:bg-white/5 rounded-2xl flex items-center justify-center text-3xl">
-                {getBrowserIcon(browser.browser)}
+                <BrowserIcon browser={browser.browser} className="w-10 h-10" />
               </div>
               <div>
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-cream-100">

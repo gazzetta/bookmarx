@@ -65,8 +65,8 @@ class PopupManager {
         this.initializeElements();
         this.attachEventListeners();
         this.initializeTheme();
-        this.updateUI();
-        this.checkOnboardingNeeded();
+        // Hydrate the current verification status before deciding on onboarding.
+        void this.updateUI().then(() => this.checkOnboardingNeeded());
     }
 
     private initializeElements(): void {
@@ -113,6 +113,22 @@ class PopupManager {
         this.emailLoginButton?.addEventListener('click', () => this.handleEmailAuth('login'));
         this.emailRegisterButton?.addEventListener('click', () => this.handleEmailAuth('register'));
         this.logoutButton?.addEventListener('click', () => this.handleLogout());
+        document.getElementById('resendVerification')?.addEventListener('click', async () => {
+            const button = document.getElementById('resendVerification') as HTMLButtonElement;
+            const status = document.getElementById('verificationStatus')!;
+            button.disabled = true;
+            try {
+                const result = await this.sendMessage({ action: 'resendVerification' });
+                status.textContent = result?.success ? (result.data?.emailVerified ? 'Your email is already verified. Check your account status below.' : 'Confirmation email sent. Check your inbox and junk folder.') : result?.error?.message || 'Could not send the email. Please try again.';
+            } catch { status.textContent = 'Could not send the email. Reload BookMarx and try again.'; }
+            finally { button.disabled = false; }
+        });
+        document.getElementById('refreshVerification')?.addEventListener('click', async () => {
+            await this.updateUI();
+            const data = await this.getStorageData();
+            if (!data?.auth?.user?.emailVerified) document.getElementById('verificationStatus')!.textContent = 'Your email is not verified yet. Open the confirmation email and follow its link.';
+            else await this.checkOnboardingNeeded();
+        });
         this.themeToggle?.addEventListener('click', () => this.toggleTheme());
         this.togglePasswordButton?.addEventListener('click', () => this.togglePasswordVisibility());
 
@@ -423,8 +439,13 @@ class PopupManager {
 
     private async updateUI(): Promise<void> {
         try {
-            const data = await this.getStorageData();
+            let data = await this.getStorageData();
+            if (data?.auth?.token) {
+                const result = await this.sendMessage({ action: 'refreshAuth' });
+                if (result?.success) data = await this.getStorageData();
+            }
             this.updateAuthUI(data);
+            if (data?.auth?.token && !data.auth.user?.emailVerified) return;
             this.updateSyncInfo(data);
             await this.updateStats(data);
             await this.updateCollectionName();
@@ -764,6 +785,15 @@ class PopupManager {
         }
         if (this.overwriteButton) this.overwriteButton.disabled = !isAuthed;
         if (this.openManagerButton) this.openManagerButton.disabled = !isAuthed;
+        const unverified = isAuthed && auth.user?.emailVerified !== true;
+        document.body.classList.toggle('email-unverified', unverified);
+        document.getElementById('emailVerificationNotice')?.classList.toggle('hidden', !unverified);
+        if (unverified) {
+            this.syncUpButton.disabled = true;
+            this.syncDownButton.disabled = true;
+            if (this.overwriteButton) this.overwriteButton.disabled = true;
+            if (this.openManagerButton) this.openManagerButton.disabled = true;
+        }
     }
 
     private updatePremiumUI(user: any): void {
@@ -913,6 +943,7 @@ class PopupManager {
             this.passwordInput.value = '';
             this.showSuccess(mode === 'register' ? 'Account created' : 'Logged in');
             await this.updateUI();
+            if (payload.data.verificationEmailSent === false) document.getElementById('verificationStatus')!.textContent = 'Your account is saved, but the confirmation email could not be sent. Please request another email.';
             await this.checkOnboardingNeeded();
         } catch (error) {
             this.showError(error instanceof Error ? error.message : 'Authentication failed');
@@ -943,7 +974,7 @@ class PopupManager {
 
             const storageData = await this.getStorageData();
             const isLoggedIn = storageData?.auth?.token;
-            if (!isLoggedIn) {
+            if (!isLoggedIn || !storageData.auth?.user?.emailVerified) {
                 console.log('[Onboarding] Not logged in, skipping');
                 return;
             }

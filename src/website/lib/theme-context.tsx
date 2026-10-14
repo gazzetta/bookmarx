@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { useCookieConsent } from './cookie-consent'
 
 type Theme = 'light' | 'dark'
 
@@ -21,19 +22,26 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const { consent, ready } = useCookieConsent()
   const [theme, setThemeState] = useState<Theme>('light')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
 // eslint-disable-next-line react-hooks/set-state-in-effect -- Hydrate browser storage or initiate the asynchronous server refresh once on mount.
     setMounted(true)
-    const stored = localStorage.getItem('bookmarx-theme') as Theme | null
-    if (stored === 'dark' || stored === 'light') {
-      setThemeState(stored)
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
       setThemeState('dark')
     }
   }, [])
+
+  useEffect(() => {
+    if (!ready || !consent?.preferences) return
+    try {
+      const stored = localStorage.getItem('bookmarx-theme')
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Restore an explicitly permitted theme preference.
+      if (stored === 'dark' || stored === 'light') setThemeState(stored)
+    } catch { /* Theme still works for this visit when storage is blocked. */ }
+  }, [ready, consent?.preferences])
 
   useEffect(() => {
     if (!mounted) return
@@ -43,8 +51,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.remove('dark')
     }
-    localStorage.setItem('bookmarx-theme', theme)
-  }, [theme, mounted])
+    if (ready && consent?.preferences) {
+      try { localStorage.setItem('bookmarx-theme', theme) } catch { /* Optional persistence. */ }
+    }
+  }, [theme, mounted, ready, consent?.preferences])
 
   const toggleTheme = useCallback(() => {
     setThemeState(prev => prev === 'light' ? 'dark' : 'light')

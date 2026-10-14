@@ -17,6 +17,7 @@ export interface AuthenticatedUser {
     browserLimit: number;
     collectionLimit: number;
     polarCustomerId: string | null;
+    emailVerified: boolean;
 }
 
 export const hasPremiumOverride = (userId: string): boolean =>
@@ -35,7 +36,8 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
             bookmarkLimit: 10000,
             browserLimit: 999,
             collectionLimit: 999,
-            polarCustomerId: null
+            polarCustomerId: null,
+            emailVerified: true
         };
         return next();
     }
@@ -100,7 +102,8 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
             bookmarkLimit: effectiveBookmarkLimit,
             browserLimit: effectiveBrowserLimit,
             collectionLimit: effectiveCollectionLimit,
-            polarCustomerId: user.polarCustomerId || null
+            polarCustomerId: user.polarCustomerId || null,
+            emailVerified: Boolean(user.emailVerifiedAt)
         };
         return next();
     } catch (error) {
@@ -109,4 +112,11 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
             error: { message: 'Invalid or expired token' }
         });
     }
+};
+
+export const requireVerifiedEmail = (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as Request & { user?: AuthenticatedUser }).user;
+    if (!user?.emailVerified) return res.status(403).json({ success: false,
+        error: { code: 'EMAIL_NOT_VERIFIED', message: 'Verify your email address before using bookmarks, imports, exports or browser sync.' } });
+    return next();
 };

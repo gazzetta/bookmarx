@@ -10,6 +10,8 @@ if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw new Erro
 const firefox = process.env.BOOKMARX_FIREFOX_EXE || 'C:/Program Files/Mozilla Firefox/firefox.exe';
 
 async function probe(auth, base, resultUrl) {
+  const progress = stage => fetch(`${resultUrl}/${encodeURIComponent(stage)}`).catch(() => {});
+  await progress('probe loaded');
   const call = (fn, ...args) => new Promise((resolve, reject) => fn(...args, result => {
     const error = chrome.runtime.lastError; error ? reject(new Error(error.message)) : resolve(result);
   }));
@@ -25,7 +27,9 @@ async function probe(auth, base, resultUrl) {
     throw new Error('A native Firefox bookmark edit did not enter the durable queue');
   };
   try {
+    await progress('saving auth');
     check((await message({ action: 'setAuth', data: auth })).success, 'Sign-in state was not saved');
+    await progress('creating native bookmarks');
     const tree = await call(chrome.bookmarks.getTree);
     const roots = tree[0].children;
     result.roots = roots.map(node => ({ id: node.id, title: node.title }));
@@ -37,6 +41,7 @@ async function probe(auth, base, resultUrl) {
     const local = await call(chrome.bookmarks.create, { parentId: nested.id, title: 'First duplicate', url });
     await call(chrome.bookmarks.create, { parentId: nested.id, title: 'Second duplicate', url });
     await waitForQueued(4);
+    await progress('initial upload');
     const up = await message({ action: 'syncNow' });
     check(up.success, `Initial Firefox upload failed: ${JSON.stringify(up)}`);
     const state = await call(chrome.storage.local.get, null);
@@ -60,9 +65,14 @@ async function probe(auth, base, resultUrl) {
       ] }) })).json();
     // The web editor is premium, so exercise the same cross-browser mutation via sync API instead.
     if (!edit.success) {
+      // A remote mutation must have a different browser identity. Using the
+      // receiving Firefox instance here correctly suppresses its own echo.
+      const remoteDeviceId = state.deviceId;
+      const remoteInstanceId = crypto.randomUUID();
       const modified = await (await fetch(`${base}/api/v1/sync`, { method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: state.deviceId,
-          metadata: { deviceInfo: { browserInstanceId: state.browserInstanceId, deviceId: state.deviceId, browser: 'firefox' }, timestamp: Date.now() },
+        headers: { ...headers, 'X-Device-ID': remoteDeviceId, 'X-Browser-Instance-ID': remoteInstanceId, 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: remoteDeviceId,
+          metadata: { deviceInfo: { browserInstanceId: remoteInstanceId, deviceId: remoteDeviceId, browser: 'chrome',
+            browserVersion: 'probe', os: 'Windows', osVersion: '10' }, userAgent: 'BookMarx Firefox QA remote peer', timestamp: Date.now() },
           changes: [{ operationId: 'firefox-remote-rename', type: 'UPDATE', data: { type: 'bookmark', masterId: first.masterId,
             title: 'Website renamed Firefox item', masterParentId: other.masterId, parentId: 'unfiled_____', index: 0 } }] }) })).json();
       check(modified.success, `Remote Firefox edit failed: ${JSON.stringify(modified)}`);
@@ -86,6 +96,17 @@ async function probe(auth, base, resultUrl) {
   const registration = await (await fetch(`${base}/api/v1/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: `firefox-probe-${crypto.randomUUID()}@bookmarx.test`, password: 'Firefox-test123!' }) })).json();
   if (!registration.success) throw new Error('Firefox probe account could not be registered');
+  if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname) ||
+      !/^firefox-probe-.+@bookmarx\.test$/.test(registration.data.user.email)) throw new Error('Firefox fixtures require a synthetic localhost account');
+  const VerificationDatabase = require('../../src/website/node_modules/better-sqlite3');
+  const verificationDatabase = new VerificationDatabase(process.env.BOOKMARX_TEST_SERVER_DATABASE || path.resolve('src/website/data/bookmarx.db'));
+  try {
+    const stored = verificationDatabase.prepare('SELECT email FROM users WHERE id = ?').get(registration.data.user.id);
+    if (stored?.email !== registration.data.user.email) throw new Error('Firefox fixture account was not found in the local DB');
+    verificationDatabase.prepare("UPDATE users SET emailVerifiedAt = strftime('%s','now') WHERE id = ? AND email = ?")
+      .run(registration.data.user.id, registration.data.user.email);
+    verificationDatabase.prepare('DELETE FROM email_verification_tokens WHERE userId = ?').run(registration.data.user.id);
+  } finally { verificationDatabase.close(); }
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'bookmarx-firefox-probe-'));
   const extension = path.join(directory, 'extension');
   const profile = path.join(directory, 'profile');
@@ -95,10 +116,12 @@ async function probe(auth, base, resultUrl) {
   manifest.background.scripts.push('qa-boot.js');
   fs.writeFileSync(manifestPath, JSON.stringify(manifest));
   const server = http.createServer((req, res) => {
+    if (req.method === 'GET') lastStage = decodeURIComponent(req.url.slice(1));
     let content = ''; req.on('data', chunk => { content += chunk; });
     req.on('end', () => { res.setHeader('Access-Control-Allow-Origin', '*'); res.end('ok'); if (req.method === 'POST') resolveResult(JSON.parse(content)); });
   });
   let resolveResult;
+  let lastStage = 'waiting for probe page';
   const completed = new Promise(resolve => { resolveResult = resolve; });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const resultUrl = `http://127.0.0.1:${server.address().port}`;
@@ -108,7 +131,7 @@ async function probe(auth, base, resultUrl) {
   const child = spawn('cmd.exe', ['/c', 'npx', 'web-ext', 'run', '--source-dir', extension, '--firefox', firefox, '--firefox-profile', profile,
     '--keep-profile-changes', '--no-reload', '--no-input', '--no-config-discovery', '--args=-headless'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
   let output = ''; child.stdout.on('data', chunk => { output += chunk; }); child.stderr.on('data', chunk => { output += chunk; });
-  const timer = setTimeout(() => resolveResult({ browser: 'Firefox', passed: false, error: 'Firefox probe timed out after 90 seconds', launcher: output.slice(-2500) }), 90000);
+  const timer = setTimeout(() => resolveResult({ browser: 'Firefox', passed: false, error: 'Firefox probe timed out after 90 seconds', lastStage, launcher: output.slice(-2500) }), 90000);
   const result = await completed;
   clearTimeout(timer); server.close();
   try { execFileSync('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }); } catch {}

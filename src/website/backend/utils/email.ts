@@ -10,11 +10,12 @@ const getResendClient = (): Resend | null => {
 };
 
 const getFromEmail = (): string => {
-    return process.env.RESEND_FROM_EMAIL || 'BookMarx <support@bookmarks.cc>';
+    return process.env.RESEND_FROM_EMAIL || 'BookMarx <support@bookmarx.cc>';
 };
 
 const getAppUrl = (): string => {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005';
+    return process.env.PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_API_URL ||
+        (process.env.NODE_ENV === 'production' ? 'https://www.bookmarx.cc' : 'http://localhost:3005');
 };
 
 // ─── Brand-aligned email wrapper ───
@@ -60,9 +61,6 @@ function buildEmailHtml(opts: {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet">
 </head>
 <body style="margin:0;padding:0;background-color:#FBF8F3;font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
     <div style="max-width:560px;margin:0 auto;padding:40px 24px;">
@@ -109,6 +107,39 @@ function buildEmailHtml(opts: {
 </body>
 </html>
             `.trim();
+}
+
+export async function sendEmailVerificationEmail(email: string, token: string): Promise<boolean> {
+    // Reserved test domains have no inbox. Synthetic local fixtures must never send real mail.
+    if (email.toLowerCase().endsWith('.test')) return false;
+    const resend = getResendClient();
+    if (!resend) return false;
+    const verificationUrl = `${getAppUrl().replace(/\/$/, '')}/verify-email#token=${encodeURIComponent(token)}`;
+    try {
+        const { error } = await resend.emails.send({
+            from: getFromEmail(), to: email, subject: 'Verify your BookMarx email address',
+            html: buildEmailHtml({ heading: 'Verify Your Email',
+                bodyHtml: 'Confirm your email address to start using your BookMarx bookmark collection and browser sync.',
+                button: { text: 'Verify Email Address', url: verificationUrl },
+                noteHtml: 'This link expires in 24 hours and can be used once. If you did not create a BookMarx account, you can ignore this email.' }),
+            text: `Verify your BookMarx email address: ${verificationUrl}\nThis link expires in 24 hours and can be used once.`,
+        });
+        if (error) { console.error('Verification email delivery failed:', error.message); return false; }
+        return true;
+    } catch { console.error('Verification email delivery failed'); return false; }
+}
+
+export async function sendContactEmail(contact: { email: string; topic: string; message: string }): Promise<boolean> {
+    const resend = getResendClient();
+    if (!resend) return false;
+    try {
+        const { error } = await resend.emails.send({ from: getFromEmail(),
+            to: process.env.CONTACT_TO_EMAIL || 'support@bookmarx.cc', replyTo: contact.email,
+            subject: `BookMarx contact: ${contact.topic}`,
+            text: `Topic: ${contact.topic}\nReply email: ${contact.email}\n\n${contact.message}` });
+        if (error) { console.error('Contact email delivery failed'); return false; }
+        return true;
+    } catch { console.error('Contact email delivery failed'); return false; }
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<boolean> {

@@ -59,7 +59,7 @@ export interface RegisteredUser {
 // rather than `registerUser(undefined, { email })`. The `app` arg lives second
 // (rarely overridden — only tests that swap to a non-default server need it).
 export async function registerUser(
-  overrides: { email?: string; password?: string } = {},
+  overrides: { email?: string; password?: string; verifyEmail?: boolean } = {},
   app = apiApp,
 ): Promise<RegisteredUser> {
   const email = overrides.email ?? uniqueEmail();
@@ -70,6 +70,9 @@ export async function registerUser(
   }
   const token = res.body.data.token as string;
   const userId = res.body.data.user.id as string;
+  // Existing bookmark suites use a verified fixture in their isolated test DB.
+  // Verification-specific tests opt out and exercise the real token endpoints.
+  if (overrides.verifyEmail !== false) db.markUserEmailVerified(userId);
   return { email, password, token, userId };
 }
 

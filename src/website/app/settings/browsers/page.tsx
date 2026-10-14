@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import DashboardLayout from '@/components/DashboardLayout'
+import BrowserIcon from '@/components/BrowserIcon'
 import ConfirmDialog from '@/components/ConfirmDialog'
 
 interface Browser {
@@ -172,17 +173,6 @@ export default function BrowsersPage() {
         })
     }
 
-    const getBrowserIcon = (browser: string) => {
-        const lower = browser.toLowerCase()
-        if (lower.includes('chrome')) return '🌐'
-        if (lower.includes('firefox')) return '🦊'
-        if (lower.includes('edge')) return '📘'
-        if (lower.includes('brave')) return '🦁'
-        if (lower.includes('safari')) return '🧭'
-        if (lower.includes('opera')) return '🎭'
-        return '🔍'
-    }
-
     const getOSIcon = (os: string | null) => {
         if (!os) return '💻'
         const lower = os.toLowerCase()
@@ -306,7 +296,7 @@ export default function BrowsersPage() {
                                 >
                                     <div className="flex items-center gap-6">
                                         <div className="w-16 h-16 bg-slate-50 dark:bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-white dark:group-hover:bg-[#242424] group-hover:shadow-md transition-all text-4xl">
-                                            {getBrowserIcon(browser.browser)}
+                                            <BrowserIcon browser={browser.browser} className="w-10 h-10" />
                                         </div>
                                         <div>
                                             <div className="flex items-center gap-3">

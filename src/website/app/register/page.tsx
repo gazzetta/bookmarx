@@ -118,12 +118,8 @@ function RegisterForm() {
     setIsLoading(true)
 
     try {
-      await register(email, password)
-      if (plan === 'premium') {
-        router.push('/settings/subscription')
-      } else {
-        router.push('/dashboard')
-      }
+      const result = await register(email, password)
+      router.push(`/verify-email${result.verificationEmailSent === false ? '?delivery=failed' : ''}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {

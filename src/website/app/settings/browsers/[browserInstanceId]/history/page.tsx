@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
 import DashboardLayout from '@/components/DashboardLayout'
+import BrowserIcon from '@/components/BrowserIcon'
 
 interface SyncDetails {
     changesProcessed?: number
@@ -135,17 +136,6 @@ export default function BrowserHistoryPage() {
         }
     }
 
-    const getBrowserIcon = (browser: string) => {
-        const lower = browser.toLowerCase()
-        if (lower.includes('chrome')) return '🌐'
-        if (lower.includes('firefox')) return '🦊'
-        if (lower.includes('edge')) return '📘'
-        if (lower.includes('brave')) return '🦁'
-        if (lower.includes('safari')) return '🧭'
-        if (lower.includes('opera')) return '🎭'
-        return '🔍'
-    }
-
     if (isLoading || !user) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -173,7 +163,7 @@ export default function BrowserHistoryPage() {
                     <div className="flex items-center gap-4">
                         {browserInfo && (
                             <div className="w-14 h-14 bg-slate-50 dark:bg-white/5 rounded-2xl flex items-center justify-center text-3xl">
-                                {getBrowserIcon(browserInfo.browser)}
+                                <BrowserIcon browser={browserInfo.browser} className="w-8 h-8" />
                             </div>
                         )}
                         <div>

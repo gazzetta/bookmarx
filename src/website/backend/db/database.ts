@@ -1903,7 +1903,7 @@ export class DatabaseService {
 
     public getUserByEmail(email: string) {
         const stmt = this.db.prepare(`
-            SELECT id, email, passwordHash, displayName, subscriptionTier, subscriptionExpiresAt
+            SELECT id, email, passwordHash, displayName, subscriptionTier, subscriptionExpiresAt, emailVerifiedAt
             FROM users
             WHERE lower(email) = lower(?)
         `);
@@ -1915,6 +1915,7 @@ export class DatabaseService {
             displayName: string | null;
             subscriptionTier?: string;
             subscriptionExpiresAt?: number | null;
+            emailVerifiedAt?: number | null;
         } | undefined;
     }
 
@@ -2322,6 +2323,36 @@ export class DatabaseService {
     // --- DATA REPAIR UTILITIES ---
 
     // Password reset token operations
+    public markUserEmailVerified(userId: string): void {
+        this.db.prepare("UPDATE users SET emailVerifiedAt = COALESCE(emailVerifiedAt, strftime('%s','now')) WHERE id = ?").run(userId);
+        this.db.prepare('DELETE FROM email_verification_tokens WHERE userId = ?').run(userId);
+    }
+
+    public createEmailVerificationToken(userId: string, tokenHash: string): { status: 'created' | 'verified' | 'cooldown'; email: string; retryAfter?: number } {
+        return this.transaction(() => {
+            const user = this.getUserById(userId);
+            if (!user) throw new Error('Account not found');
+            if (user.emailVerifiedAt) return { status: 'verified', email: user.email };
+            const now = Math.floor(Date.now() / 1000);
+            const previous = this.db.prepare('SELECT createdAt FROM email_verification_tokens WHERE userId = ?').get(userId) as any;
+            if (previous && previous.createdAt + 60 > now) return { status: 'cooldown', email: user.email, retryAfter: previous.createdAt + 60 - now };
+            this.db.prepare('DELETE FROM email_verification_tokens WHERE userId = ? OR expiresAt <= ?').run(userId, now);
+            this.db.prepare('INSERT INTO email_verification_tokens VALUES (?, ?, ?, ?, ?)').run(tokenHash, userId, user.email, now + 86400, now);
+            return { status: 'created', email: user.email };
+        });
+    }
+
+    public consumeEmailVerificationToken(tokenHash: string): boolean {
+        return this.transaction(() => {
+            const now = Math.floor(Date.now() / 1000);
+            const token = this.db.prepare(`SELECT t.* FROM email_verification_tokens t JOIN users u ON u.id = t.userId
+                WHERE tokenHash = ? AND expiresAt > ? AND lower(t.email) = lower(u.email) AND u.emailVerifiedAt IS NULL`).get(tokenHash, now) as any;
+            if (!token) return false;
+            this.markUserEmailVerified(token.userId);
+            return true;
+        });
+    }
+
     public createPasswordResetToken(userId: string, token: string, expiresAt: number): void {
         // Invalidate any existing tokens for this user
         this.db.prepare(`

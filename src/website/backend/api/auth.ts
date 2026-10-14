@@ -1,21 +1,24 @@
 import type { Request, Response } from 'express';
-import { randomUUID, randomBytes } from 'crypto';
+import { randomUUID, randomBytes, createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { db } from '../db/database';
-import { sendPasswordResetEmail } from '../utils/email';
+import { sendPasswordResetEmail, sendEmailVerificationEmail } from '../utils/email';
 import { hasPremiumOverride } from '../middleware/auth';
 
 interface AuthUser {
     id: string;
     email: string;
     displayName: string | null;
+    emailVerified: boolean;
+    emailVerifiedAt: number | null;
 }
 
 interface AuthResponseData {
     token: string;
     user: AuthUser;
+    verificationEmailSent?: boolean;
 }
 
 const getJwtSecret = (): Secret => process.env.JWT_SECRET || '';
@@ -43,6 +46,7 @@ const buildUser = (record: {
     displayName: string | null;
     subscriptionTier?: string;
     subscriptionExpiresAt?: number | null;
+    emailVerifiedAt?: number | null;
 }): AuthUser & {
     subscriptionTier: string;
     subscriptionExpiresAt: number | null;
@@ -61,6 +65,8 @@ const buildUser = (record: {
         id: record.id,
         email: record.email,
         displayName: record.displayName,
+        emailVerified: Boolean(record.emailVerifiedAt),
+        emailVerifiedAt: record.emailVerifiedAt || null,
         subscriptionTier: tier,
         subscriptionExpiresAt: alwaysPremium ? null : (record.subscriptionExpiresAt || null),
         bookmarkLimit: limits.bookmarks,
@@ -138,10 +144,13 @@ export const registerWithEmail = async (req: Request, res: Response) => {
         });
         db.ensureDefaultCollection(userId);
 
-        const user = buildUser({ id: userId, email, displayName });
+        const verificationToken = randomBytes(32).toString('hex');
+        db.createEmailVerificationToken(userId, createHash('sha256').update(verificationToken).digest('hex'));
+        const verificationEmailSent = await sendEmailVerificationEmail(email, verificationToken);
+        const user = buildUser(db.getUserById(userId));
         const token = issueToken(user);
 
-        return sendAuthResponse(res, { token, user });
+        return sendAuthResponse(res, { token, user, verificationEmailSent });
     } catch (error) {
         const err = error as { code?: string };
 
@@ -255,6 +264,7 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
         let providerUserId: string | undefined;
         let email: string | undefined;
         let emailVerified = false;
+        let googleAuthoritative = false;
         
         // Try to verify as ID token (JWT) first - used by website
         try {
@@ -268,6 +278,7 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
                 providerUserId = payload.sub;
                 email = payload.email;
                 emailVerified = payload.email_verified === true;
+                googleAuthoritative = Boolean(payload.email?.toLowerCase().endsWith('@gmail.com') || payload.hd);
             }
         } catch (idTokenError) {
             // Not an ID token, try as access token - used by extension
@@ -290,6 +301,7 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
             const profile = await profileResponse.json() as any;
             if (profile.sub !== providerUserId || profile.email !== email) throw new Error('Google identity does not match');
             emailVerified = profile.email_verified === true;
+            googleAuthoritative = Boolean(email?.toLowerCase().endsWith('@gmail.com') || profile.hd);
         }
 
         if (!providerUserId || !email || !emailVerified) {
@@ -310,7 +322,8 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
                 if (!existing) db.createIdentity({ userId: linkAccountId, provider: 'google', providerUserId: providerUserId!, email });
                 return current;
             });
-            const authUser = buildUser(linked);
+            if (googleAuthoritative && linked.email.toLowerCase() === email) db.markUserEmailVerified(linked.id);
+            const authUser = buildUser(db.getUserById(linked.id));
             return sendAuthResponse(res, { token: issueToken(authUser), user: authUser });
         }
         let user = identity ? db.getUserById(identity.userId) : null;
@@ -344,10 +357,17 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
             });
         }
 
-        const authUser = buildUser(user);
+        if (googleAuthoritative && user.email.toLowerCase() === email) db.markUserEmailVerified(user.id);
+        let verificationEmailSent: boolean | undefined;
+        if (!db.getUserById(user.id)?.emailVerifiedAt) {
+            const verificationToken = randomBytes(32).toString('hex');
+            const pending = db.createEmailVerificationToken(user.id, createHash('sha256').update(verificationToken).digest('hex'));
+            if (pending.status === 'created') verificationEmailSent = await sendEmailVerificationEmail(pending.email, verificationToken);
+        }
+        const authUser = buildUser(db.getUserById(user.id));
         const token = issueToken(authUser);
 
-        return sendAuthResponse(res, { token, user: authUser });
+        return sendAuthResponse(res, { token, user: authUser, verificationEmailSent });
     } catch (error) {
         console.error('Google auth error:', error);
         return res.status(500).json({
@@ -355,6 +375,27 @@ export const loginWithGoogle = async (req: Request, res: Response) => {
             error: { message: 'Google authentication failed' }
         });
     }
+};
+
+export const verifyEmail = async (req: Request, res: Response) => {
+    const token = req.body?.token;
+    if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token) ||
+        !db.consumeEmailVerificationToken(createHash('sha256').update(token).digest('hex'))) {
+        return res.status(400).json({ success: false, error: { code: 'INVALID_VERIFICATION_TOKEN', message: 'This verification link is invalid, expired, or already used. Request a new email from your account.' } });
+    }
+    return res.json({ success: true, data: { emailVerified: true } });
+};
+
+export const resendEmailVerification = async (req: Request, res: Response) => {
+    const userId = (req as Request & { user: { id: string } }).user.id;
+    const token = randomBytes(32).toString('hex');
+    const result = db.createEmailVerificationToken(userId, createHash('sha256').update(token).digest('hex'));
+    if (result.status === 'verified') return res.json({ success: true, data: { emailVerified: true } });
+    if (result.status === 'cooldown') return res.status(429).set('Retry-After', String(result.retryAfter))
+        .json({ success: false, error: { code: 'VERIFICATION_RATE_LIMIT', message: `Please wait ${result.retryAfter} seconds before requesting another email.`, retryAfter: result.retryAfter } });
+    if (!await sendEmailVerificationEmail(result.email, token)) return res.status(503).json({ success: false,
+        error: { code: 'EMAIL_DELIVERY_FAILED', message: 'The confirmation email could not be sent. Your account is saved but remains unverified. Please try again later.' } });
+    return res.json({ success: true, data: { emailVerified: false, verificationEmailSent: true } });
 };
 
 export const getMe = async (req: Request, res: Response) => {

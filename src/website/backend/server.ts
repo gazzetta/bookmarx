@@ -1,5 +1,6 @@
 // src/server/server.ts
 import express, { Request, Response, RequestHandler } from 'express';
+import { submitContact } from './api/contact';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
@@ -9,8 +10,8 @@ import * as path from 'path';
 import { db } from './db/database';
 import { InitialSyncRequest, SyncRequest } from './types/sync';
 import { getBookmarkTree } from './api/bookmarks';
-import { registerWithEmail, loginWithEmail, loginWithGoogle, getMe, getUserStats, forgotPassword, resetPassword } from './api/auth';
-import { authenticate, AuthenticatedUser } from './middleware/auth';
+import { registerWithEmail, loginWithEmail, loginWithGoogle, getMe, getUserStats, forgotPassword, resetPassword, verifyEmail, resendEmailVerification } from './api/auth';
+import { authenticate, AuthenticatedUser, requireVerifiedEmail } from './middleware/auth';
 import { checkBookmarkLimit, checkBrowserLimit, isPremium } from './middleware/premium';
 import sessionsRouter from './api/sessions';
 import collectionsRouter from './api/collections';
@@ -59,6 +60,7 @@ app.use(async (_req, res, next) => {
     try { await dbReady; next(); } catch { res.status(503).json({ success: false, error: { message: 'Database migrations failed; service unavailable' } }); }
 });
 app.use('/api/v1/auth', authRateLimit);
+app.post('/api/v1/contact', submitContact);
 
 /**
  * Resolve which collection to use for sync operations.
@@ -124,6 +126,12 @@ app.post('/api/v1/auth/google/link', authenticate, loginWithGoogle);
 app.get('/api/v1/auth/me', authenticate, getMe);
 app.post('/api/v1/auth/forgot-password', forgotPassword);
 app.post('/api/v1/auth/reset-password', resetPassword);
+app.post('/api/v1/auth/verify-email', verifyEmail);
+app.post('/api/v1/auth/resend-verification', authenticate, resendEmailVerification);
+
+// Fail closed before browser registration, bookmark reads or any mutation, including legacy clients.
+app.use(['/api/v1/sync', '/api/v1/collections', '/api/v1/bookmarks', '/api/v1/sessions',
+    '/api/v1/capture', '/api/v1/user/browsers'], authenticate, requireVerifiedEmail);
 
 // User routes
 app.get('/api/v1/user/stats', authenticate, getUserStats);
@@ -132,9 +140,11 @@ app.get('/api/v1/user/stats', authenticate, getUserStats);
 app.get('/api/v1/config', (req: Request, res: Response) => {
     try {
         const config = db.getAppConfig();
+        const analyticsId = process.env.NODE_ENV === 'production'
+            ? process.env.GOOGLE_ANALYTICS_ID || process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID || '' : '';
         return res.json({
             success: true,
-            data: config
+            data: { ...config, analytics: { measurementId: /^G-[A-Z0-9]+$/.test(analyticsId) ? analyticsId : null } }
         });
     } catch (error) {
         console.error('Failed to get app config:', error);

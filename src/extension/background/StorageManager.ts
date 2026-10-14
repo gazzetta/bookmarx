@@ -29,6 +29,8 @@ interface StorageData {
             id: string;
             email: string;
             displayName: string | null;
+            emailVerified?: boolean;
+            emailVerifiedAt?: number | null;
         };
     } | null;
     deviceId?: string;

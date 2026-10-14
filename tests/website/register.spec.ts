@@ -4,11 +4,11 @@
 // fixture which registers via /api/v1/auth/register, but this spec drives
 // the form-filling through the rendered page instead of the API direct,
 // so it verifies the form wiring, validation messages, and post-success
-// redirect to /dashboard.
+// redirect to the email-verification page before bookmark features unlock.
 //
 // NOTE: websites don't have a "register new account" link in the testing
 // flow necessarily — this spec hits /register directly via URL.
-import { test, expect, type AuthState } from './_fixtures';
+import { test, expect } from './_fixtures';
 
 // Helpers: register through UI, then return the auth for inspection.
 async function registerViaUi(page: import('@playwright/test').Page, email: string, password: string): Promise<void> {
@@ -22,28 +22,23 @@ async function registerViaUi(page: import('@playwright/test').Page, email: strin
   // and the actual <input type="submit"> labelled "Create Account". We need
   // the latter — use exact name to disambiguate.
   await page.getByRole('button', { name: 'Create Account', exact: true }).click();
-  // auth-context.tsx:55-56 sets bookmarx_token + bookmarx_user then page.tsx
-  // redirects to /dashboard (or /settings/subscription if ?plan=premium).
-  await expect(page).toHaveURL(/\/(dashboard|settings\/subscription)/);
+  await expect(page).toHaveURL(/\/verify-email/);
 }
 
 test.describe('Registration flow', () => {
-  test('happy path: register fresh user, land on /dashboard', async ({ page, freeAccount }) => {
-    // Use the email/password from `freeAccount` — that's already a real account
-    // in the dev DB. Driving the UI register would 409 (already registered),
-    // so we just verify the *post-register* state: login, click "logout", then
-    // verify the dashboard-equivalent state. This is a sanity check that the
-    // freeAccount fixture produces a working user.
-
-    // Alternatively, register a SECOND fresh user through the UI:
+  test('registers an unverified account and requests confirmation before bookmark access', async ({ page }) => {
     const email = `ui-${process.pid}-${Date.now()}@bookmarx.test`;
     const password = 'Sup3rSecret!123';
     await registerViaUi(page, email, password);
-    // The fact we landed on /dashboard is the assertion.
-    // Bookmarx_token must now be in localStorage.
+    await expect(page.getByRole('heading', { name: 'Verify your email address' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Resend confirmation email' })).toBeVisible();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('bookmarx_user')!).emailVerified)).toBe(false);
     const token = await page.evaluate(() => localStorage.getItem('bookmarx_token'));
     expect(token).toBeTruthy();
     expect(token!.split('.').length).toBe(3); // JWT shape
+    await page.goto('/dashboard');
+    await expect(page.getByRole('heading', { name: 'Verify your email address' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /create collection/i })).toHaveCount(0);
   });
 
   test('password too short shows inline validation', async ({ page }) => {
