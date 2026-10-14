@@ -610,32 +610,8 @@ class BackgroundService {
             const remoteCount = (remote.adds || 0) + (remote.updates || 0) + (remote.moves || 0) + (remote.deletes || 0) +
                 (remote.addsFolders || 0) + (remote.updatesFolders || 0) + (remote.deletesFolders || 0);
 
-            // Check if collection has been updated since last sync
-            const collectionUpdatedAt = serverStatus?.data?.collectionUpdatedAt;
-            const storageData = await this.storageManager.getData();
-            const lastSync = storageData?.lastSync;
-            const state = await this.getNotificationState();
-            if (collectionUpdatedAt && lastSync && collectionUpdatedAt > (lastSync / 1000) && collectionUpdatedAt !== state.lastNotifiedCollectionUpdatedAt) {
-                console.log('[Notifications] Collection updated since last sync, triggering notification');
-                const notified = await this.showNotification(
-                    'bookmarx-collection-updated',
-                    'BookMarx: Collection updated',
-                    'Your master collection has changed. Click to review and sync the changes.'
-                );
-                if (notified) {
-                    await this.setNotificationState({
-                        ...state,
-                        lastNotifiedCollectionUpdatedAt: collectionUpdatedAt
-                    });
-                }
-            } else if (collectionUpdatedAt && lastSync && state.lastNotifiedCollectionUpdatedAt && collectionUpdatedAt <= (lastSync / 1000)) {
-                console.log('[Notifications] Collection update already synced; clearing state.');
-                await this.setNotificationState({
-                    ...state,
-                    lastNotifiedCollectionUpdatedAt: undefined
-                });
-            }
-
+            // Revision counts cover website and peer changes. Do not also emit a
+            // timestamp-based collection alert for the same pending work.
             console.log('[Notifications] Counts', { localCount, remoteCount });
             await this.maybeNotifySyncStatus(localCount, remoteCount);
         } catch (error) {
@@ -766,8 +742,12 @@ class BackgroundService {
             priority: 0
         };
 
-        return new Promise((resolve) => {
-            chrome.notifications.create(id, options, () => {
+        // Chrome on Windows suppresses banners for tags already in Action Centre.
+        // A new pending episode needs a fresh tag, while state above still prevents
+        // repeated alerts on every alarm tick.
+        const eventId = `${id}:${crypto.randomUUID()}`;
+        const created = await new Promise<boolean>((resolve) => {
+            chrome.notifications.create(eventId, options, () => {
                 if (chrome.runtime.lastError) {
                     console.warn('Notification error:', chrome.runtime.lastError.message);
                     resolve(false);
@@ -776,6 +756,26 @@ class BackgroundService {
                 resolve(true);
             });
         });
+        if (!created) return false;
+        await new Promise<void>((resolve) => {
+            chrome.notifications.getAll((notifications) => {
+                if (chrome.runtime.lastError) {
+                    console.warn('Notification cleanup error:', chrome.runtime.lastError.message);
+                    resolve();
+                    return;
+                }
+                const oldIds = Object.keys(notifications).filter(notificationId => notificationId !== eventId &&
+                    (notificationId === id || notificationId.startsWith(`${id}:`) ||
+                        (id === 'bookmarx-remote-pending' && notificationId === 'bookmarx-collection-updated')));
+                if (!oldIds.length) { resolve(); return; }
+                let remaining = oldIds.length;
+                for (const oldId of oldIds) chrome.notifications.clear(oldId, () => {
+                    if (chrome.runtime.lastError) console.warn('Notification cleanup error:', chrome.runtime.lastError.message);
+                    if (--remaining === 0) resolve();
+                });
+            });
+        });
+        return true;
     }
 
     private async handleInstall(details: chrome.runtime.InstalledDetails): Promise<void> {
