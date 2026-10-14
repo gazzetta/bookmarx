@@ -27,9 +27,9 @@ REPO_URL="https://github.com/gazzetta/bookmarx.git"
 BRANCH="master"
 DOMAIN="www.bookmarx.cc"
 APP_PORT="3005"
-# The live database lives OUTSIDE the repo so that git reset/clean can never
-# touch it. Override with BOOKMARX_DATA_DIR if it moves.
-DATA_DIR="${BOOKMARX_DATA_DIR:-/home/gazza/bookmarx-data}"
+# The live database lives inside the repo tree; deploy.sh guards it (tracked-
+# file check + pre-reset snapshot + auto-restore). Override if it ever moves.
+DATA_DIR="${BOOKMARX_DATA_DIR:-$WEBSITE_DIR/data}"
 SITE_CONF="/etc/nginx/sites-available/bookmarx"
 LIMIT_CONF="/etc/nginx/conf.d/bookmarx-rate-limit.conf"
 

@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3';
 import * as fs from 'fs';
-import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { pathToFileURL } from 'url';
@@ -48,9 +47,7 @@ export class DatabaseService {
     public static readyPromise: Promise<void> | undefined;
 
     private constructor() {
-        // Default lives OUTSIDE the repo so git operations (reset/clean) can
-        // never touch the database. Set DATABASE_PATH to override.
-        const dbPath = process.env.DATABASE_PATH || path.join(os.homedir(), 'bookmarx-data', 'bookmarx.db');
+        const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../data/bookmarx.db');
 
         // Ensure data directory exists
         const dataDir = path.dirname(dbPath);

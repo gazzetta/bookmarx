@@ -96,7 +96,7 @@ export function up(db: MigrationDb): void {
 // default) rather than reaching for `__dirname`, which is undefined in ESM.
 export function runMigration(): void {
     const dbPath = process.env.DATABASE_PATH
-        || path.join(process.env.HOME || process.cwd(), 'bookmarx-data', 'bookmarx.db');
+        || path.join(process.cwd(), 'data', 'bookmarx.db');
     if (!fs.existsSync(path.dirname(dbPath))) {
         fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     }

@@ -52,7 +52,7 @@ Thumbs.db
 
 # Database — NEVER commit live database files. A tracked bookmarx.db-wal/.db-shm
 # caused two production outages (git reset --hard overwrites them mid-flight).
-# The live DB lives outside the repo at ~/bookmarx-data/ — see deploy.sh.
+# deploy.sh aborts if any bookmarx.db* file is ever tracked again.
 .backups/
 *.db-wal
 *.db-shm
