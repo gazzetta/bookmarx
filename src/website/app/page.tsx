@@ -436,7 +436,7 @@ export default function HomePage() {
             </div>
           </RevealSection>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             {/* Free Plan */}
             <RevealSection delay={0}>
               <div className="bg-white dark:bg-[#242424] rounded-3xl p-8 border border-cream-300 dark:border-white/[0.06] h-full flex flex-col">
@@ -524,43 +524,6 @@ export default function HomePage() {
               </div>
             </RevealSection>
 
-            {/* Enterprise Plan */}
-            <RevealSection delay={200}>
-              <div className="bg-white dark:bg-[#242424] rounded-3xl p-8 border border-cream-300 dark:border-white/[0.06] h-full flex flex-col">
-                <div className="mb-8">
-                  <h3 className="font-display text-lg font-semibold text-ink dark:text-cream-100 mb-2">Enterprise</h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className="font-display text-4xl font-bold text-ink dark:text-cream-100">Custom</span>
-                  </div>
-                  <p className="text-sm text-ink-400 dark:text-white/40 mt-1.5">Contact us for pricing</p>
-                </div>
-
-                <ul className="space-y-4 mb-8 flex-1">
-                  {[
-                    `Everything in ${config.branding.premiumTitle}`,
-                    `Up to ${config.limits.premium.bookmarks.toLocaleString()} bookmarks`,
-                    'Team sharing & collaboration',
-                    'SSO integration',
-                    'Priority support',
-                    'Custom onboarding',
-                  ].map((item, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <svg className="w-5 h-5 text-sage-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="text-ink-600 dark:text-white/80">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href="/contact"
-                  className="block w-full text-center border-2 border-cream-400 dark:border-white/15 hover:border-ink dark:hover:border-white/40 hover:bg-ink dark:hover:bg-white/10 hover:text-cream-100 text-ink dark:text-cream-100 px-6 py-3.5 rounded-xl font-semibold transition-all"
-                >
-                  Contact Sales
-                </Link>
-              </div>
-            </RevealSection>
           </div>
 
           <RevealSection delay={300}>
