@@ -3,127 +3,207 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { STORAGE_KEYS } from '../constants/config';
 import { api } from '../services/api';
+import { accountKey, getSession, isCurrentSession, subscribeSession } from '../services/session';
+import { writeStorage } from '../services/storage';
 import type { QueuedChange } from '../types';
 
-type ReplayCallback = (change: QueuedChange, result: any) => void;
+export interface QueueOutcome { success: boolean; error?: string; masterId?: string }
+type QueueEvent = { change: QueuedChange; outcome: QueueOutcome };
+const listeners = new Set<(event: QueueEvent) => void | Promise<void>>();
+export function subscribeQueue(listener: (event: QueueEvent) => void | Promise<void>) {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
 
 interface SyncQueueStore {
   queue: QueuedChange[];
   isOnline: boolean;
+  enabled: boolean;
+  setEnabled: (enabled: boolean) => void;
   isReplaying: boolean;
-  /** Server-side failures from the most recent replay (dropped changes). */
   lastDroppedCount: number;
+  lastError: string | null;
+  outcomes: Record<string, QueueOutcome>;
   hydrated: boolean;
-
   hydrate: () => Promise<void>;
   setOnline: (online: boolean) => void;
   enqueue: (change: Omit<QueuedChange, 'queueId' | 'queuedAt'>) => Promise<QueuedChange>;
   clearDroppedFlag: () => void;
-  replay: (onApplied?: ReplayCallback) => Promise<void>;
+  replay: () => Promise<void>;
 }
 
-async function persist(queue: QueuedChange[]) {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEYS.SYNC_QUEUE, JSON.stringify(queue));
-  } catch (error) {
-    console.error('Failed to persist sync queue:', error);
-  }
+let running: { session: ReturnType<typeof getSession>; promise: Promise<void> } | null = null;
+let hydration: Promise<void> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryDelay = 1000;
+const aliases = new Map<string, string>();
+const resolvePayload = (payload: Record<string, unknown>) => ({
+  ...payload,
+  ...(typeof payload.masterId === 'string' ? { masterId: aliases.get(payload.masterId) ?? payload.masterId } : {}),
+  ...(typeof payload.masterParentId === 'string' ? { masterParentId: aliases.get(payload.masterParentId) ?? payload.masterParentId } : {}),
+});
+function cancelRetry() {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = null;
 }
 
-async function applyQueued(change: QueuedChange) {
-  const p = change.payload as any;
-  const collectionId = change.collectionId;
-  switch (change.kind) {
-    case 'createBookmark':
-      return api.createBookmark({ url: p.url, title: p.title, masterParentId: p.masterParentId }, collectionId);
-    case 'updateBookmark':
-      return api.updateBookmark(p.masterId, { title: p.title, url: p.url, masterParentId: p.masterParentId }, collectionId);
-    case 'deleteBookmark':
-      return api.deleteBookmark(p.masterId, collectionId);
-    case 'createFolder':
-      return api.createFolder(p.title, p.masterParentId ?? null, collectionId);
-    case 'updateFolder':
-      return api.updateFolder(p.masterId, { title: p.title, masterParentId: p.masterParentId }, collectionId);
-    case 'deleteFolder':
-      return api.deleteFolder(p.masterId, collectionId);
-    default:
-      return { success: false, error: { message: 'Unknown queued change' } };
-  }
-}
-
-export const useSyncQueue = create<SyncQueueStore>((set, get) => ({
-  queue: [],
-  isOnline: true,
-  isReplaying: false,
-  lastDroppedCount: 0,
-  hydrated: false,
-
-  hydrate: async () => {
-    try {
-      const raw = await AsyncStorage.getItem(STORAGE_KEYS.SYNC_QUEUE);
-      const queue = raw ? (JSON.parse(raw) as QueuedChange[]) : [];
-      set({ queue, hydrated: true });
-    } catch (error) {
-      console.error('Failed to load sync queue:', error);
-      set({ hydrated: true });
-    }
-  },
-
-  setOnline: (online) => {
-    const wasOffline = !get().isOnline;
-    set({ isOnline: online });
-    if (online && wasOffline && get().queue.length > 0) {
+export const useSyncQueue = create<SyncQueueStore>((set, get) => {
+  let mutations: Promise<void> = Promise.resolve();
+  const changeQueue = (transform: (queue: QueuedChange[]) => QueuedChange[]) => {
+    const session = getSession();
+    const task = mutations.then(async () => {
+      if (!isCurrentSession(session)) throw new Error('Your account changed. Please try again.');
+      const next = transform(get().queue);
+      // Publish only after the complete queue transition is durable. Concurrent
+      // enqueues wait here instead of persisting a partially acknowledged queue.
+      await writeStorage(accountKey(STORAGE_KEYS.SYNC_QUEUE, session), next);
+      if (!isCurrentSession(session)) throw new Error('Your account changed. Please try again.');
+      set({ queue: next });
+    });
+    mutations = task.catch(() => {});
+    return task;
+  };
+  const notify = async (change: QueuedChange, outcome: QueueOutcome) => {
+    const outcomes = Object.fromEntries(Object.entries({ ...get().outcomes, [change.queueId]: outcome }).slice(-100));
+    set({ outcomes });
+    await Promise.all([...listeners].map(listener => listener({ change, outcome })));
+  };
+  const scheduleRetry = () => {
+    if (retryTimer || !getSession().userId || !get().isOnline || !get().enabled || !get().queue.length) return;
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
       void get().replay();
-    }
-  },
+    }, retryDelay);
+    retryDelay = Math.min(retryDelay * 2, 60000);
+  };
 
-  enqueue: async (change) => {
-    const queued: QueuedChange = {
-      ...change,
-      queueId: Crypto.randomUUID(),
-      queuedAt: Date.now(),
-    };
-    const queue = [...get().queue, queued];
-    set({ queue });
-    await persist(queue);
-    return queued;
-  },
+  return {
+    queue: [], isOnline: true, enabled: false, isReplaying: false, lastDroppedCount: 0,
+    lastError: null, outcomes: {}, hydrated: false,
 
-  clearDroppedFlag: () => set({ lastDroppedCount: 0 }),
+    hydrate: () => {
+      if (get().hydrated) return Promise.resolve();
+      if (hydration) return hydration;
+      const session = getSession();
+      if (!session.userId) return Promise.resolve();
+      const task = (async () => {
+        // A read failure must not turn an existing durable queue into an empty queue.
+        const raw = await AsyncStorage.getItem(accountKey(STORAGE_KEYS.SYNC_QUEUE, session));
+        const queue: QueuedChange[] = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(queue)) throw new Error('Saved changes could not be read');
+        if (isCurrentSession(session)) set({ queue, hydrated: true });
+      })();
+      hydration = task;
+      void task.finally(() => { if (hydration === task) hydration = null; }).catch(() => {});
+      return task;
+    },
 
-  replay: async (onApplied) => {
-    const { isReplaying, isOnline } = get();
-    if (isReplaying || !isOnline) return;
-    set({ isReplaying: true });
+    setEnabled: enabled => {
+      set({ enabled });
+      if (enabled) void get().replay();
+      else cancelRetry();
+    },
 
-    let dropped = 0;
-    try {
-      // Re-read inside loop: queue shrinks as entries flush.
-      for (;;) {
-        const [next, ...rest] = get().queue;
-        if (!next) break;
+    setOnline: online => {
+      set({ isOnline: online });
+      if (!online) cancelRetry();
+      else if (get().hydrated && get().queue.length) void get().replay();
+    },
 
-        const response = await applyQueued(next);
-        if (response.success) {
-          set({ queue: rest });
-          await persist(rest);
-          onApplied?.(next, response.data);
-          continue;
-        }
-
-        if (response.error?.code === 'NETWORK_ERROR') {
-          // Still effectively offline — stop, keep the rest queued.
-          break;
-        }
-
-        // Server rejected the change (item gone elsewhere, limit hit, …).
-        // Drop it rather than retry-loop; count it for the UI summary.
-        dropped += 1;
-        set({ queue: rest });
-        await persist(rest);
+    enqueue: async change => {
+      const session = getSession();
+      if (!session.userId) throw new Error('Sign in to save changes');
+      await get().hydrate();
+      if (!isCurrentSession(session)) throw new Error('Your account changed. Please try again.');
+      const queued: QueuedChange = { ...change, payload: resolvePayload(change.payload), queueId: Crypto.randomUUID(), queuedAt: Date.now() };
+      try {
+        await changeQueue(queue => [...queue, { ...queued, payload: resolvePayload(queued.payload) }]);
+      } catch {
+        throw new Error('Could not save this change on your device. Please try again.');
       }
-    } finally {
-      set({ isReplaying: false, lastDroppedCount: dropped });
-    }
-  },
-}));
+      return queued;
+    },
+
+    clearDroppedFlag: () => set({ lastDroppedCount: 0 }),
+
+    replay: () => {
+      const session = getSession();
+      if (!session.userId || !get().hydrated || !get().isOnline || !get().enabled) return Promise.resolve();
+      if (running?.session === session) return running.promise;
+      cancelRetry();
+      set({ isReplaying: true, lastError: null });
+      const task = (async () => {
+        try {
+          while (isCurrentSession(session) && get().isOnline && get().enabled) {
+            const next = get().queue[0];
+            if (!next) break;
+            const response = await api.applyQueuedChange(next);
+            if (!isCurrentSession(session)) return;
+            if (!response.success && (response.error?.retryable || response.error?.code === 'NETWORK_ERROR' || response.error?.status === 401)) {
+              set({ lastError: response.error?.message || 'Sync will retry shortly' });
+              break;
+            }
+            const masterId = response.data?.results?.[0]?.masterId as string | undefined;
+            if (response.success && next.tempMasterId && !masterId) {
+              set({ lastError: 'The server did not confirm the saved item. Sync will retry.' });
+              break;
+            }
+            // Read the LIVE queue after the request, preserving concurrent enqueues.
+            const rejected: QueuedChange[] = [];
+            await changeQueue(queue => {
+              let remaining = queue.filter(c => c.queueId !== next.queueId);
+              if (response.success && next.tempMasterId && masterId) {
+                aliases.set(next.tempMasterId, masterId);
+                remaining = remaining.map(change => ({ ...change, payload: {
+                  ...change.payload,
+                  ...(change.payload.masterId === next.tempMasterId ? { masterId } : {}),
+                  ...(change.payload.masterParentId === next.tempMasterId ? { masterParentId: masterId } : {}),
+                } }));
+              } else if (!response.success && next.tempMasterId) {
+                // Children cannot be saved into a folder the server rejected.
+                const missing = new Set([next.tempMasterId]);
+                let changed = true;
+                while (changed) {
+                  changed = false;
+                  remaining = remaining.filter(change => {
+                    if (!missing.has(String(change.payload.masterParentId)) && !missing.has(String(change.payload.masterId))) return true;
+                    rejected.push(change);
+                    if (change.tempMasterId) missing.add(change.tempMasterId);
+                    changed = true;
+                    return false;
+                  });
+                }
+              }
+              return remaining;
+            });
+            if (!isCurrentSession(session)) return;
+            const outcome = { success: response.success, masterId, error: response.error?.message };
+            await notify(next, outcome);
+            for (const child of rejected) await notify(child, { success: false, error: 'The destination folder could not be saved' });
+            if (!response.success) set({ lastDroppedCount: get().lastDroppedCount + 1 + rejected.length });
+            retryDelay = 1000;
+          }
+        } catch (error) {
+          if (isCurrentSession(session)) set({ lastError: error instanceof Error ? error.message : 'Sync could not finish' });
+        } finally {
+          if (isCurrentSession(session)) {
+            set({ isReplaying: false });
+            scheduleRetry();
+          }
+        }
+      })();
+      running = { session, promise: task };
+      void task.finally(() => { if (running?.promise === task) running = null; }).catch(() => {});
+      return task;
+    },
+  };
+});
+
+subscribeSession(() => {
+  cancelRetry();
+  retryDelay = 1000;
+  aliases.clear();
+  hydration = null;
+  running = null;
+  useSyncQueue.setState({ queue: [], hydrated: false, enabled: false, isReplaying: false, lastDroppedCount: 0, lastError: null, outcomes: {} });
+});

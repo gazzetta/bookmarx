@@ -9,7 +9,9 @@
     "test:audit": "vitest run --config vitest.audit.config.ts",
     "test:watch": "vitest",
     "test:ci": "vitest run --reporter=default --reporter=junit --outputFile=test-results.junit.xml",
-    "typecheck": "tsc -p tsconfig.test.json --noEmit"
+    "typecheck": "tsc -p tsconfig.test.json --noEmit",
+    "test:mobile": "vitest run --config vitest.mobile.config.ts",
+    "typecheck:mobile": "tsc --noEmit -p src/mobile/tsconfig.json && tsc --noEmit -p tsconfig.mobile-tests.json"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

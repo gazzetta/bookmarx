@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { AppState, View, StyleSheet } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -16,7 +16,6 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { useAuthStore } from '../store/authStore';
-import { useBookmarkStore } from '../store/bookmarkStore';
 import { useSyncQueue } from '../store/syncQueue';
 import { colors, fonts } from '../constants/theme';
 
@@ -45,13 +44,18 @@ export default function RootLayout() {
 
   useEffect(() => {
     void useAuthStore.getState().checkAuth();
-    void useBookmarkStore.getState().hydrate();
 
     // Treat "unknown" connectivity as online — only definite disconnects pause sync.
     const unsubscribe = NetInfo.addEventListener((state) => {
-      useSyncQueue.getState().setOnline(state.isConnected !== false);
+      useSyncQueue.getState().setOnline(state.isConnected !== false && state.isInternetReachable !== false);
     });
-    return () => unsubscribe();
+    const foreground = AppState.addEventListener('change', state => {
+      if (state === 'active' && useAuthStore.getState().isAuthenticated) {
+        void useAuthStore.getState().refreshStats().catch(console.error);
+        void useSyncQueue.getState().replay();
+      }
+    });
+    return () => { unsubscribe(); foreground.remove(); };
   }, []);
 
   if (!fontsLoaded && !fontError) {

@@ -12,6 +12,7 @@ export function OfflineBanner() {
   const isOnline = useSyncQueue(s => s.isOnline);
   const pendingCount = useSyncQueue(s => s.queue.length);
   const dropped = useSyncQueue(s => s.lastDroppedCount);
+  const lastError = useSyncQueue(s => s.lastError);
 
   if (isOnline && pendingCount === 0 && dropped === 0) return null;
 
@@ -23,7 +24,9 @@ export function OfflineBanner() {
       ? `Offline — ${pendingCount} change${pendingCount === 1 ? '' : 's'} will sync when you're back`
       : 'Offline — showing cached bookmarks';
   } else if (pendingCount > 0) {
-    message = `Syncing ${pendingCount} pending change${pendingCount === 1 ? '' : 's'}…`;
+    message = lastError
+      ? `${pendingCount} change${pendingCount === 1 ? '' : 's'} waiting to sync. We'll retry automatically.`
+      : `Syncing ${pendingCount} pending change${pendingCount === 1 ? '' : 's'}…`;
     icon = 'sync-outline';
     tone = tones.syncing;
   } else {

@@ -2,10 +2,11 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
 import { API_BASE_URL, STORAGE_KEYS } from '../constants/config';
-import { getDeviceId } from './device';
+import { getDeviceId, getBrowserInstanceId } from './device';
+import { getSession, isCurrentSession, type AccountSession } from './session';
 import type {
   ApiResponse, MasterCollection, CaptureRequest, CaptureResponse,
-  User, UserStats, Session, Collection, AppConfig,
+  User, UserStats, Session, Collection, AppConfig, QueuedChange,
 } from '../types';
 
 const REQUEST_TIMEOUT_MS = 15000;
@@ -13,6 +14,7 @@ const REQUEST_TIMEOUT_MS = 15000;
 interface RequestOptions extends RequestInit {
   /** Scope sync endpoints to a non-default collection (X-Collection-ID). */
   collectionId?: string | null;
+  session?: AccountSession;
 }
 
 type UnauthorizedHandler = () => void;
@@ -38,8 +40,11 @@ class ApiClient {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<ApiResponse<T>> {
-    const { collectionId, headers: extraHeaders, ...init } = options;
+    const { collectionId, headers: extraHeaders, session = getSession(), ...init } = options;
+    const sessionChanged: ApiResponse<T> = { success: false, error: { code: 'SESSION_CHANGED', message: 'Your account changed. Please try again.' } };
+    if (!isCurrentSession(session)) return sessionChanged;
     const token = await this.getAuthToken();
+    if (!isCurrentSession(session)) return sessionChanged;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -65,16 +70,26 @@ class ApiClient {
         data = null;
       }
 
+      if (!isCurrentSession(session)) return sessionChanged;
+
       if (!response.ok) {
         if (response.status === 401 && !endpoint.startsWith('/auth/login') && !endpoint.startsWith('/auth/register')) {
           this.unauthorizedHandler?.();
         }
         return {
           success: false,
-          error: data?.error || { message: `Request failed (${response.status})` },
+          error: {
+            ...data?.error,
+            message: data?.error?.message || `Request failed (${response.status})`,
+            status: response.status,
+            retryable: response.status === 408 || response.status === 429 || response.status >= 500,
+          },
         };
       }
 
+      if (!data || typeof data.success !== 'boolean') {
+        return { success: false, error: { code: 'NETWORK_ERROR', retryable: true, message: 'The server returned an unreadable response' } };
+      }
       return data as ApiResponse<T>;
     } catch (error) {
       const isTimeout = error instanceof Error && error.name === 'AbortError';
@@ -82,6 +97,7 @@ class ApiClient {
         success: false,
         error: {
           code: 'NETWORK_ERROR',
+          retryable: true,
           message: isTimeout
             ? 'Request timed out'
             : error instanceof Error
@@ -96,15 +112,18 @@ class ApiClient {
 
   private async syncRequest<T>(
     body: Record<string, unknown>,
-    collectionId?: string | null
+    collectionId?: string | null,
+    session = getSession()
   ): Promise<ApiResponse<T>> {
     const deviceId = await getDeviceId();
+    const browserInstanceId = await getBrowserInstanceId(session);
     return this.request<T>('/sync', {
+      session,
       method: 'POST',
       collectionId,
       headers: {
         'X-Device-ID': deviceId,
-        'X-Browser-Instance-ID': deviceId,
+        'X-Browser-Instance-ID': browserInstanceId,
       },
       body: JSON.stringify(body),
     });
@@ -118,26 +137,53 @@ class ApiClient {
    */
   private async applyChanges(
     changes: Array<{ type: string; data: Record<string, unknown> }>,
-    collectionId?: string | null
+    collectionId?: string | null,
+    identity = { operationId: Crypto.randomUUID(), timestamp: Date.now() },
+    session = getSession()
   ): Promise<ApiResponse<{ action: string; changesApplied: number; results: any[] }>> {
     const deviceId = await getDeviceId();
     const deviceInfo = {
-      browserInstanceId: deviceId,
+      deviceId,
+      browserInstanceId: await getBrowserInstanceId(session),
       browser: 'BookMarx Mobile',
+      browserVersion: '1.0.0',
       os: Platform.OS,
+      osVersion: String(Platform.Version ?? 'unknown'),
     };
     return this.syncRequest(
       {
         deviceId,
         changes: changes.map((change) => ({
           ...change,
-          operationId: Crypto.randomUUID(),
-          metadata: { timestamp: Date.now(), deviceInfo },
+          operationId: identity.operationId,
+          metadata: { timestamp: identity.timestamp, deviceInfo },
         })),
-        metadata: { timestamp: Date.now(), deviceInfo },
+        metadata: { timestamp: identity.timestamp, deviceInfo },
       },
-      collectionId
+      collectionId,
+      session
     );
+  }
+
+  /** Retries must send identical item data and operation IDs for server deduplication. */
+  async applyQueuedChange(change: QueuedChange): Promise<ApiResponse<{ results: Array<{ masterId: string }> }>> {
+    const isCreate = change.kind.startsWith('create');
+    const type = change.kind.endsWith('Folder') ? 'folder' : 'bookmark';
+    return this.applyChanges([{
+      type: isCreate ? 'CREATE' : change.kind.startsWith('update') ? 'UPDATE' : 'DELETE',
+      data: {
+        ...change.payload,
+        type,
+        ...(isCreate ? {
+          browserId: `mobile-${change.queueId}`,
+          title: change.payload.title || change.payload.url,
+          parentId: change.payload.masterParentId ?? (type === 'bookmark' ? '0' : null),
+          masterParentId: change.payload.masterParentId ?? null,
+          dateAdded: change.queuedAt,
+          position: 0,
+        } : {}),
+      },
+    }], change.collectionId, { operationId: change.queueId, timestamp: change.queuedAt });
   }
 
   // ---- Auth ----
@@ -236,19 +282,24 @@ class ApiClient {
   // ---- Collection contents (via sync read endpoints) ----
 
   async getMasterCollection(collectionId?: string | null): Promise<ApiResponse<MasterCollection>> {
+    const session = getSession();
     const deviceId = await getDeviceId();
+    const browserInstanceId = await getBrowserInstanceId(session);
     return this.request('/sync/master-collection', {
+      session,
       collectionId,
       headers: {
         'X-Device-ID': deviceId,
-        'X-Browser-Instance-ID': deviceId,
+        'X-Browser-Instance-ID': browserInstanceId,
       },
     });
   }
 
   async getMasterSummary(collectionId?: string | null): Promise<ApiResponse<{ bookmarkCount: number; folderCount: number; lastSyncTimestamp: number; deviceCount: number }>> {
+    const session = getSession();
     const deviceId = await getDeviceId();
     return this.request('/sync/master-summary', {
+      session,
       collectionId,
       headers: { 'X-Device-ID': deviceId },
     });
@@ -257,8 +308,10 @@ class ApiClient {
   // ---- Capture (always lands in the DEFAULT collection) ----
 
   async captureBookmark(data: CaptureRequest): Promise<ApiResponse<CaptureResponse>> {
+    const session = getSession();
     const deviceId = await getDeviceId();
     return this.request('/capture', {
+      session,
       method: 'POST',
       headers: { 'X-Device-ID': deviceId },
       body: JSON.stringify(data),
@@ -279,6 +332,7 @@ class ApiClient {
           browserId: `mobile-bm-${Crypto.randomUUID()}`,
           url: data.url,
           title: data.title || data.url,
+          parentId: data.masterParentId ?? '0',
           masterParentId: data.masterParentId ?? null,
           position: 0,
           dateAdded: Date.now(),

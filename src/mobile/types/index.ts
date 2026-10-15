@@ -5,6 +5,11 @@ export interface User {
   subscriptionTier?: 'free' | 'premium' | 'lifetime';
   subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'expired';
   subscriptionEndsAt?: string | null;
+  subscriptionExpiresAt?: number | null;
+  isPremium?: boolean;
+  bookmarkLimit?: number | null;
+  browserLimit?: number | null;
+  collectionLimit?: number | null;
 }
 
 export interface AuthState {
@@ -62,6 +67,8 @@ export interface ApiResponse<T> {
     message: string;
     details?: string;
     code?: string;
+    status?: number;
+    retryable?: boolean;
   };
 }
 

@@ -2,20 +2,14 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../constants/config';
 import { api } from '../services/api';
-import { useSyncQueue } from './syncQueue';
-import type { Bookmark, Folder, Collection, QueuedChange } from '../types';
+import { accountKey, getSession, isCurrentSession, subscribeSession, type AccountSession } from '../services/session';
+import { writeStorage } from '../services/storage';
+import { useSyncQueue, subscribeQueue } from './syncQueue';
+import type { Bookmark, Folder, Collection, QueuedChange, ApiResponse } from '../types';
 
 const FETCH_THROTTLE_MS = 15000;
 const TEMP_PREFIX = 'temp-';
-
-type ListItem = Bookmark | Folder;
-
-interface CacheShape {
-  folders: Folder[];
-  bookmarks: Bookmark[];
-  timestamp: number;
-}
-
+interface CacheShape { folders: Folder[]; bookmarks: Bookmark[]; timestamp: number }
 interface BookmarkStore {
   folders: Folder[];
   bookmarks: Bookmark[];
@@ -54,364 +48,254 @@ interface BookmarkStore {
   deleteCollection: (collectionId: string) => Promise<{ success: boolean; error?: string }>;
 }
 
-const cacheKey = (collectionId: string | null) =>
-  `${STORAGE_KEYS.COLLECTION_CACHE_PREFIX}${collectionId ?? 'default'}`;
+const emptyCollection = (): CacheShape => ({ folders: [], bookmarks: [], timestamp: 0 });
+const collectionKey = (id: string | null) => id ?? 'default';
+const cacheKey = (id: string | null, session = getSession()) =>
+  accountKey(`${STORAGE_KEYS.COLLECTION_CACHE_PREFIX}${collectionKey(id)}`, session);
 
-function sortItems<T extends ListItem>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    const pa = a.position ?? 0;
-    const pb = b.position ?? 0;
-    if (pa !== pb) return pa - pb;
-    return (a.title || '').localeCompare(b.title || '');
-  });
+function sortItems<T extends Bookmark | Folder>(items: T[]): T[] {
+  return [...items].sort((a, b) => (a.position ?? 0) - (b.position ?? 0) || (a.title || '').localeCompare(b.title || ''));
+}
+
+function descendantIds(root: string, folders: Folder[]): Set<string> {
+  const ids = new Set([root]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const folder of folders) {
+      if (folder.masterParentId && ids.has(folder.masterParentId) && !ids.has(folder.masterId)) {
+        ids.add(folder.masterId);
+        grew = true;
+      }
+    }
+  }
+  return ids;
+}
+
+/** Render a mutation onto a copy, keeping server-confirmed data separate from pending edits. */
+function applyChange(base: CacheShape, change: QueuedChange, masterId = change.tempMasterId): CacheShape {
+  let folders = base.folders.map(f => ({ ...f }));
+  let bookmarks = base.bookmarks.map(b => ({ ...b }));
+  const p = change.payload;
+  const parent = (p.masterParentId ?? null) as string | null;
+  const created = {
+    id: -1, masterId: masterId!, browserId: '', userId: '', title: String(p.title || p.url || ''),
+    parentId: null, masterParentId: parent, position: 0, dateAdded: change.queuedAt,
+    status: 'active' as const, syncVersion: 0, createdAt: change.queuedAt, updatedAt: change.queuedAt,
+  };
+  switch (change.kind) {
+    case 'createBookmark':
+      if (!bookmarks.some(b => b.masterId === masterId)) bookmarks.push({ ...created, url: String(p.url), parentId: '' });
+      break;
+    case 'createFolder':
+      if (!folders.some(f => f.masterId === masterId)) folders.push(created);
+      break;
+    case 'updateBookmark':
+      bookmarks = bookmarks.map(b => b.masterId === p.masterId ? { ...b, ...p } as Bookmark : b);
+      break;
+    case 'updateFolder':
+      folders = folders.map(f => f.masterId === p.masterId ? { ...f, ...p } as Folder : f);
+      break;
+    case 'deleteBookmark':
+      bookmarks = bookmarks.filter(b => b.masterId !== p.masterId);
+      break;
+    case 'deleteFolder': {
+      const doomed = descendantIds(String(p.masterId), folders);
+      folders = folders.filter(f => !doomed.has(f.masterId));
+      bookmarks = bookmarks.filter(b => !b.masterParentId || !doomed.has(b.masterParentId));
+      break;
+    }
+  }
+  return { folders, bookmarks, timestamp: base.timestamp };
 }
 
 export const useBookmarkStore = create<BookmarkStore>((set, get) => {
-  async function readCache(collectionId: string | null): Promise<CacheShape | null> {
-    try {
-      const raw = await AsyncStorage.getItem(cacheKey(collectionId));
-      return raw ? (JSON.parse(raw) as CacheShape) : null;
-    } catch {
-      return null;
-    }
-  }
+  const confirmed = new Map<string, CacheShape>();
+  const aliases = new Map<string, string>();
+  const revisions = new Map<string, number>();
+  let selectionVersion = 0;
+  let fetchVersion = 0;
+  const resolveId = (id: string | null) => id ? aliases.get(id) ?? id : null;
 
-  async function writeCache(collectionId: string | null, data: CacheShape) {
-    try {
-      await AsyncStorage.setItem(cacheKey(collectionId), JSON.stringify(data));
-    } catch (error) {
-      console.error('Failed to cache collection:', error);
-    }
-  }
-
-  /** Re-apply optimistic state for queued changes onto the fetched lists. */
-  function applyQueueOverlay(folders: Folder[], bookmarks: Bookmark[]) {
-    const activeId = get().activeCollectionId;
+  const publish = () => {
+    const id = get().activeCollectionId;
+    let view = confirmed.get(collectionKey(id)) ?? emptyCollection();
     for (const change of useSyncQueue.getState().queue) {
-      if ((change.collectionId ?? null) !== activeId) continue;
-      const p = change.payload as any;
-      switch (change.kind) {
-        case 'createBookmark':
-          if (change.tempMasterId && !bookmarks.some(b => b.masterId === change.tempMasterId)) {
-            bookmarks.push({
-              id: -1, masterId: change.tempMasterId, browserId: '', userId: '',
-              url: p.url, title: p.title || p.url, parentId: '',
-              masterParentId: p.masterParentId ?? null, position: 0,
-              dateAdded: change.queuedAt, status: 'active', syncVersion: 0,
-              createdAt: change.queuedAt, updatedAt: change.queuedAt,
-            } as Bookmark);
-          }
-          break;
-        case 'updateBookmark': {
-          const b = bookmarks.find(x => x.masterId === p.masterId);
-          if (b) {
-            if (p.title !== undefined) b.title = p.title;
-            if (p.url !== undefined) b.url = p.url;
-            if (p.masterParentId !== undefined) b.masterParentId = p.masterParentId;
-          }
-          break;
-        }
-        case 'deleteBookmark':
-          bookmarks = bookmarks.filter(x => x.masterId !== p.masterId);
-          break;
-        case 'createFolder':
-          if (change.tempMasterId && !folders.some(f => f.masterId === change.tempMasterId)) {
-            folders.push({
-              id: -1, masterId: change.tempMasterId, browserId: '', userId: '',
-              title: p.title, parentId: null, masterParentId: p.masterParentId ?? null,
-              position: 0, dateAdded: change.queuedAt, status: 'active',
-              syncVersion: 0, createdAt: change.queuedAt, updatedAt: change.queuedAt,
-            } as Folder);
-          }
-          break;
-        case 'updateFolder': {
-          const f = folders.find(x => x.masterId === p.masterId);
-          if (f) {
-            if (p.title !== undefined) f.title = p.title;
-            if (p.masterParentId !== undefined) f.masterParentId = p.masterParentId;
-          }
-          break;
-        }
-        case 'deleteFolder':
-          folders = folders.filter(x => x.masterId !== p.masterId);
-          break;
-      }
+      if (change.collectionId === id) view = applyChange(view, change);
     }
-    return { folders, bookmarks };
+    set({ folders: sortItems(view.folders), bookmarks: sortItems(view.bookmarks) });
+  };
+
+  async function readCache(id: string | null, session: AccountSession): Promise<CacheShape> {
+    try {
+      const raw = await AsyncStorage.getItem(cacheKey(id, session));
+      const cached = raw ? JSON.parse(raw) as CacheShape : null;
+      return cached && Array.isArray(cached.folders) && Array.isArray(cached.bookmarks) ? cached : emptyCollection();
+    } catch { return emptyCollection(); }
   }
 
-  function descendantIds(rootFolderId: string, folders: Folder[]): Set<string> {
-    const ids = new Set<string>([rootFolderId]);
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (const f of folders) {
-        if (f.masterParentId && ids.has(f.masterParentId) && !ids.has(f.masterId)) {
-          ids.add(f.masterId);
-          grew = true;
-        }
-      }
+  subscribeSession(() => {
+    confirmed.clear(); aliases.clear(); revisions.clear();
+    selectionVersion++; fetchVersion++;
+    set({ folders: [], bookmarks: [], collections: [], activeCollectionId: null,
+      canCreateCollections: false, isLoading: false, error: null, lastFetched: null, hydrated: false });
+  });
+
+  subscribeQueue(async ({ change, outcome }) => {
+    const session = getSession();
+    const key = collectionKey(change.collectionId);
+    revisions.set(key, (revisions.get(key) ?? 0) + 1);
+    if (outcome.success) {
+      if (change.tempMasterId && outcome.masterId) aliases.set(change.tempMasterId, outcome.masterId);
+      const cached = confirmed.get(key) ?? await readCache(change.collectionId, session);
+      if (!isCurrentSession(session)) return;
+      const base = applyChange(confirmed.get(key) ?? cached, change, outcome.masterId);
+      confirmed.set(key, base);
+      await writeStorage(cacheKey(change.collectionId, session), base).catch(() => {});
+      if (!isCurrentSession(session)) return;
     }
-    return ids;
+    publish();
+    if (!outcome.success) set({ error: outcome.error || 'A change was rejected by the server' });
+  });
+
+  async function runChange(change: Omit<QueuedChange, 'queueId' | 'queuedAt'>) {
+    const session = getSession();
+    try {
+      const queued = await useSyncQueue.getState().enqueue(change);
+      if (!isCurrentSession(session)) return { success: false, error: 'Your account changed. Please try again.' };
+      publish();
+      await useSyncQueue.getState().replay();
+      if (!isCurrentSession(session)) return { success: false, error: 'Your account changed. Please try again.' };
+      const outcome = useSyncQueue.getState().outcomes[queued.queueId];
+      return outcome ? { success: outcome.success, error: outcome.error } : { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Could not save change' };
+    }
   }
 
-  /** Enqueue a change and try to flush immediately when online. */
-  async function runChange(
-    change: Omit<QueuedChange, 'queueId' | 'queuedAt'>
-  ): Promise<{ success: boolean; error?: string }> {
-    const queued = await useSyncQueue.getState().enqueue(change);
-    const { isOnline, replay } = useSyncQueue.getState();
-
-    if (!isOnline) return { success: true };
-
-    let applied: any = null;
-    await replay((_change, result) => {
-      if (_change.queueId === queued.queueId) applied = result;
-    });
-
-    if (!applied) {
-      const { queue } = useSyncQueue.getState();
-      if (!queue.some(c => c.queueId === queued.queueId)) {
-        return { success: false, error: useSyncQueue.getState().lastDroppedCount > 0 ? 'Change was rejected by the server' : 'Change failed' };
-      }
-      // Still queued — will flush on reconnect.
-      return { success: true };
-    }
-
-    // Server applied it — reconcile temp id with the real masterId.
-    if (change.tempMasterId) {
-      const realId = applied?.results?.[0]?.masterId;
-      if (realId) {
-        set(state => ({
-          folders: state.folders.map(f => f.masterId === change.tempMasterId ? { ...f, masterId: realId } : f),
-          bookmarks: state.bookmarks.map(b => b.masterId === change.tempMasterId ? { ...b, masterId: realId } : b),
-        }));
-      }
-    }
+  async function collectionMutation(request: () => Promise<ApiResponse<unknown>>, removedId?: string) {
+    const session = getSession();
+    if (!session.userId) return { success: false, error: 'Sign in to edit collections' };
+    const response = await request();
+    if (!isCurrentSession(session)) return { success: false, error: 'Your account changed. Please try again.' };
+    if (!response.success) return { success: false, error: response.error?.message || 'Could not update collection' };
+    if (removedId && get().activeCollectionId === removedId) await get().setActiveCollection(null);
+    await get().fetchCollections();
     return { success: true };
   }
 
   return {
-    folders: [],
-    bookmarks: [],
-    collections: [],
-    activeCollectionId: null,
-    canCreateCollections: false,
-    isLoading: false,
-    error: null,
-    lastFetched: null,
-    hydrated: false,
+    folders: [], bookmarks: [], collections: [], activeCollectionId: null, canCreateCollections: false,
+    isLoading: false, error: null, lastFetched: null, hydrated: false,
 
     hydrate: async () => {
-      const queue = useSyncQueue.getState();
-      if (!queue.hydrated) await queue.hydrate();
-
-      const saved = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_COLLECTION);
-      const activeCollectionId = saved && saved !== 'default' ? saved : null;
-      const cached = await readCache(activeCollectionId);
-      set({
-        activeCollectionId,
-        folders: cached?.folders ?? [],
-        bookmarks: cached?.bookmarks ?? [],
-        lastFetched: cached?.timestamp ?? null,
-        hydrated: true,
-      });
+      const session = getSession();
+      if (!session.userId) return;
+      const selection = ++selectionVersion;
+      await useSyncQueue.getState().hydrate();
+      const raw = await AsyncStorage.getItem(accountKey(STORAGE_KEYS.ACTIVE_COLLECTION, session));
+      const id = raw ? JSON.parse(raw) as string | null : null;
+      const cached = await readCache(id, session);
+      if (!isCurrentSession(session) || selection !== selectionVersion) return;
+      confirmed.set(collectionKey(id), cached);
+      set({ activeCollectionId: id, lastFetched: cached.timestamp || null, hydrated: true });
+      publish();
     },
 
     fetchCollections: async () => {
+      const session = getSession();
+      if (!session.userId) return;
       const response = await api.getCollections();
+      if (!isCurrentSession(session)) return;
       if (response.success && response.data) {
         const { collections, canCreate } = response.data;
-        const activeId = get().activeCollectionId;
-        const stillValid = !activeId || collections.some(c => c.id === activeId);
         set({ collections, canCreateCollections: canCreate });
-        if (!stillValid) await get().setActiveCollection(null);
+        const activeId = get().activeCollectionId;
+        if (activeId && !collections.some(c => c.id === activeId)) await get().setActiveCollection(null);
       }
     },
 
-    setActiveCollection: async (id) => {
-      await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_COLLECTION, id ?? 'default');
-      const cached = await readCache(id);
-      set({
-        activeCollectionId: id,
-        folders: cached?.folders ?? [],
-        bookmarks: cached?.bookmarks ?? [],
-        lastFetched: cached?.timestamp ?? null,
-        error: null,
-      });
+    setActiveCollection: async id => {
+      const session = getSession();
+      if (!session.userId) return;
+      const selection = ++selectionVersion;
+      fetchVersion++;
+      // Invalidate the old fetch before waiting for storage or the new collection.
+      set({ activeCollectionId: id, folders: [], bookmarks: [], lastFetched: null, isLoading: false, error: null });
+      await writeStorage(accountKey(STORAGE_KEYS.ACTIVE_COLLECTION, session), id);
+      const cached = confirmed.get(collectionKey(id)) ?? await readCache(id, session);
+      if (!isCurrentSession(session) || selection !== selectionVersion) return;
+      confirmed.set(collectionKey(id), cached);
+      set({ lastFetched: cached.timestamp || null });
+      publish();
       await get().fetchMasterCollection(true);
     },
 
     fetchMasterCollection: async (force = false) => {
-      const { lastFetched, isLoading, activeCollectionId } = get();
-      if (!force && lastFetched && Date.now() - lastFetched < FETCH_THROTTLE_MS) return;
-      if (isLoading) return;
-
+      const session = getSession();
+      if (!session.userId || !get().hydrated) return;
+      const { lastFetched, activeCollectionId } = get();
+      if (!force && (get().isLoading || (lastFetched && Date.now() - lastFetched < FETCH_THROTTLE_MS))) return;
+      const request = ++fetchVersion;
+      const selection = selectionVersion;
+      const key = collectionKey(activeCollectionId);
       set({ isLoading: true, error: null });
+      await useSyncQueue.getState().replay();
+      if (!isCurrentSession(session) || request !== fetchVersion || selection !== selectionVersion) return;
+      const revision = revisions.get(key) ?? 0;
       const response = await api.getMasterCollection(activeCollectionId);
-
+      if (!isCurrentSession(session) || request !== fetchVersion || selection !== selectionVersion) return;
+      if (revision !== (revisions.get(key) ?? 0)) {
+        await get().fetchMasterCollection(true);
+        return;
+      }
       if (response.success && response.data) {
-        const overlaid = applyQueueOverlay(response.data.folders, response.data.bookmarks);
-        const timestamp = Date.now();
-        set({
-          folders: sortItems(overlaid.folders),
-          bookmarks: sortItems(overlaid.bookmarks),
-          isLoading: false,
-          lastFetched: timestamp,
-        });
-        void writeCache(activeCollectionId, {
-          folders: overlaid.folders,
-          bookmarks: overlaid.bookmarks,
-          timestamp,
-        });
-      } else {
-        set({
-          isLoading: false,
-          error: response.error?.message || 'Failed to load bookmarks',
-        });
-      }
+        const base = { folders: response.data.folders, bookmarks: response.data.bookmarks, timestamp: Date.now() };
+        confirmed.set(key, base);
+        publish();
+        set({ isLoading: false, lastFetched: base.timestamp });
+        void writeStorage(cacheKey(activeCollectionId, session), base).catch(() => {});
+      } else set({ isLoading: false, error: response.error?.message || 'Failed to load bookmarks' });
     },
 
-    getBookmarksInFolder: (masterParentId) =>
-      get().bookmarks.filter(b => (b.masterParentId ?? null) === masterParentId && b.status === 'active'),
+    getBookmarksInFolder: id => get().bookmarks.filter(b => (b.masterParentId ?? null) === resolveId(id) && b.status === 'active'),
+    getFoldersInFolder: id => get().folders.filter(f => (f.masterParentId ?? null) === resolveId(id) && f.status === 'active'),
+    getFolderById: id => get().folders.find(f => f.masterId === resolveId(id)),
+    getBookmarkById: id => get().bookmarks.find(b => b.masterId === resolveId(id)),
+    getActiveCollection: () => get().collections.find(c => get().activeCollectionId ? c.id === get().activeCollectionId : c.isDefault) ?? null,
+    isPending: id => id.startsWith(TEMP_PREFIX) && !aliases.has(id),
 
-    getFoldersInFolder: (masterParentId) =>
-      get().folders.filter(f => (f.masterParentId ?? null) === masterParentId && f.status === 'active'),
-
-    getFolderById: (masterId) => get().folders.find(f => f.masterId === masterId),
-    getBookmarkById: (masterId) => get().bookmarks.find(b => b.masterId === masterId),
-
-    getActiveCollection: () => {
-      const { collections, activeCollectionId } = get();
-      if (!activeCollectionId) return collections.find(c => c.isDefault) ?? null;
-      return collections.find(c => c.id === activeCollectionId) ?? null;
-    },
-
-    isPending: (masterId) => masterId.startsWith(TEMP_PREFIX),
-
-    addBookmark: async (url, title, masterParentId) => {
-      const tempMasterId = `${TEMP_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const optimistic: Bookmark = {
-        id: -1, masterId: tempMasterId, browserId: '', userId: '',
-        url, title: title || url, parentId: '', masterParentId,
-        position: 0, dateAdded: Date.now(), status: 'active',
-        syncVersion: 0, createdAt: Date.now(), updatedAt: Date.now(),
-      };
-      set(state => ({ bookmarks: sortItems([...state.bookmarks, optimistic]) }));
-      return runChange({
-        kind: 'createBookmark',
-        payload: { url, title, masterParentId },
-        collectionId: get().activeCollectionId,
-        tempMasterId,
-      });
-    },
-
-    updateBookmark: async (masterId, data) => {
-      set(state => ({
-        bookmarks: state.bookmarks.map(b =>
-          b.masterId === masterId
-            ? { ...b, title: data.title ?? b.title, url: data.url ?? b.url, masterParentId: data.masterParentId !== undefined ? data.masterParentId : b.masterParentId }
-            : b
-        ),
-      }));
-      return runChange({
-        kind: 'updateBookmark',
-        payload: { masterId, ...data },
-        collectionId: get().activeCollectionId,
-      });
-    },
-
-    deleteBookmark: async (masterId) => {
-      set(state => ({ bookmarks: state.bookmarks.filter(b => b.masterId !== masterId) }));
-      return runChange({
-        kind: 'deleteBookmark',
-        payload: { masterId },
-        collectionId: get().activeCollectionId,
-      });
-    },
-
-    createFolder: async (title, masterParentId) => {
-      const tempMasterId = `${TEMP_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const optimistic: Folder = {
-        id: -1, masterId: tempMasterId, browserId: '', userId: '', title,
-        parentId: null, masterParentId, position: 0, dateAdded: Date.now(),
-        status: 'active', syncVersion: 0, createdAt: Date.now(), updatedAt: Date.now(),
-      };
-      set(state => ({ folders: sortItems([...state.folders, optimistic]) }));
-      return runChange({
-        kind: 'createFolder',
-        payload: { title, masterParentId },
-        collectionId: get().activeCollectionId,
-        tempMasterId,
-      });
-    },
-
-    updateFolder: async (masterId, data) => {
-      set(state => ({
-        folders: state.folders.map(f =>
-          f.masterId === masterId
-            ? { ...f, title: data.title ?? f.title, masterParentId: data.masterParentId !== undefined ? data.masterParentId : f.masterParentId }
-            : f
-        ),
-      }));
-      return runChange({
-        kind: 'updateFolder',
-        payload: { masterId, ...data },
-        collectionId: get().activeCollectionId,
-      });
-    },
-
-    deleteFolder: async (masterId) => {
-      set(state => {
-        const doomed = descendantIds(masterId, state.folders);
-        return {
-          folders: state.folders.filter(f => !doomed.has(f.masterId)),
-          bookmarks: state.bookmarks.filter(b => !(b.masterParentId && doomed.has(b.masterParentId))),
-        };
-      });
-      return runChange({
-        kind: 'deleteFolder',
-        payload: { masterId },
-        collectionId: get().activeCollectionId,
-      });
-    },
-
-    createCollection: async (name, description) => {
-      const response = await api.createCollection(name, description);
-      if (response.success) {
-        await get().fetchCollections();
-        return { success: true };
-      }
-      return { success: false, error: response.error?.message || 'Failed to create collection' };
-    },
-
-    renameCollection: async (collectionId, name, description) => {
-      const response = await api.updateCollection(collectionId, { name, description });
-      if (response.success) {
-        await get().fetchCollections();
-        return { success: true };
-      }
-      return { success: false, error: response.error?.message || 'Failed to rename collection' };
-    },
-
-    archiveCollection: async (collectionId) => {
-      const response = await api.archiveCollection(collectionId);
-      if (response.success) {
-        if (get().activeCollectionId === collectionId) await get().setActiveCollection(null);
-        await get().fetchCollections();
-        return { success: true };
-      }
-      return { success: false, error: response.error?.message || 'Failed to archive collection' };
-    },
-
-    deleteCollection: async (collectionId) => {
-      const response = await api.deleteCollection(collectionId);
-      if (response.success) {
-        if (get().activeCollectionId === collectionId) await get().setActiveCollection(null);
-        await get().fetchCollections();
-        return { success: true };
-      }
-      return { success: false, error: response.error?.message || 'Failed to delete collection' };
-    },
+    addBookmark: (url, title, masterParentId) => runChange({
+      kind: 'createBookmark', payload: { url, title, masterParentId: resolveId(masterParentId) },
+      collectionId: get().activeCollectionId,
+      tempMasterId: `${TEMP_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    }),
+    createFolder: (title, masterParentId) => runChange({
+      kind: 'createFolder', payload: { title, masterParentId: resolveId(masterParentId) },
+      collectionId: get().activeCollectionId,
+      tempMasterId: `${TEMP_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    }),
+    updateBookmark: (masterId, data) => runChange({
+      kind: 'updateBookmark',
+      payload: { ...data, masterId: resolveId(masterId),
+        ...(data.masterParentId !== undefined ? { masterParentId: resolveId(data.masterParentId) } : {}) },
+      collectionId: get().activeCollectionId,
+    }),
+    updateFolder: (masterId, data) => runChange({
+      kind: 'updateFolder',
+      payload: { ...data, masterId: resolveId(masterId),
+        ...(data.masterParentId !== undefined ? { masterParentId: resolveId(data.masterParentId) } : {}) },
+      collectionId: get().activeCollectionId,
+    }),
+    deleteBookmark: masterId => runChange({
+      kind: 'deleteBookmark', payload: { masterId: resolveId(masterId) }, collectionId: get().activeCollectionId,
+    }),
+    deleteFolder: masterId => runChange({
+      kind: 'deleteFolder', payload: { masterId: resolveId(masterId) }, collectionId: get().activeCollectionId,
+    }),
+    createCollection: (name, description) => collectionMutation(() => api.createCollection(name, description)),
+    renameCollection: (id, name, description) => collectionMutation(() => api.updateCollection(id, { name, description })),
+    archiveCollection: id => collectionMutation(() => api.archiveCollection(id), id),
+    deleteCollection: id => collectionMutation(() => api.deleteCollection(id), id),
   };
 });
