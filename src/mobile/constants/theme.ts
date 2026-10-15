@@ -1,4 +1,10 @@
-export const colors = {
+/**
+ * BookMarx mobile palette — a straight port of the website design system.
+ * Dark is the default, matching the site's dark theme in globals.css:
+ * ink #1A1A1A pages, #242424 surfaces, cream text, terra/sage accents.
+ * The light palette is retained for a future theme toggle.
+ */
+export const lightColors = {
   cream: '#FBF8F3',
   creamDeep: '#F5F0E8',
   surface: '#FFFFFF',
@@ -26,7 +32,50 @@ export const colors = {
 
   border: '#E8E4DE',
   borderLight: '#F0ECE5',
+
+  scrim: 'rgba(26,26,26,0.45)',
+  brandTile: '#1A1A1A',
+  brandGlyph: '#FBF8F3',
 } as const;
+
+export const darkColors = {
+  cream: '#1A1A1A',
+  creamDeep: '#1E1E1E',
+  surface: '#242424',
+
+  ink: '#FBF8F3',
+  inkSoft: 'rgba(255,255,255,0.72)',
+  inkMuted: 'rgba(255,255,255,0.55)',
+  inkFaint: 'rgba(255,255,255,0.4)',
+
+  terra: '#D4634A',
+  terraDark: '#E8795C',
+  terraLight: '#E8795C',
+  terraTint: 'rgba(212,99,74,0.25)',
+  terraWash: 'rgba(212,99,74,0.12)',
+
+  sage: '#8BA88B',
+  sageTint: 'rgba(90,122,90,0.22)',
+
+  amber: '#D4A036',
+  amberTint: 'rgba(212,160,54,0.16)',
+  amberText: '#E8B558',
+
+  danger: '#E0655A',
+  dangerTint: 'rgba(224,101,90,0.16)',
+
+  border: 'rgba(255,255,255,0.12)',
+  borderLight: 'rgba(255,255,255,0.07)',
+
+  scrim: 'rgba(0,0,0,0.65)',
+  brandTile: '#FBF8F3',
+  brandGlyph: '#1A1A1A',
+} as const;
+
+export type Palette = typeof darkColors;
+
+/** Active palette. Dark is the app default; swap to lightColors when a toggle lands. */
+export const colors: Palette = darkColors;
 
 export const fonts = {
   display: 'Fraunces_600SemiBold',
@@ -58,18 +107,18 @@ export const radius = {
 
 export const shadow = {
   card: {
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 3,
   },
   lifted: {
-    shadowColor: '#1A1A1A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    elevation: 5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.45,
+    shadowRadius: 28,
+    elevation: 6,
   },
   fab: {
     shadowColor: '#B84A33',
@@ -82,8 +131,8 @@ export const shadow = {
   glow: {
     shadowColor: '#D4634A',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32,
-    shadowRadius: 15,
+    shadowOpacity: 0.38,
+    shadowRadius: 16,
     elevation: 6,
   },
 } as const;

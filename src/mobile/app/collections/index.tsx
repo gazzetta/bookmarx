@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26,26,26,0.45)',
+    backgroundColor: colors.scrim,
     justifyContent: 'center',
     padding: spacing.xl,
   },

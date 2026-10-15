@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
   },
   pickerBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26,26,26,0.45)',
+    backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
   pickerSheet: {

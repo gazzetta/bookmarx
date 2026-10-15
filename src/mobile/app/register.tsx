@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
 import { destinationFor } from '../services/access';
 import { Atmosphere } from '../components/Atmosphere';
-import { Card, Field, LogoMark, PrimaryButton, Reveal, Wordmark } from '../components/ui';
+import { Card, Field, PrimaryButton, Reveal, Wordmark } from '../components/ui';
 import { colors, fonts, spacing, type as ty } from '../constants/theme';
 
 export default function RegisterScreen() {
@@ -42,11 +42,9 @@ export default function RegisterScreen() {
       >
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Reveal style={styles.hero}>
-            <LogoMark size={56} />
-            <View style={styles.heroWordmark}>
-              <Wordmark size={44} />
-            </View>
-            <Text style={styles.tagline}>Your library starts here.</Text>
+            <Wordmark size={40} />
+            <Text style={styles.heroTitle}>Create your account</Text>
+            <Text style={styles.heroSub}>Sync your bookmarks across every device</Text>
           </Reveal>
 
           <Reveal delay={140}>
@@ -107,12 +105,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xxxl,
   },
-  heroWordmark: {
-    marginTop: spacing.lg,
+  heroTitle: {
+    fontFamily: fonts.displayBold,
+    fontSize: 30,
+    letterSpacing: -0.6,
+    color: colors.ink,
+    marginTop: spacing.xxl,
   },
-  tagline: {
-    ...ty.accent,
-    fontSize: 17,
+  heroSub: {
+    ...ty.small,
+    color: colors.inkMuted,
     marginTop: spacing.sm,
   },
   card: {

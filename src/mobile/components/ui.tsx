@@ -50,7 +50,11 @@ export function Reveal({
   );
 }
 
-/** The website's nav glyph: a stroked bookmark on a rounded ink tile. */
+/**
+ * The website's nav glyph, ported exactly: a stroked bookmark on a rounded
+ * tile. Dark mode inverts it (cream tile, ink glyph) like `dark:bg-cream-100`
+ * on the site.
+ */
 export function LogoMark({ size = 36 }: { size?: number }) {
   const glyph = size * 0.56;
   return (
@@ -58,7 +62,7 @@ export function LogoMark({ size = 36 }: { size?: number }) {
       <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
         <Path
           d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
-          stroke={colors.cream}
+          stroke={colors.brandGlyph}
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -262,25 +266,15 @@ export function EmptyState({
 }
 
 /**
- * Brand lockup. `mark` renders the website's nav treatment — ink tile glyph
- * beside a semibold Outfit wordmark. Without it, the hero treatment: the
- * Fraunces wordmark with the italic terra "Marx".
+ * The site's brand lockup, ported exactly: the tile glyph beside "BookMarx"
+ * in Outfit semibold with tight tracking — the same treatment used in the
+ * website nav and auth pages. `size` is the tile edge in px.
  */
-export function Wordmark({ size = 34, mark = false }: { size?: number; mark?: boolean }) {
-  if (mark) {
-    const markSize = Math.round(size * 0.92);
-    return (
-      <View style={styles.wordmarkRow}>
-        <LogoMark size={markSize} />
-        <Text style={[styles.wordmarkInline, { fontSize: size * 0.62 }]}>BookMarx</Text>
-      </View>
-    );
-  }
+export function Wordmark({ size = 40 }: { size?: number }) {
   return (
-    <View style={styles.wordmark}>
-      <Text style={[styles.wordmarkText, { fontSize: size }]}>
-        Book<Text style={styles.wordmarkAccent}>Marx</Text>
-      </Text>
+    <View style={styles.wordmarkRow}>
+      <LogoMark size={size} />
+      <Text style={[styles.wordmarkText, { fontSize: Math.round(size * 0.52) }]}>BookMarx</Text>
     </View>
   );
 }
@@ -400,19 +394,16 @@ const styles = StyleSheet.create({
   emptyTitle: { ...ty.heading, marginBottom: spacing.xs },
   emptyHint: { ...ty.small, color: colors.inkMuted, textAlign: 'center', maxWidth: 260, lineHeight: 20 },
   logoMark: {
-    backgroundColor: colors.ink,
+    backgroundColor: colors.brandTile,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  wordmark: { alignItems: 'center' },
-  wordmarkText: { fontFamily: fonts.display, letterSpacing: -1, color: colors.ink },
-  wordmarkAccent: { fontFamily: fonts.displayItalic, color: colors.terra },
   wordmarkRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  wordmarkInline: {
+  wordmarkText: {
     fontFamily: fonts.semibold,
     letterSpacing: -0.5,
     color: colors.ink,

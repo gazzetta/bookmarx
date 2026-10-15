@@ -6,13 +6,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "bookmarx",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FBF8F3"
+      "backgroundColor": "#1A1A1A"
     },
     "ios": {
       "supportsTablet": true,

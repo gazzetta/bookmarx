@@ -49,11 +49,11 @@ const tones: Record<'offline' | 'syncing' | 'dropped', { box: ViewStyle; fg: str
     fg: colors.inkSoft,
   },
   syncing: {
-    box: { backgroundColor: colors.amberTint, borderColor: '#F3E3B3' },
+    box: { backgroundColor: colors.amberTint, borderColor: colors.amber },
     fg: colors.amberText,
   },
   dropped: {
-    box: { backgroundColor: colors.dangerTint, borderColor: '#F3D4CE' },
+    box: { backgroundColor: colors.dangerTint, borderColor: colors.danger },
     fg: colors.danger,
   },
 };

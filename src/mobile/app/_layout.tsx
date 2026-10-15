@@ -84,7 +84,7 @@ export default function RootLayout() {
     >
       <ShareIntentWatcher />
       <AccessGate />
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: colors.cream },

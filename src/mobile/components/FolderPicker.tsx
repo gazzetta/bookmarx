@@ -103,7 +103,7 @@ export function FolderPicker({ visible, folders, selectedId, excludeId, onSelect
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(26,26,26,0.45)',
+    backgroundColor: colors.scrim,
     justifyContent: 'flex-end',
   },
   sheet: {

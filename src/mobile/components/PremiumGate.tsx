@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(251, 248, 243, 0.8)',
+    backgroundColor: colors.scrim,
   },
   gateContent: {
     flex: 1,

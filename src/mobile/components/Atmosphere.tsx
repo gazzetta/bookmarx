@@ -8,10 +8,11 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
  * from the bottom-left — the same radial washes used by .hero-section on the
  * site. Rendered once, absolutely positioned, and never interactive.
  * `subtle` halves the glow for content-dense screens.
+ * Intensities match the site's dark hero washes (terra .1 / sage .06).
  */
 export function Atmosphere({ subtle = false }: { subtle?: boolean }) {
-  const terraPeak = subtle ? 0.045 : 0.075;
-  const sagePeak = subtle ? 0.03 : 0.05;
+  const terraPeak = subtle ? 0.05 : 0.1;
+  const sagePeak = subtle ? 0.035 : 0.06;
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       <Defs>
