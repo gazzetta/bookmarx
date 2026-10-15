@@ -68,7 +68,8 @@
             "./node_modules/@expo-google-fonts/fraunces/600SemiBold/Fraunces_600SemiBold.ttf",
             "./node_modules/@expo-google-fonts/fraunces/700Bold/Fraunces_700Bold.ttf",
             "./node_modules/@expo-google-fonts/fraunces/900Black/Fraunces_900Black.ttf",
-            "./node_modules/@expo-google-fonts/fraunces/500Medium_Italic/Fraunces_500Medium_Italic.ttf"
+            "./node_modules/@expo-google-fonts/fraunces/500Medium_Italic/Fraunces_500Medium_Italic.ttf",
+            "./assets/fonts/ionicons.ttf"
           ]
         }
       ],

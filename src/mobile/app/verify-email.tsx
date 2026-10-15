@@ -129,7 +129,9 @@ export default function VerifyEmailScreen() {
             {emailDeliveryFailed
               ? 'Your account is saved, but the confirmation email could not be sent. Request another below.'
               : <>
-                  Your account is saved. Confirm <Text style={styles.email}>{user?.email ?? 'your email address'}</Text> before opening your bookmark library.
+                  Your account is saved. Confirm{'\n'}
+                  <Text style={styles.email}>{user?.email ?? 'your email address'}</Text>
+                  {'\n'}before opening your bookmark library.
                 </>
             }
           </Text>
