@@ -8,11 +8,13 @@ import {
   Outfit_500Medium,
   Outfit_600SemiBold,
   Outfit_700Bold,
+  Outfit_900Black,
 } from '@expo-google-fonts/outfit';
 import {
   Fraunces_500Medium_Italic,
   Fraunces_600SemiBold,
   Fraunces_700Bold,
+  Fraunces_900Black,
 } from '@expo-google-fonts/fraunces';
 import NetInfo from '@react-native-community/netinfo';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
@@ -43,9 +45,11 @@ export default function RootLayout() {
     Outfit_500Medium,
     Outfit_600SemiBold,
     Outfit_700Bold,
+    Outfit_900Black,
     Fraunces_500Medium_Italic,
     Fraunces_600SemiBold,
     Fraunces_700Bold,
+    Fraunces_900Black,
   });
 
   useEffect(() => {

@@ -298,6 +298,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...ty.heading,
+    fontFamily: fonts.displayBlack,
     marginBottom: spacing.lg,
   },
   modalField: {

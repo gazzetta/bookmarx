@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   },
   sessionType: {
     ...ty.bodyMedium,
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.black,
     textTransform: 'capitalize',
   },
   sessionMeta: {

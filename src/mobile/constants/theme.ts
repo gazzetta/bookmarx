@@ -80,11 +80,13 @@ export const colors: Palette = darkColors;
 export const fonts = {
   display: 'Fraunces_600SemiBold',
   displayBold: 'Fraunces_700Bold',
+  displayBlack: 'Fraunces_900Black',
   displayItalic: 'Fraunces_500Medium_Italic',
   body: 'Outfit_400Regular',
   medium: 'Outfit_500Medium',
   semibold: 'Outfit_600SemiBold',
   bold: 'Outfit_700Bold',
+  black: 'Outfit_900Black',
 } as const;
 
 export const spacing = {
@@ -138,15 +140,25 @@ export const shadow = {
 } as const;
 
 export const type = {
-  hero: { fontFamily: fonts.displayBold, fontSize: 34, letterSpacing: -0.8, color: colors.ink },
+  hero: { fontFamily: fonts.displayBlack, fontSize: 34, letterSpacing: -0.8, color: colors.ink },
   title: { fontFamily: fonts.display, fontSize: 24, letterSpacing: -0.5, color: colors.ink },
   heading: { fontFamily: fonts.display, fontSize: 19, letterSpacing: -0.3, color: colors.ink },
+  /** Matches the site's `font-black uppercase tracking-[0.2em]` labels. */
   eyebrow: {
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.black,
     fontSize: 11,
     letterSpacing: 1.6,
     textTransform: 'uppercase' as const,
     color: colors.inkMuted,
+  },
+  /** Site stat numbers use Outfit 900 (`font-black` on divs). */
+  stat: { fontFamily: fonts.black, fontSize: 26, color: colors.ink },
+  /** Site `text-[10px] font-black uppercase` badges. */
+  badge: {
+    fontFamily: fonts.black,
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase' as const,
   },
   accent: { fontFamily: fonts.displayItalic, fontSize: 15, color: colors.terra },
   body: { fontFamily: fonts.body, fontSize: 15, color: colors.ink },

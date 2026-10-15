@@ -296,6 +296,7 @@ const styles = StyleSheet.create({
   },
   collectionName: {
     ...ty.heading,
+    fontFamily: fonts.displayBlack,
   },
   usageSection: {
     paddingHorizontal: spacing.lg,
@@ -363,6 +364,7 @@ const styles = StyleSheet.create({
   },
   pickerTitle: {
     ...ty.heading,
+    fontFamily: fonts.displayBlack,
     textAlign: 'center',
     marginTop: 2,
     marginBottom: spacing.md,

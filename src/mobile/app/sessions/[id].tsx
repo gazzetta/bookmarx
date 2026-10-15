@@ -299,6 +299,7 @@ const styles = StyleSheet.create({
   },
   sessionType: {
     ...ty.heading,
+    fontFamily: fonts.displayBlack,
     textTransform: 'capitalize',
     flex: 1,
     marginRight: spacing.sm,
@@ -309,9 +310,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   statusBadgeText: {
-    fontFamily: fonts.semibold,
-    fontSize: 11,
-    textTransform: 'capitalize',
+    ...ty.badge,
   },
   timestamp: {
     ...ty.caption,
@@ -332,12 +331,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderLight,
   },
   statValue: {
-    fontFamily: fonts.display,
-    fontSize: 26,
-    color: colors.ink,
+    ...ty.stat,
   },
   statLabel: {
-    ...ty.caption,
+    ...ty.badge,
+    color: colors.inkMuted,
     marginTop: 2,
   },
   section: {

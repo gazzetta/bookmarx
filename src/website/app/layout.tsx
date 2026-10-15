@@ -26,8 +26,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body className="font-sans antialiased bg-cream-100 dark:bg-[#1A1A1A] text-ink dark:text-cream-100 transition-colors duration-300">
+        <script dangerouslySetInnerHTML={{ __html: `try{var c=JSON.parse(localStorage.getItem('bookmarx-consent'));var ok=c&&c.version===1&&typeof c.savedAt==='number'&&c.savedAt<=Date.now()&&Date.now()-c.savedAt<15552000000&&c.preferences===true;if(ok&&localStorage.getItem('bookmarx-theme')==='light')document.documentElement.classList.remove('dark')}catch(e){}` }} />
         <ConfigProvider>
           <CookieConsentProvider>
             <ThemeProvider>
