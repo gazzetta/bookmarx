@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../services/api';
+import { Card, DangerButton, IconButton, SecondaryButton, SectionLabel } from '../../components/ui';
+import { colors, fonts, radius, shadow, spacing, type as ty } from '../../constants/theme';
 import type { Session } from '../../types';
 
 interface SessionItem {
@@ -13,10 +15,17 @@ interface SessionItem {
   action: string;
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  SUCCESS: colors.sage,
+  PARTIAL: colors.amber,
+  FAILED: colors.danger,
+  ROLLED_BACK: colors.inkMuted,
+};
+
 export default function SessionDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { isPremium } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [items, setItems] = useState<SessionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +38,7 @@ export default function SessionDetailScreen() {
 
   const fetchSessionDetails = async () => {
     if (!id) return;
-    
+
     const response = await api.getSessionDetails(parseInt(id));
     if (response.success && response.data) {
       setSession(response.data.session);
@@ -42,7 +51,7 @@ export default function SessionDetailScreen() {
     if (!session) return;
 
     Alert.alert(
-      'Rollback Session',
+      'Rollback session',
       'This will undo all changes from this sync session. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -53,9 +62,9 @@ export default function SessionDetailScreen() {
             setIsRollingBack(true);
             const response = await api.rollbackSession(session.id);
             setIsRollingBack(false);
-            
+
             if (response.success) {
-              Alert.alert('Success', `Rolled back ${response.data?.affectedItems || 0} items`);
+              Alert.alert('Done', `Rolled back ${response.data?.affectedItems || 0} items`);
               fetchSessionDetails();
             } else {
               Alert.alert('Error', response.error?.message || 'Failed to rollback');
@@ -70,7 +79,7 @@ export default function SessionDetailScreen() {
     if (!session) return;
 
     Alert.alert(
-      'Restore Session',
+      'Restore session',
       'This will re-apply the changes from this rolled-back session. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -80,9 +89,9 @@ export default function SessionDetailScreen() {
             setIsRestoring(true);
             const response = await api.restoreSession(session.id);
             setIsRestoring(false);
-            
+
             if (response.success) {
-              Alert.alert('Success', `Restored ${response.data?.affectedItems || 0} items`);
+              Alert.alert('Done', `Restored ${response.data?.affectedItems || 0} items`);
               fetchSessionDetails();
             } else {
               Alert.alert('Error', response.error?.message || 'Failed to restore');
@@ -91,21 +100,6 @@ export default function SessionDetailScreen() {
         },
       ]
     );
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'SUCCESS':
-        return '#10B981';
-      case 'PARTIAL':
-        return '#F59E0B';
-      case 'FAILED':
-        return '#EF4444';
-      case 'ROLLED_BACK':
-        return '#8B5CF6';
-      default:
-        return '#6B7280';
-    }
   };
 
   const getActionIcon = (action: string) => {
@@ -123,6 +117,17 @@ export default function SessionDetailScreen() {
     }
   };
 
+  const getActionColor = (action: string) => {
+    switch (action) {
+      case 'CREATE':
+        return colors.sage;
+      case 'DELETE':
+        return colors.danger;
+      default:
+        return colors.inkSoft;
+    }
+  };
+
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleString('en-US', {
       weekday: 'short',
@@ -137,7 +142,7 @@ export default function SessionDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.terra} />
       </View>
     );
   }
@@ -145,122 +150,99 @@ export default function SessionDetailScreen() {
   if (!session) {
     return (
       <View style={styles.centered}>
-        <Text>Session not found</Text>
+        <Text style={styles.missing}>Session not found</Text>
       </View>
     );
   }
 
+  const statusColor = STATUS_COLORS[session.status] ?? colors.inkMuted;
   const isRolledBack = session.status === 'ROLLED_BACK';
   const canRollback = session.status === 'SUCCESS' || session.status === 'PARTIAL';
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Session Details</Text>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <IconButton name="arrow-back" onPress={() => router.back()} />
+        <Text style={styles.headerTitle}>Session details</Text>
+        <View style={{ width: 38 }} />
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.card}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <Card style={styles.summaryCard}>
           <View style={styles.cardHeader}>
-            <Text style={styles.sessionType}>{session.type.replace(/_/g, ' ')}</Text>
-            <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(session.status)}20` }]}>
-              <Text style={[styles.statusText, { color: getStatusColor(session.status) }]}>
-                {session.status}
+            <Text style={styles.sessionType}>{session.type.replace(/_/g, ' ').toLowerCase()}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: `${statusColor}1A` }]}>
+              <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+                {session.status.replace(/_/g, ' ').toLowerCase()}
               </Text>
             </View>
           </View>
-          
           <Text style={styles.timestamp}>{formatDate(session.timestamp)}</Text>
-          
+
           <View style={styles.stats}>
             <View style={styles.statItem}>
-              <Ionicons name="bookmark" size={20} color="#3B82F6" />
               <Text style={styles.statValue}>{session.bookmarksProcessed}</Text>
               <Text style={styles.statLabel}>Bookmarks</Text>
             </View>
+            <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Ionicons name="folder" size={20} color="#F59E0B" />
               <Text style={styles.statValue}>{session.foldersProcessed}</Text>
               <Text style={styles.statLabel}>Folders</Text>
             </View>
+            <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Ionicons name="git-commit" size={20} color="#8B5CF6" />
               <Text style={styles.statValue}>{session.changesCount}</Text>
               <Text style={styles.statLabel}>Changes</Text>
             </View>
           </View>
-        </View>
+        </Card>
 
         {items.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Changed Items</Text>
-            {items.map((item, index) => (
-              <View key={index} style={styles.itemRow}>
-                <Ionicons 
-                  name={getActionIcon(item.action)} 
-                  size={18} 
-                  color={
-                    item.action === 'CREATE' ? '#10B981' :
-                    item.action === 'DELETE' ? '#EF4444' :
-                    '#3B82F6'
-                  } 
-                />
-                <View style={styles.itemInfo}>
-                  <Text style={styles.itemTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.itemMeta}>
-                    {item.type} • {item.action}
-                  </Text>
+            <SectionLabel>Changed items</SectionLabel>
+            <View style={styles.itemsCard}>
+              {items.map((item, index) => (
+                <View key={index} style={[styles.itemRow, index !== items.length - 1 && styles.itemRowBorder]}>
+                  <View style={[styles.actionTile, { backgroundColor: `${getActionColor(item.action)}1A` }]}>
+                    <Ionicons name={getActionIcon(item.action)} size={14} color={getActionColor(item.action)} />
+                  </View>
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.itemMeta}>
+                      {item.type.toLowerCase()} · {item.action.toLowerCase()}
+                    </Text>
+                  </View>
                 </View>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
         )}
 
         <View style={styles.actions}>
           {canRollback && (
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.rollbackButton]}
+            <DangerButton
+              label="Rollback session"
+              icon="arrow-undo"
               onPress={handleRollback}
-              disabled={isRollingBack}
-            >
-              {isRollingBack ? (
-                <ActivityIndicator color="#EF4444" />
-              ) : (
-                <>
-                  <Ionicons name="arrow-undo" size={20} color="#EF4444" />
-                  <Text style={styles.rollbackText}>Rollback Session</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              loading={isRollingBack}
+            />
           )}
-          
           {isRolledBack && (
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.restoreButton]}
+            <SecondaryButton
+              label="Restore session"
+              icon="arrow-redo"
               onPress={handleRestore}
-              disabled={isRestoring}
-            >
-              {isRestoring ? (
-                <ActivityIndicator color="#10B981" />
-              ) : (
-                <>
-                  <Ionicons name="arrow-redo" size={20} color="#10B981" />
-                  <Text style={styles.restoreText}>Restore Session</Text>
-                </>
-              )}
-            </TouchableOpacity>
+              loading={isRestoring}
+            />
           )}
         </View>
 
         <View style={styles.footer}>
-          <Ionicons name="information-circle" size={16} color="#9CA3AF" />
+          <Ionicons name="information-circle-outline" size={15} color={colors.inkFaint} />
           <Text style={styles.footerText}>
-            {canRollback 
+            {canRollback
               ? 'Rolling back will undo all changes made during this sync session.'
               : isRolledBack
               ? 'This session has been rolled back. You can restore it to re-apply the changes.'
@@ -275,156 +257,138 @@ export default function SessionDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.cream,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.cream,
+  },
+  missing: {
+    ...ty.body,
+    color: colors.inkMuted,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
-  backButton: {
-    marginRight: 12,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
+  headerTitle: {
+    ...ty.heading,
   },
   content: {
-    flex: 1,
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
   },
-  card: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 20,
-    borderRadius: 12,
+  summaryCard: {
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.xs,
   },
   sessionType: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
+    ...ty.heading,
     textTransform: 'capitalize',
+    flex: 1,
+    marginRight: spacing.sm,
   },
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: radius.pill,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
+  statusBadgeText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
     textTransform: 'capitalize',
   },
   timestamp: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 20,
+    ...ty.caption,
+    marginBottom: spacing.xl,
   },
   stats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
+    alignItems: 'center',
   },
   statItem: {
     alignItems: 'center',
+    flex: 1,
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: colors.borderLight,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginTop: 4,
+    fontFamily: fonts.display,
+    fontSize: 26,
+    color: colors.ink,
   },
   statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
+    ...ty.caption,
     marginTop: 2,
   },
   section: {
-    marginHorizontal: 16,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 12,
+  itemsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: 'hidden',
+    ...shadow.card,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  itemRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  actionTile: {
+    width: 28,
+    height: 28,
     borderRadius: 8,
-    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   itemInfo: {
     flex: 1,
-    marginLeft: 12,
   },
   itemTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
+    ...ty.smallMedium,
+    color: colors.ink,
   },
   itemMeta: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 2,
+    ...ty.caption,
+    marginTop: 1,
     textTransform: 'capitalize',
   },
   actions: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-  },
-  rollbackButton: {
-    backgroundColor: '#FEE2E2',
-  },
-  rollbackText: {
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  restoreButton: {
-    backgroundColor: '#D1FAE5',
-  },
-  restoreText: {
-    color: '#10B981',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    gap: spacing.md,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    padding: 16,
-    paddingBottom: 32,
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
   },
   footerText: {
     flex: 1,
-    fontSize: 13,
-    color: '#9CA3AF',
-    marginLeft: 8,
+    ...ty.caption,
     lineHeight: 18,
   },
 });

@@ -1,29 +1,104 @@
-import { Stack } from 'expo-router';
+import { useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import {
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from '@expo-google-fonts/outfit';
+import {
+  Fraunces_500Medium_Italic,
+  Fraunces_600SemiBold,
+} from '@expo-google-fonts/fraunces';
+import NetInfo from '@react-native-community/netinfo';
+import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
+import { useAuthStore } from '../store/authStore';
+import { useBookmarkStore } from '../store/bookmarkStore';
+import { useSyncQueue } from '../store/syncQueue';
+import { colors, fonts } from '../constants/theme';
+
+/** Routes to /share when an incoming share intent arrives. */
+function ShareIntentWatcher() {
+  const { hasShareIntent } = useShareIntentContext();
+  const router = useRouter();
+  useEffect(() => {
+    if (hasShareIntent) {
+      router.push('/share');
+    }
+  }, [hasShareIntent]);
+  return null;
+}
 
 export default function RootLayout() {
+  const router = useRouter();
+  const [fontsLoaded, fontError] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+    Fraunces_500Medium_Italic,
+    Fraunces_600SemiBold,
+  });
+
+  useEffect(() => {
+    void useAuthStore.getState().checkAuth();
+    void useBookmarkStore.getState().hydrate();
+
+    // Treat "unknown" connectivity as online — only definite disconnects pause sync.
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      useSyncQueue.getState().setOnline(state.isConnected !== false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  if (!fontsLoaded && !fontError) {
+    return <View style={styles.boot} />;
+  }
+
   return (
-    <>
-      <StatusBar style="auto" />
+    <ShareIntentProvider
+      options={{
+        resetOnBackground: true,
+        onResetShareIntent: () => router.replace({ pathname: '/' }),
+      }}
+    >
+      <ShareIntentWatcher />
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
-          headerStyle: {
-            backgroundColor: '#3B82F6',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+          headerStyle: { backgroundColor: colors.cream },
+          headerTintColor: colors.ink,
+          headerTitleStyle: { fontFamily: fonts.display, fontSize: 19 },
+          headerShadowVisible: false,
+          headerBackButtonDisplayMode: 'minimal',
         }}
       >
-        <Stack.Screen name="index" options={{ title: 'BookMarx' }} />
+        <Stack.Screen name="index" options={{ title: 'BookMarx', headerShown: false }} />
         <Stack.Screen name="login" options={{ title: 'Login', headerShown: false }} />
         <Stack.Screen name="register" options={{ title: 'Register', headerShown: false }} />
         <Stack.Screen name="folder/[id]" options={{ title: 'Folder' }} />
+        <Stack.Screen name="search" options={{ title: 'Search', presentation: 'modal' }} />
+        <Stack.Screen name="add-bookmark" options={{ title: 'Add Bookmark', presentation: 'modal' }} />
+        <Stack.Screen name="add-folder" options={{ title: 'New Folder', presentation: 'modal' }} />
+        <Stack.Screen name="edit-bookmark/[id]" options={{ title: 'Edit Bookmark', presentation: 'modal' }} />
+        <Stack.Screen name="edit-folder/[id]" options={{ title: 'Edit Folder', presentation: 'modal' }} />
+        <Stack.Screen name="share" options={{ title: 'Save to BookMarx', presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        <Stack.Screen name="collections/index" options={{ title: 'Collections' }} />
         <Stack.Screen name="upgrade" options={{ title: 'Upgrade', headerShown: false }} />
         <Stack.Screen name="sessions/index" options={{ title: 'Sync History', headerShown: false }} />
         <Stack.Screen name="sessions/[id]" options={{ title: 'Session Details', headerShown: false }} />
       </Stack>
-    </>
+    </ShareIntentProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  boot: {
+    flex: 1,
+    backgroundColor: colors.cream,
+  },
+});

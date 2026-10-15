@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { colors, fonts, radius, spacing, type as ty } from '../constants/theme';
+import { PrimaryButton, Pill } from './ui';
 
 interface PremiumGateProps {
   /** Whether the user has premium access */
@@ -20,12 +22,12 @@ interface PremiumGateProps {
  * Component that gates premium features
  * Shows an upgrade prompt for free users, renders children for premium users
  */
-export function PremiumGate({ 
-  isPremium, 
-  featureName, 
-  children, 
+export function PremiumGate({
+  isPremium,
+  featureName,
+  children,
   preview,
-  customMessage 
+  customMessage
 }: PremiumGateProps) {
   const router = useRouter();
 
@@ -43,23 +45,21 @@ export function PremiumGate({
           <View style={styles.overlay} />
         </View>
       )}
-      
+
       <View style={styles.gateContent}>
         <View style={styles.iconContainer}>
-          <Ionicons name="lock-closed" size={48} color="#F59E0B" />
+          <Ionicons name="bookmark" size={30} color={colors.terra} />
         </View>
-        
-        <Text style={styles.title}>Premium Feature</Text>
+
+        <Text style={styles.title}>Premium feature</Text>
         <Text style={styles.message}>{message}</Text>
-        
-        <TouchableOpacity
-          style={styles.upgradeButton}
+
+        <PrimaryButton
+          label="Upgrade to Premium"
+          icon="star"
           onPress={() => router.push('/upgrade')}
-        >
-          <Ionicons name="star" size={20} color="#fff" />
-          <Text style={styles.upgradeButtonText}>Upgrade to Premium</Text>
-        </TouchableOpacity>
-        
+        />
+
         <TouchableOpacity
           style={styles.learnMoreButton}
           onPress={() => router.push('/upgrade')}
@@ -80,38 +80,9 @@ interface PremiumBadgeProps {
  * Badge component to display user's subscription tier
  */
 export function PremiumBadge({ tier, size = 'medium' }: PremiumBadgeProps) {
-  const sizes = {
-    small: { fontSize: 10, paddingH: 6, paddingV: 2 },
-    medium: { fontSize: 12, paddingH: 8, paddingV: 4 },
-    large: { fontSize: 14, paddingH: 12, paddingV: 6 },
-  };
-
-  const colors = {
-    free: { bg: '#E5E7EB', text: '#6B7280' },
-    premium: { bg: '#FEF3C7', text: '#D97706' },
-    lifetime: { bg: '#DBEAFE', text: '#2563EB' },
-  };
-
-  const config = sizes[size];
-  const color = colors[tier];
-
-  return (
-    <View style={[
-      styles.badge,
-      { 
-        backgroundColor: color.bg,
-        paddingHorizontal: config.paddingH,
-        paddingVertical: config.paddingV,
-      }
-    ]}>
-      {tier !== 'free' && (
-        <Ionicons name="star" size={config.fontSize} color={color.text} style={{ marginRight: 4 }} />
-      )}
-      <Text style={[styles.badgeText, { fontSize: config.fontSize, color: color.text }]}>
-        {tier === 'lifetime' ? 'Lifetime' : tier === 'premium' ? 'Premium' : 'Free'}
-      </Text>
-    </View>
-  );
+  const label = tier === 'lifetime' ? 'Lifetime' : tier === 'premium' ? 'Premium' : 'Free';
+  const tone = tier === 'free' ? 'neutral' : 'premium';
+  return <Pill label={label} tone={tone} />;
 }
 
 interface PremiumFeatureListProps {
@@ -123,28 +94,28 @@ interface PremiumFeatureListProps {
  */
 export function PremiumFeatureList({ currentTier }: PremiumFeatureListProps) {
   const isPremium = currentTier !== 'free';
-  
+
   const features = [
-    { name: 'Unlimited Bookmarks', free: false, premium: true },
-    { name: 'Unlimited Browsers', free: false, premium: true },
-    { name: 'Sync History (30 days)', free: false, premium: true },
-    { name: 'Rollback Changes', free: false, premium: true },
-    { name: 'Multiple Collections', free: false, premium: true },
-    { name: 'Web Editor', free: false, premium: true },
-    { name: 'Priority Support', free: false, premium: true },
-    { name: 'Basic Sync', free: true, premium: true },
-    { name: 'Mobile App', free: true, premium: true },
+    { name: 'Unlimited bookmarks', free: false, premium: true },
+    { name: 'Unlimited browsers', free: false, premium: true },
+    { name: 'Sync history (30 days)', free: false, premium: true },
+    { name: 'Rollback changes', free: false, premium: true },
+    { name: 'Multiple collections', free: false, premium: true },
+    { name: 'Web editor', free: false, premium: true },
+    { name: 'Priority support', free: false, premium: true },
+    { name: 'Basic sync', free: true, premium: true },
+    { name: 'Mobile app', free: true, premium: true },
   ];
 
   return (
     <View style={styles.featureList}>
       {features.map((feature, index) => (
-        <View key={index} style={styles.featureRow}>
+        <View key={index} style={[styles.featureRow, index === features.length - 1 && styles.featureRowLast]}>
           <View style={styles.featureIcon}>
-            <Ionicons 
-              name={feature.premium ? 'checkmark-circle' : 'close-circle'} 
-              size={20} 
-              color={feature.premium ? '#10B981' : '#EF4444'} 
+            <Ionicons
+              name={feature.free || feature.premium ? 'checkmark-circle' : 'close-circle'}
+              size={18}
+              color={feature.free || feature.premium ? colors.sage : colors.inkFaint}
             />
           </View>
           <Text style={[
@@ -154,9 +125,7 @@ export function PremiumFeatureList({ currentTier }: PremiumFeatureListProps) {
             {feature.name}
           </Text>
           {!feature.free && (
-            <View style={styles.premiumTag}>
-              <Ionicons name="star" size={12} color="#F59E0B" />
-            </View>
+            <Ionicons name="star" size={11} color={colors.amber} />
           )}
         </View>
       ))}
@@ -192,21 +161,21 @@ export function UsageLimitBar({ current, max, label, isPremium }: UsageLimitBarP
           {current} {max ? `/ ${max}` : '(unlimited)'}
         </Text>
       </View>
-      
-      {max && (
+
+      {max != null && (
         <View style={styles.progressBar}>
-          <View 
+          <View
             style={[
               styles.progressFill,
               { width: `${percentage}%` },
               isAtLimit && styles.progressFillDanger,
               isNearLimit && !isAtLimit && styles.progressFillWarning,
-            ]} 
+            ]}
           />
         </View>
       )}
-      
-      {!isPremium && max && (
+
+      {!isPremium && max != null && (
         <Text style={styles.upgradeHint}>
           Upgrade to Premium for unlimited {label.toLowerCase()}
         </Text>
@@ -218,144 +187,125 @@ export function UsageLimitBar({ current, max, label, isPremium }: UsageLimitBarP
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.cream,
   },
   previewContainer: {
     position: 'relative',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(251, 248, 243, 0.8)',
   },
   gateContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.xxl,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FEF3C7',
+    width: 76,
+    height: 76,
+    borderRadius: radius.pill,
+    backgroundColor: colors.terraWash,
+    borderWidth: 1,
+    borderColor: colors.terraTint,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 8,
+    ...ty.title,
+    marginBottom: spacing.sm,
   },
   message: {
-    fontSize: 16,
-    color: '#6B7280',
+    ...ty.small,
+    color: colors.inkMuted,
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
-  },
-  upgradeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F59E0B',
-    paddingHorizontal: 24,
-    paddingVertical: 14,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  upgradeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    marginBottom: spacing.xxl,
+    lineHeight: 22,
+    maxWidth: 280,
   },
   learnMoreButton: {
-    padding: 12,
+    padding: spacing.md,
+    marginTop: spacing.sm,
   },
   learnMoreText: {
-    color: '#3B82F6',
-    fontSize: 14,
-  },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-  },
-  badgeText: {
-    fontWeight: '600',
+    ...ty.smallMedium,
+    color: colors.terra,
   },
   featureList: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    paddingHorizontal: spacing.lg,
   },
   featureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.borderLight,
+    gap: spacing.md,
   },
-  featureIcon: {
-    marginRight: 12,
+  featureRowLast: {
+    borderBottomWidth: 0,
   },
+  featureIcon: {},
   featureText: {
     flex: 1,
-    fontSize: 15,
-    color: '#374151',
+    ...ty.body,
   },
   featureTextLocked: {
-    color: '#9CA3AF',
-  },
-  premiumTag: {
-    marginLeft: 8,
+    color: colors.inkFaint,
   },
   usageContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   usageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'baseline',
+    marginBottom: spacing.sm,
   },
   usageLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
+    ...ty.smallMedium,
+    color: colors.inkSoft,
   },
   usageCount: {
-    fontSize: 14,
-    color: '#6B7280',
+    ...ty.captionMedium,
+    fontFamily: fonts.semibold,
   },
   usageCountWarning: {
-    color: '#F59E0B',
+    color: colors.amber,
   },
   usageCountDanger: {
-    color: '#EF4444',
+    color: colors.danger,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: colors.creamDeep,
+    borderRadius: radius.pill,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3B82F6',
-    borderRadius: 4,
+    backgroundColor: colors.terra,
+    borderRadius: radius.pill,
   },
   progressFillWarning: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: colors.amber,
   },
   progressFillDanger: {
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.danger,
   },
   upgradeHint: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 8,
+    ...ty.caption,
+    marginTop: spacing.sm,
   },
 });

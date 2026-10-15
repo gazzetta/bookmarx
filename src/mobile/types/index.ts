@@ -40,6 +40,7 @@ export interface Folder {
   title: string;
   parentId: string | null;
   masterParentId: string | null;
+  rootKind?: 'bar' | 'other' | 'mobile' | 'menu' | 'imported' | 'unsorted' | null;
   position: number;
   dateAdded: number;
   status: 'active' | 'deleted';
@@ -60,6 +61,7 @@ export interface ApiResponse<T> {
   error?: {
     message: string;
     details?: string;
+    code?: string;
   };
 }
 
@@ -109,6 +111,33 @@ export interface Collection {
   name: string;
   description: string | null;
   isDefault: boolean;
+  archivedAt?: number | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface AppConfig {
+  branding: { appName: string; premiumTitle: string };
+  pricing: { monthly: number; yearly: number; lifetime: number; currency: string };
+  limits: {
+    free: { bookmarks: number; browsers: number; collections: number };
+    premium: { bookmarks: number; browsers: number; collections: number };
+  };
+  abusePrevention: { browserRegistrationRateLimit: number; browserRegistrationRatePeriodDays: number };
+  features: { syncEnabled: boolean; registrationsEnabled: boolean };
+}
+
+/** A sync mutation buffered while offline, replayed on reconnect. */
+export interface QueuedChange {
+  queueId: string;
+  kind: 'createBookmark' | 'updateBookmark' | 'deleteBookmark' | 'createFolder' | 'updateFolder' | 'deleteFolder';
+  payload: Record<string, unknown>;
+  collectionId: string | null;
+  queuedAt: number;
+  /** Optimistic temp id shown in UI until the server confirms. */
+  tempMasterId?: string;
+}
+
+export type Result<T = undefined> =
+  | { success: true; data?: T }
+  | { success: false; error?: string };

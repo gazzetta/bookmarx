@@ -1,14 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../services/api';
 import { PremiumGate } from '../../components/PremiumGate';
+import { EmptyState, IconButton } from '../../components/ui';
+import { colors, fonts, radius, shadow, spacing, type as ty } from '../../constants/theme';
 import type { Session } from '../../types';
+
+const STATUS_COLORS: Record<string, string> = {
+  SUCCESS: colors.sage,
+  PARTIAL: colors.amber,
+  FAILED: colors.danger,
+  ROLLED_BACK: colors.inkMuted,
+};
 
 export default function SessionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { isPremium } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,21 +60,6 @@ export default function SessionsScreen() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'SUCCESS':
-        return '#10B981';
-      case 'PARTIAL':
-        return '#F59E0B';
-      case 'FAILED':
-        return '#EF4444';
-      case 'ROLLED_BACK':
-        return '#8B5CF6';
-      default:
-        return '#6B7280';
-    }
-  };
-
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString('en-US', {
@@ -74,81 +70,77 @@ export default function SessionsScreen() {
     });
   };
 
-  const renderSession = ({ item }: { item: Session }) => (
-    <TouchableOpacity
-      style={styles.sessionCard}
-      onPress={() => router.push(`/sessions/${item.id}`)}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: `${getStatusColor(item.status)}20` }]}>
-        <Ionicons 
-          name={getSessionIcon(item.type)} 
-          size={24} 
-          color={getStatusColor(item.status)} 
-        />
-      </View>
-      
-      <View style={styles.sessionInfo}>
-        <Text style={styles.sessionType}>
-          {item.type.replace(/_/g, ' ')}
-        </Text>
-        <Text style={styles.sessionMeta}>
-          {item.bookmarksProcessed} bookmarks, {item.foldersProcessed} folders
-        </Text>
-        <Text style={styles.sessionDate}>{formatDate(item.timestamp)}</Text>
-      </View>
-      
-      <View style={styles.sessionStatus}>
-        <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
-        <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
-          {item.status}
-        </Text>
-      </View>
-      
-      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
-  );
+  const renderSession = ({ item, index }: { item: Session; index: number }) => {
+    const statusColor = STATUS_COLORS[item.status] ?? colors.inkMuted;
+    const isLast = index === sessions.length - 1;
+    return (
+      <TouchableOpacity
+        style={[styles.sessionRow, !isLast && styles.sessionRowBorder]}
+        onPress={() => router.push(`/sessions/${item.id}`)}
+        activeOpacity={0.7}
+      >
+        <View style={[styles.sessionTile, { backgroundColor: `${statusColor}1A` }]}>
+          <Ionicons name={getSessionIcon(item.type)} size={17} color={statusColor} />
+        </View>
+        <View style={styles.sessionInfo}>
+          <Text style={styles.sessionType}>
+            {item.type.replace(/_/g, ' ').toLowerCase()}
+          </Text>
+          <Text style={styles.sessionMeta}>
+            {item.bookmarksProcessed} bookmarks · {item.foldersProcessed} folders
+          </Text>
+          <Text style={styles.sessionDate}>{formatDate(item.timestamp)}</Text>
+        </View>
+        <View style={styles.sessionStatus}>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+          <Text style={[styles.statusText, { color: statusColor }]}>
+            {item.status.replace(/_/g, ' ').toLowerCase()}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.inkFaint} />
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Sync History</Text>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <IconButton name="arrow-back" onPress={() => router.back()} />
+        <Text style={styles.headerTitle}>Sync history</Text>
+        <View style={{ width: 38 }} />
       </View>
 
       <PremiumGate
         isPremium={isPremium}
         featureName="Sync History"
-        customMessage="View your sync history and roll back changes with Premium. Never lose your bookmarks again!"
+        customMessage="View your sync history and roll back changes with Premium — never lose your bookmarks again."
       >
         {isLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#3B82F6" />
+            <ActivityIndicator size="large" color={colors.terra} />
           </View>
         ) : (
-          <FlatList
-            data={sessions}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderSession}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={isRefreshing}
-                onRefresh={handleRefresh}
-                tintColor="#3B82F6"
-              />
-            }
-            ListEmptyComponent={
-              <View style={styles.empty}>
-                <Ionicons name="time-outline" size={48} color="#D1D5DB" />
-                <Text style={styles.emptyText}>No sync history yet</Text>
-                <Text style={styles.emptySubtext}>
-                  Sync history will appear here after you sync your bookmarks
-                </Text>
-              </View>
-            }
-          />
+          <View style={styles.listCard}>
+            <FlatList
+              data={sessions}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderSession}
+              refreshControl={
+                <RefreshControl
+                  refreshing={isRefreshing}
+                  onRefresh={handleRefresh}
+                  tintColor={colors.terra}
+                />
+              }
+              ListEmptyComponent={
+                <EmptyState
+                  icon="time-outline"
+                  title="No sync history yet"
+                  hint="Sync history appears here after your bookmarks sync."
+                />
+              }
+            />
+          </View>
         )}
       </PremiumGate>
     </View>
@@ -158,103 +150,85 @@ export default function SessionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.cream,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
   },
-  backButton: {
-    marginRight: 12,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
+  headerTitle: {
+    ...ty.heading,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  listContent: {
-    padding: 16,
+  listCard: {
+    flex: 1,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: 'hidden',
+    ...shadow.card,
   },
-  sessionCard: {
+  sessionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    paddingVertical: 13,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: colors.surface,
   },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
+  sessionRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  sessionTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: 'center',
-    marginRight: 12,
+    justifyContent: 'center',
   },
   sessionInfo: {
     flex: 1,
   },
   sessionType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    ...ty.bodyMedium,
+    fontFamily: fonts.semibold,
     textTransform: 'capitalize',
   },
   sessionMeta: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginTop: 2,
+    ...ty.caption,
+    marginTop: 1,
   },
   sessionDate: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
+    ...ty.caption,
+    color: colors.inkFaint,
+    marginTop: 2,
   },
   sessionStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 5,
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
+    fontSize: 11,
     textTransform: 'capitalize',
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 48,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 8,
-    maxWidth: 280,
   },
 });

@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
+import { Card, Field, PrimaryButton, Wordmark } from '../components/ui';
+import { colors, fonts, spacing, type as ty } from '../constants/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -13,7 +15,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     setError('');
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setError('Enter your email and password');
       return;
     }
 
@@ -26,52 +28,44 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.content}>
-        <Text style={styles.title}>BookMarx</Text>
-        <Text style={styles.subtitle}>Sign in to your account</Text>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.hero}>
+          <Wordmark size={44} />
+          <Text style={styles.tagline}>Every bookmark, in one place.</Text>
+        </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TouchableOpacity
-          style={[styles.button, isLoading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
+        <Card style={styles.card}>
+          <Field
+            label="Email"
+            placeholder="you@example.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Field
+            label="Password"
+            placeholder="Your password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            style={styles.field}
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <PrimaryButton label="Sign in" onPress={handleLogin} loading={isLoading} style={styles.submit} />
+        </Card>
 
         <Link href="/register" asChild>
-          <TouchableOpacity style={styles.linkButton}>
-            <Text style={styles.linkText}>Don't have an account? Sign up</Text>
-          </TouchableOpacity>
+          <Text style={styles.link}>
+            New to BookMarx? <Text style={styles.linkAccent}>Create an account</Text>
+          </Text>
         </Link>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -79,61 +73,44 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.cream,
   },
-  content: {
-    flex: 1,
+  scroll: {
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    padding: spacing.xl,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#3B82F6',
-    textAlign: 'center',
-    marginBottom: 8,
+  hero: {
+    alignItems: 'center',
+    marginBottom: spacing.xxxl,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
+  tagline: {
+    ...ty.accent,
+    fontSize: 17,
+    marginTop: spacing.sm,
   },
+  card: {
+    padding: spacing.xl,
+    gap: spacing.lg,
+  },
+  field: {},
   error: {
-    color: '#EF4444',
+    ...ty.smallMedium,
+    color: colors.danger,
     textAlign: 'center',
-    marginBottom: 16,
+    marginTop: -spacing.sm,
   },
-  input: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    fontSize: 16,
+  submit: {
+    marginTop: spacing.xs,
   },
-  button: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 16,
-    alignItems: 'center',
-    marginTop: 8,
+  link: {
+    ...ty.small,
+    textAlign: 'center',
+    marginTop: spacing.xl,
+    fontFamily: fonts.body,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkButton: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: '#3B82F6',
-    fontSize: 14,
+  linkAccent: {
+    fontFamily: fonts.semibold,
+    color: colors.terra,
   },
 });

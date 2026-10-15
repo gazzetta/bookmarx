@@ -1,52 +1,100 @@
 import { useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View, FlatList, TouchableOpacity, StyleSheet,
+  ActivityIndicator, Alert, RefreshControl,
+} from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
-import { useBookmarks } from '../../hooks/useBookmarks';
+import { useState } from 'react';
+import { useBookmarkStore } from '../../store/bookmarkStore';
+import { FolderRow, BookmarkRow, isBookmark } from '../../components/ListItem';
+import { OfflineBanner } from '../../components/OfflineBanner';
+import { EmptyState } from '../../components/ui';
+import { colors, radius, shadow, spacing } from '../../constants/theme';
+import type { Bookmark, Folder } from '../../types';
 
 export default function FolderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { folders, bookmarks, isLoading, fetchMasterCollection, getFoldersInFolder, getBookmarksInFolder } = useBookmarks();
+  const {
+    folders, bookmarks, isLoading, lastFetched,
+    fetchMasterCollection, getFoldersInFolder, getBookmarksInFolder, getFolderById,
+    deleteBookmark, deleteFolder, isPending,
+  } = useBookmarkStore();
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    if (folders.length === 0) {
-      fetchMasterCollection();
+    if (!lastFetched && !isLoading) {
+      void fetchMasterCollection();
     }
   }, []);
 
-  const currentFolder = folders.find(f => f.masterId === id);
-  const childFolders = getFoldersInFolder(id);
-  const childBookmarks = getBookmarksInFolder(id);
+  const currentFolder = id ? getFolderById(id) : undefined;
+  const items = id ? [...getFoldersInFolder(id), ...getBookmarksInFolder(id)] : [];
 
-  const renderFolder = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.item}
-      onPress={() => router.push(`/folder/${item.masterId}`)}
-    >
-      <Ionicons name="folder" size={24} color="#F59E0B" />
-      <Text style={styles.itemText}>{item.title}</Text>
-      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
-  );
+  const openBookmark = (bookmark: Bookmark) => {
+    void WebBrowser.openBrowserAsync(bookmark.url);
+  };
 
-  const renderBookmark = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.item}
-      onPress={() => {/* Open URL */}}
-    >
-      <Ionicons name="bookmark" size={24} color="#3B82F6" />
-      <View style={styles.bookmarkInfo}>
-        <Text style={styles.itemText} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.urlText} numberOfLines={1}>{item.url}</Text>
-      </View>
-    </TouchableOpacity>
-  );
+  const confirmDeleteBookmark = (bookmark: Bookmark) => {
+    Alert.alert('Delete bookmark?', bookmark.title, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void deleteBookmark(bookmark.masterId) },
+    ]);
+  };
 
-  if (isLoading) {
+  const confirmDeleteFolder = (folder: Folder) => {
+    Alert.alert('Delete folder?', `"${folder.title}" and everything inside it will be deleted.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive', onPress: () => {
+          const wasCurrent = folder.masterId === id;
+          void deleteFolder(folder.masterId);
+          if (wasCurrent) router.back();
+        }
+      },
+    ]);
+  };
+
+  const bookmarkActions = (bookmark: Bookmark) => {
+    if (isPending(bookmark.masterId)) return;
+    Alert.alert(bookmark.title, undefined, [
+      { text: 'Open', onPress: () => openBookmark(bookmark) },
+      { text: 'Edit', onPress: () => router.push(`/edit-bookmark/${bookmark.masterId}`) },
+      { text: 'Delete', style: 'destructive', onPress: () => confirmDeleteBookmark(bookmark) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const folderActions = (folder: Folder) => {
+    if (isPending(folder.masterId)) return;
+    Alert.alert(folder.title, undefined, [
+      { text: 'Open', onPress: () => router.push(`/folder/${folder.masterId}`) },
+      { text: 'Edit', onPress: () => router.push(`/edit-folder/${folder.masterId}`) },
+      { text: 'Delete', style: 'destructive', onPress: () => confirmDeleteFolder(folder) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const addActions = () => {
+    Alert.alert('Add to this folder', undefined, [
+      { text: 'Add Bookmark', onPress: () => router.push({ pathname: '/add-bookmark', params: { parentId: id } }) },
+      { text: 'New Subfolder', onPress: () => router.push({ pathname: '/add-folder', params: { parentId: id } }) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchMasterCollection(true);
+    setRefreshing(false);
+  };
+
+  if (isLoading && !lastFetched) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={colors.terra} />
       </View>
     );
   }
@@ -55,18 +103,45 @@ export default function FolderScreen() {
     <>
       <Stack.Screen options={{ title: currentFolder?.title || 'Folder' }} />
       <View style={styles.container}>
-        <FlatList
-          data={[...childFolders, ...childBookmarks]}
-          keyExtractor={(item) => item.masterId}
-          renderItem={({ item }) => 
-            'url' in item ? renderBookmark({ item }) : renderFolder({ item })
-          }
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>This folder is empty</Text>
-            </View>
-          }
-        />
+        <OfflineBanner />
+        <View style={styles.listCard}>
+          <FlatList
+            data={items}
+            keyExtractor={(item) => item.masterId}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.terra} />
+            }
+            renderItem={({ item, index }) =>
+              isBookmark(item) ? (
+                <BookmarkRow
+                  bookmark={item}
+                  pending={isPending(item.masterId)}
+                  isLast={index === items.length - 1}
+                  onPress={() => openBookmark(item)}
+                  onLongPress={() => bookmarkActions(item)}
+                />
+              ) : (
+                <FolderRow
+                  folder={item}
+                  pending={isPending(item.masterId)}
+                  isLast={index === items.length - 1}
+                  onPress={() => router.push(`/folder/${item.masterId}`)}
+                  onLongPress={() => folderActions(item)}
+                />
+              )
+            }
+            ListEmptyComponent={
+              <EmptyState
+                icon="folder-open-outline"
+                title="This folder is empty"
+                hint="Tap + to add a bookmark or subfolder."
+              />
+            }
+          />
+        </View>
+        <TouchableOpacity style={styles.fab} onPress={addActions} activeOpacity={0.85}>
+          <Ionicons name="add" size={28} color="#fff" />
+        </TouchableOpacity>
       </View>
     </>
   );
@@ -75,41 +150,36 @@ export default function FolderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.cream,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: colors.cream,
   },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    gap: 12,
-  },
-  itemText: {
+  listCard: {
     flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    overflow: 'hidden',
+    ...shadow.card,
   },
-  bookmarkInfo: {
-    flex: 1,
-  },
-  urlText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  empty: {
-    padding: 40,
+  fab: {
+    position: 'absolute',
+    right: spacing.xl,
+    bottom: spacing.xxl + 8,
+    width: 58,
+    height: 58,
+    borderRadius: radius.pill,
+    backgroundColor: colors.terra,
+    justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
+    ...shadow.fab,
   },
 });

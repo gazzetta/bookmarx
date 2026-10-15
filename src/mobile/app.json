@@ -1,0 +1,78 @@
+{
+  "expo": {
+    "name": "BookMarx",
+    "slug": "bookmarx",
+    "owner": "gazzetta2",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "bookmarx",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FBF8F3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bookmarx.app",
+      "associatedDomains": [
+        "applinks:www.bookmarx.cc"
+      ],
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.bookmarx.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FBF8F3"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": [
+            "text/*"
+          ],
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
+            "NSExtensionActivationSupportsWebPageWithMaxCount": 1,
+            "NSExtensionActivationSupportsText": true
+          }
+        }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./node_modules/@expo-google-fonts/outfit/400Regular/Outfit_400Regular.ttf",
+            "./node_modules/@expo-google-fonts/outfit/500Medium/Outfit_500Medium.ttf",
+            "./node_modules/@expo-google-fonts/outfit/600SemiBold/Outfit_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/outfit/700Bold/Outfit_700Bold.ttf",
+            "./node_modules/@expo-google-fonts/fraunces/600SemiBold/Fraunces_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/fraunces/500Medium_Italic/Fraunces_500Medium_Italic.ttf"
+          ]
+        }
+      ],
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
