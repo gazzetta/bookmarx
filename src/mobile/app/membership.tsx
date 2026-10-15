@@ -5,7 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { destinationFor } from '../services/access';
-import { Card, PrimaryButton, SecondaryButton, Wordmark } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, PrimaryButton, Reveal, SecondaryButton, Wordmark } from '../components/ui';
 import { WEBSITE_URL } from '../constants/config';
 import { colors, radius, spacing, type as ty } from '../constants/theme';
 
@@ -55,50 +56,60 @@ export default function MembershipScreen() {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
-    >
-      <Wordmark size={34} />
+    <View style={styles.container}>
+      <Atmosphere />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
+      >
+        <Reveal style={styles.hero}>
+          <Wordmark size={34} />
+          <View style={styles.iconWrap}>
+            <Ionicons name="bookmark-outline" size={30} color={colors.terra} />
+          </View>
+          <Text style={styles.title}>Membership required</Text>
+        </Reveal>
 
-      <View style={styles.iconWrap}>
-        <Ionicons name="bookmark-outline" size={30} color={colors.terra} />
-      </View>
+        <Reveal delay={120}>
+          <Text style={styles.body}>
+            This app requires a BookMarx Premium membership.
+          </Text>
+          {accessReason === 'recheck' ? (
+            <Text style={styles.hint}>We could not confirm your membership recently. Check again when you're back online.</Text>
+          ) : (
+            <Text style={styles.hint}>
+              Signed in as {user?.email ?? 'your account'}. If your membership was renewed elsewhere, check again below.
+            </Text>
+          )}
+        </Reveal>
 
-      <Text style={styles.title}>Membership required</Text>
-      <Text style={styles.body}>
-        This app requires a BookMarx Premium membership.
-      </Text>
-      {accessReason === 'recheck' ? (
-        <Text style={styles.hint}>We could not confirm your membership recently. Check again when you're back online.</Text>
-      ) : (
-        <Text style={styles.hint}>
-          Signed in as {user?.email ?? 'your account'}. If your membership was renewed elsewhere, check again below.
-        </Text>
-      )}
+        <Reveal delay={220} style={styles.cardWrap}>
+          <Card style={styles.card}>
+            <PrimaryButton
+              label="Check membership"
+              icon="refresh"
+              onPress={checkMembership}
+              loading={checking}
+            />
+            <SecondaryButton
+              label="Use another account"
+              icon="swap-horizontal"
+              onPress={() => void useAnotherAccount()}
+            />
+            {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+          </Card>
+        </Reveal>
 
-      <Card style={styles.card}>
-        <PrimaryButton
-          label="Check membership"
-          icon="refresh"
-          onPress={checkMembership}
-          loading={checking}
-        />
-        <SecondaryButton
-          label="Use another account"
-          icon="swap-horizontal"
-          onPress={() => void useAnotherAccount()}
-        />
-        {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
-      </Card>
-
-      <Card style={styles.linksCard}>
-        <LinkRow icon="person-circle-outline" label="Account settings" url={`${WEBSITE_URL}/settings`} />
-        <LinkRow icon="shield-checkmark-outline" label="Privacy policy" url={`${WEBSITE_URL}/privacy`} />
-        <LinkRow icon="document-text-outline" label="Terms of service" url={`${WEBSITE_URL}/terms`} />
-        <LinkRow icon="chatbubble-ellipses-outline" label="Contact support" url={`${WEBSITE_URL}/contact`} isLast />
-      </Card>
-    </ScrollView>
+        <Reveal delay={300} style={styles.cardWrap}>
+          <Card style={styles.linksCard}>
+            <LinkRow icon="person-circle-outline" label="Account settings" url={`${WEBSITE_URL}/settings`} />
+            <LinkRow icon="shield-checkmark-outline" label="Privacy policy" url={`${WEBSITE_URL}/privacy`} />
+            <LinkRow icon="document-text-outline" label="Terms of service" url={`${WEBSITE_URL}/terms`} />
+            <LinkRow icon="chatbubble-ellipses-outline" label="Contact support" url={`${WEBSITE_URL}/contact`} isLast />
+          </Card>
+        </Reveal>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -107,10 +118,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   content: {
     padding: spacing.xl,
     paddingBottom: spacing.xxxl,
     alignItems: 'center',
+  },
+  hero: {
+    alignItems: 'center',
+  },
+  cardWrap: {
+    alignSelf: 'stretch',
   },
   iconWrap: {
     width: 76,

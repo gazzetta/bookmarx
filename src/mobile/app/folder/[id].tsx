@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { useBookmarkStore } from '../../store/bookmarkStore';
 import { FolderRow, BookmarkRow, isBookmark } from '../../components/ListItem';
 import { OfflineBanner } from '../../components/OfflineBanner';
+import { Atmosphere } from '../../components/Atmosphere';
 import { EmptyState } from '../../components/ui';
 import { colors, radius, shadow, spacing } from '../../constants/theme';
 import type { Bookmark, Folder } from '../../types';
@@ -103,6 +104,7 @@ export default function FolderScreen() {
     <>
       <Stack.Screen options={{ title: currentFolder?.title || 'Folder' }} />
       <View style={styles.container}>
+        <Atmosphere subtle />
         <OfflineBanner />
         <View style={styles.listCard}>
           <FlatList
@@ -180,6 +182,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.terra,
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadow.fab,
+    ...shadow.glow,
   },
 });

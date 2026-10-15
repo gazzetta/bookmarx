@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useAuthStore } from '../store/authStore';
 import { PremiumBadge, UsageLimitBar } from '../components/PremiumGate';
-import { DangerButton, SectionLabel } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { DangerButton, Reveal, SectionLabel } from '../components/ui';
 import { WEBSITE_URL } from '../constants/config';
 import { colors, fonts, radius, shadow, spacing, type as ty } from '../constants/theme';
 
@@ -44,17 +45,21 @@ export default function SettingsScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.accountCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarInitial}>{initial}</Text>
+    <View style={styles.container}>
+    <Atmosphere subtle />
+    <ScrollView style={styles.flex} contentContainerStyle={styles.content}>
+      <Reveal>
+        <View style={styles.accountCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarInitial}>{initial}</Text>
+          </View>
+          <View style={styles.accountInfo}>
+            <Text style={styles.accountName} numberOfLines={1}>{user?.displayName || 'BookMarx user'}</Text>
+            <Text style={styles.accountEmail} numberOfLines={1}>{user?.email}</Text>
+          </View>
+          <PremiumBadge tier={tier} size="medium" />
         </View>
-        <View style={styles.accountInfo}>
-          <Text style={styles.accountName} numberOfLines={1}>{user?.displayName || 'BookMarx user'}</Text>
-          <Text style={styles.accountEmail} numberOfLines={1}>{user?.email}</Text>
-        </View>
-        <PremiumBadge tier={tier} size="medium" />
-      </View>
+      </Reveal>
 
       {stats ? (
         <View style={styles.section}>
@@ -108,6 +113,7 @@ export default function SettingsScreen() {
 
       <DangerButton label="Sign out" icon="log-out-outline" onPress={confirmLogout} style={styles.logout} />
     </ScrollView>
+    </View>
   );
 }
 
@@ -116,6 +122,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,

@@ -6,7 +6,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useBookmarkStore } from '../../store/bookmarkStore';
 import { FolderPicker } from '../../components/FolderPicker';
-import { Card, DangerButton, Field, PrimaryButton, SelectField } from '../../components/ui';
+import { Atmosphere } from '../../components/Atmosphere';
+import { Card, DangerButton, Field, PrimaryButton, Reveal, SelectField } from '../../components/ui';
 import { colors, spacing, type as ty } from '../../constants/theme';
 
 function normalizeUrl(input: string): string | null {
@@ -89,12 +90,15 @@ export default function EditBookmarkScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.container}>
+      <Atmosphere />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Card style={styles.card}>
+        <Reveal>
+          <Card style={styles.card}>
           <Field
             label="Title"
             value={title}
@@ -116,9 +120,12 @@ export default function EditBookmarkScreen() {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <PrimaryButton label="Save changes" onPress={handleSave} loading={isSaving} />
-        </Card>
+          </Card>
+        </Reveal>
 
-        <DangerButton label="Delete bookmark" icon="trash-outline" onPress={handleDelete} style={styles.delete} />
+        <Reveal delay={110}>
+          <DangerButton label="Delete bookmark" icon="trash-outline" onPress={handleDelete} style={styles.delete} />
+        </Reveal>
       </ScrollView>
 
       <FolderPicker
@@ -128,7 +135,8 @@ export default function EditBookmarkScreen() {
         onSelect={setParentId}
         onClose={() => setPickerVisible(false)}
       />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -137,6 +145,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   centered: {
     flex: 1,
     justifyContent: 'center',

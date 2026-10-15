@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } fr
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
-import { Card, Field, IconButton, PrimaryButton, Wordmark } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, Field, IconButton, PrimaryButton, Reveal, Wordmark } from '../components/ui';
 import { colors, spacing, type as ty } from '../constants/theme';
 
 /**
@@ -35,48 +36,53 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={[styles.header, { paddingTop: insets.top }]}>
-          <IconButton name="arrow-back" onPress={() => router.back()} />
-        </View>
-        <View style={styles.hero}>
-          <Wordmark size={40} />
-        </View>
+    <View style={styles.container}>
+      <Atmosphere />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={[styles.header, { paddingTop: insets.top }]}>
+            <IconButton name="arrow-back" onPress={() => router.back()} />
+          </View>
+          <Reveal style={styles.hero}>
+            <Wordmark size={40} />
+          </Reveal>
 
-        {sent ? (
-          <Card style={styles.card}>
-            <Text style={styles.title}>Check your email</Text>
-            <Text style={styles.body}>
-              If an account with that email exists, a password reset link has been sent.
-              The link opens a BookMarx page and expires after 1 hour.
-            </Text>
-            <PrimaryButton label="Back to sign in" onPress={() => router.replace('/login')} style={styles.submit} />
-          </Card>
-        ) : (
-          <Card style={styles.card}>
-            <Text style={styles.title}>Forgot password</Text>
-            <Text style={styles.body}>
-              Enter your account email and we'll send you a reset link.
-            </Text>
-            <Field
-              label="Email"
-              placeholder="you@example.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <PrimaryButton label="Send reset link" onPress={submit} loading={isSending} style={styles.submit} />
-          </Card>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Reveal delay={140}>
+            {sent ? (
+              <Card style={styles.card}>
+                <Text style={styles.title}>Check your email</Text>
+                <Text style={styles.body}>
+                  If an account with that email exists, a password reset link has been sent.
+                  The link opens a BookMarx page and expires after 1 hour.
+                </Text>
+                <PrimaryButton label="Back to sign in" onPress={() => router.replace('/login')} style={styles.submit} />
+              </Card>
+            ) : (
+              <Card style={styles.card}>
+                <Text style={styles.title}>Forgot password</Text>
+                <Text style={styles.body}>
+                  Enter your account email and we'll send you a reset link.
+                </Text>
+                <Field
+                  label="Email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <PrimaryButton label="Send reset link" onPress={submit} loading={isSending} style={styles.submit} />
+              </Card>
+            )}
+          </Reveal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -85,6 +91,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     padding: spacing.xl,

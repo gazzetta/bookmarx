@@ -11,7 +11,8 @@ import { useBookmarkStore } from '../store/bookmarkStore';
 import { useAuthStore } from '../store/authStore';
 import { destinationFor } from '../services/access';
 import { FolderPicker } from '../components/FolderPicker';
-import { Card, Field, PrimaryButton, SelectField } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, Field, PrimaryButton, Reveal, SelectField } from '../components/ui';
 import { colors, radius, spacing, type as ty } from '../constants/theme';
 
 const URL_RE = /https?:\/\/[^\s<>"']+/i;
@@ -69,12 +70,15 @@ export default function ShareScreen() {
   if (!isAuthenticated) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <View style={styles.lockIcon}>
-          <Ionicons name="lock-closed-outline" size={28} color={colors.terra} />
-        </View>
-        <Text style={styles.centeredTitle}>Sign in to save</Text>
-        <Text style={styles.centeredText}>Shared links can only be saved to your BookMarx library when you're signed in.</Text>
-        <PrimaryButton label="Go to sign in" onPress={() => router.replace('/login')} style={styles.lockButton} />
+        <Atmosphere />
+        <Reveal style={styles.centeredContent}>
+          <View style={styles.lockIcon}>
+            <Ionicons name="lock-closed-outline" size={28} color={colors.terra} />
+          </View>
+          <Text style={styles.centeredTitle}>Sign in to save</Text>
+          <Text style={styles.centeredText}>Shared links can only be saved to your BookMarx library when you're signed in.</Text>
+          <PrimaryButton label="Go to sign in" onPress={() => router.replace('/login')} style={styles.lockButton} />
+        </Reveal>
       </View>
     );
   }
@@ -83,29 +87,34 @@ export default function ShareScreen() {
     const verify = access === 'verify-email';
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <View style={styles.lockIcon}>
-          <Ionicons name={verify ? 'mail-unread-outline' : 'bookmark-outline'} size={28} color={colors.terra} />
-        </View>
-        <Text style={styles.centeredTitle}>{verify ? 'Verify your email to save' : 'Membership required'}</Text>
-        <Text style={styles.centeredText}>
-          {verify
-            ? 'Confirm your email address before saving shared links.'
-            : 'Saving to this app requires a BookMarx Premium membership.'}
-        </Text>
-        <PrimaryButton
-          label={verify ? 'Go to verification' : 'Check membership'}
-          onPress={() => router.replace(destinationFor(access) ?? '/')}
-          style={styles.lockButton}
-        />
+        <Atmosphere />
+        <Reveal style={styles.centeredContent}>
+          <View style={styles.lockIcon}>
+            <Ionicons name={verify ? 'mail-unread-outline' : 'bookmark-outline'} size={28} color={colors.terra} />
+          </View>
+          <Text style={styles.centeredTitle}>{verify ? 'Verify your email to save' : 'Membership required'}</Text>
+          <Text style={styles.centeredText}>
+            {verify
+              ? 'Confirm your email address before saving shared links.'
+              : 'Saving to this app requires a BookMarx Premium membership.'}
+          </Text>
+          <PrimaryButton
+            label={verify ? 'Go to verification' : 'Check membership'}
+            onPress={() => router.replace(destinationFor(access) ?? '/')}
+            style={styles.lockButton}
+          />
+        </Reveal>
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { paddingTop: insets.top }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <Atmosphere />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={styles.header}>
         <TouchableOpacity onPress={finish} hitSlop={8} style={styles.closeBtn}>
           <Ionicons name="close" size={18} color={colors.inkSoft} />
@@ -115,7 +124,8 @@ export default function ShareScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Card style={styles.card}>
+        <Reveal>
+          <Card style={styles.card}>
           <Field
             label="URL"
             value={url}
@@ -150,7 +160,8 @@ export default function ShareScreen() {
             loading={isSaving}
             disabled={!url.trim()}
           />
-        </Card>
+          </Card>
+        </Reveal>
       </ScrollView>
 
       <FolderPicker
@@ -160,7 +171,8 @@ export default function ShareScreen() {
         onSelect={setParentId}
         onClose={() => setPickerVisible(false)}
       />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -169,12 +181,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.xxl,
     backgroundColor: colors.cream,
+  },
+  centeredContent: {
+    alignItems: 'center',
   },
   lockIcon: {
     width: 72,

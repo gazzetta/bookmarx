@@ -12,7 +12,8 @@ import { useBookmarkStore } from '../store/bookmarkStore';
 import { PremiumBadge, UsageLimitBar } from '../components/PremiumGate';
 import { FolderRow, BookmarkRow, isBookmark } from '../components/ListItem';
 import { OfflineBanner } from '../components/OfflineBanner';
-import { EmptyState, IconButton } from '../components/ui';
+import { EmptyState, IconButton, LogoMark, Reveal } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
 import { colors, fonts, radius, shadow, spacing, type as ty } from '../constants/theme';
 import type { Bookmark, Folder } from '../types';
 
@@ -47,6 +48,7 @@ export default function HomeScreen() {
   if (authLoading || !isAuthenticated) {
     return (
       <View style={styles.centered}>
+        <Atmosphere />
         <ActivityIndicator size="large" color={colors.terra} />
       </View>
     );
@@ -113,8 +115,10 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+      <Atmosphere subtle />
+      <Reveal style={styles.header} delay={0}>
         <View style={styles.headerLeft}>
+          <LogoMark size={32} />
           <TouchableOpacity style={styles.collectionButton} onPress={() => setCollectionPickerVisible(true)}>
             <Text style={styles.collectionName} numberOfLines={1}>
               {activeCollection?.name ?? 'Bookmarks'}
@@ -127,7 +131,7 @@ export default function HomeScreen() {
           <IconButton name="search-outline" onPress={() => router.push('/search')} />
           <IconButton name="settings-outline" onPress={() => router.push('/settings')} />
         </View>
-      </View>
+      </Reveal>
 
       <OfflineBanner />
 
@@ -146,7 +150,8 @@ export default function HomeScreen() {
       {isLoading && !lastFetched ? (
         <ActivityIndicator size="large" color={colors.terra} style={styles.loader} />
       ) : (
-        <View style={styles.listCard}>
+        <Reveal delay={110} style={styles.listWrap}>
+          <View style={styles.listCard}>
           <FlatList
             data={items}
             keyExtractor={(item) => item.masterId}
@@ -180,7 +185,8 @@ export default function HomeScreen() {
               />
             }
           />
-        </View>
+          </View>
+        </Reveal>
       )}
 
       <TouchableOpacity style={styles.fab} onPress={addActions} activeOpacity={0.85}>
@@ -286,10 +292,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    maxWidth: '70%',
+    maxWidth: '62%',
   },
   collectionName: {
-    ...ty.title,
+    ...ty.heading,
   },
   usageSection: {
     paddingHorizontal: spacing.lg,
@@ -303,6 +309,9 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 48,
+  },
+  listWrap: {
+    flex: 1,
   },
   listCard: {
     flex: 1,
@@ -326,7 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.terra,
     justifyContent: 'center',
     alignItems: 'center',
-    ...shadow.fab,
+    ...shadow.glow,
   },
   pickerBackdrop: {
     flex: 1,

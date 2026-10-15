@@ -4,7 +4,8 @@ import { useRouter, Link } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
 import { destinationFor } from '../services/access';
-import { Card, Field, PrimaryButton, Wordmark } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, Field, LogoMark, PrimaryButton, Reveal, Wordmark } from '../components/ui';
 import { colors, fonts, spacing, type as ty } from '../constants/theme';
 
 export default function LoginScreen() {
@@ -32,48 +33,58 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.hero}>
-          <Wordmark size={44} />
-          <Text style={styles.tagline}>Every bookmark, in one place.</Text>
-        </View>
+    <View style={styles.container}>
+      <Atmosphere />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Reveal style={styles.hero}>
+            <LogoMark size={56} />
+            <View style={styles.heroWordmark}>
+              <Wordmark size={44} />
+            </View>
+            <Text style={styles.tagline}>Every bookmark, in one place.</Text>
+          </Reveal>
 
-        <Card style={styles.card}>
-          <Field
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <Field
-            label="Password"
-            placeholder="Your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            style={styles.field}
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton label="Sign in" onPress={handleLogin} loading={isLoading} style={styles.submit} />
-          <Link href="/forgot-password" asChild>
-            <Text style={styles.forgot}>Forgot password?</Text>
-          </Link>
-        </Card>
+          <Reveal delay={140}>
+            <Card style={styles.card}>
+              <Field
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Field
+                label="Password"
+                placeholder="Your password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                style={styles.field}
+              />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <PrimaryButton label="Sign in" onPress={handleLogin} loading={isLoading} style={styles.submit} />
+              <Link href="/forgot-password" asChild>
+                <Text style={styles.forgot}>Forgot password?</Text>
+              </Link>
+            </Card>
+          </Reveal>
 
-        <Link href="/register" asChild>
-          <Text style={styles.link}>
-            New to BookMarx? <Text style={styles.linkAccent}>Create an account</Text>
-          </Text>
-        </Link>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Reveal delay={280}>
+            <Link href="/register" asChild>
+              <Text style={styles.link}>
+                New to BookMarx? <Text style={styles.linkAccent}>Create an account</Text>
+              </Text>
+            </Link>
+          </Reveal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -82,6 +93,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -90,6 +102,9 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     marginBottom: spacing.xxxl,
+  },
+  heroWordmark: {
+    marginTop: spacing.lg,
   },
   tagline: {
     ...ty.accent,

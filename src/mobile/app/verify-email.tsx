@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import { destinationFor } from '../services/access';
-import { Card, DangerButton, PrimaryButton, SecondaryButton, Wordmark } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, DangerButton, PrimaryButton, Reveal, SecondaryButton, Wordmark } from '../components/ui';
 import { colors, radius, spacing, type as ty } from '../constants/theme';
 
 const DEFAULT_RESEND_COOLDOWN_S = 60;
@@ -108,53 +109,63 @@ export default function VerifyEmailScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Wordmark size={34} />
+    <View style={styles.container}>
+      <Atmosphere />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.xxl }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Reveal style={styles.hero}>
+          <Wordmark size={34} />
+          <View style={styles.iconWrap}>
+            <Ionicons name="mail-unread-outline" size={30} color={colors.terra} />
+          </View>
+          <Text style={styles.title}>Verify your email</Text>
+        </Reveal>
 
-      <View style={styles.iconWrap}>
-        <Ionicons name="mail-unread-outline" size={30} color={colors.terra} />
-      </View>
+        <Reveal delay={120}>
+          <Text style={styles.body}>
+            {emailDeliveryFailed
+              ? 'Your account is saved, but the confirmation email could not be sent. Request another below.'
+              : <>
+                  Your account is saved. Confirm <Text style={styles.email}>{user?.email ?? 'your email address'}</Text> before opening your bookmark library.
+                </>
+            }
+          </Text>
+          <Text style={styles.hint}>
+            Open the confirmation email and follow its link — it works once and expires after 24 hours.
+            Check your junk folder if it has not arrived.
+          </Text>
+        </Reveal>
 
-      <Text style={styles.title}>Verify your email</Text>
-      <Text style={styles.body}>
-        {emailDeliveryFailed
-          ? 'Your account is saved, but the confirmation email could not be sent. Request another below.'
-          : <>
-              Your account is saved. Confirm <Text style={styles.email}>{user?.email ?? 'your email address'}</Text> before opening your bookmark library.
-            </>
-        }
-      </Text>
-      <Text style={styles.hint}>
-        Open the confirmation email and follow its link — it works once and expires after 24 hours.
-        Check your junk folder if it has not arrived.
-      </Text>
+        <Reveal delay={220} style={styles.cardWrap}>
+          <Card style={styles.card}>
+            <SecondaryButton
+              label={cooldownLeft > 0 ? `Resend available in ${cooldownLeft}s` : 'Resend confirmation email'}
+              icon="refresh"
+              onPress={resend}
+              loading={busy === 'resend'}
+              disabled={cooldownLeft > 0 || busy === 'check'}
+            />
+            <PrimaryButton
+              label="I have verified my email"
+              icon="checkmark-circle"
+              onPress={checkVerified}
+              loading={busy === 'check'}
+              disabled={busy === 'resend'}
+              style={styles.checkButton}
+            />
+            {message ? <Text style={styles.status}>{message}</Text> : null}
+            {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
+          </Card>
+        </Reveal>
 
-      <Card style={styles.card}>
-        <SecondaryButton
-          label={cooldownLeft > 0 ? `Resend available in ${cooldownLeft}s` : 'Resend confirmation email'}
-          icon="refresh"
-          onPress={resend}
-          loading={busy === 'resend'}
-          disabled={cooldownLeft > 0 || busy === 'check'}
-        />
-        <PrimaryButton
-          label="I have verified my email"
-          icon="checkmark-circle"
-          onPress={checkVerified}
-          loading={busy === 'check'}
-          disabled={busy === 'resend'}
-          style={styles.checkButton}
-        />
-        {message ? <Text style={styles.status}>{message}</Text> : null}
-        {error ? <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text> : null}
-      </Card>
-
-      <DangerButton label="Sign out" icon="log-out-outline" onPress={() => void signOut()} style={styles.signOut} />
-    </ScrollView>
+        <Reveal delay={300} style={styles.signOutWrap}>
+          <DangerButton label="Sign out" icon="log-out-outline" onPress={() => void signOut()} />
+        </Reveal>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -163,8 +174,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   content: {
     padding: spacing.xl,
+    alignItems: 'center',
+  },
+  hero: {
     alignItems: 'center',
   },
   iconWrap: {
@@ -202,11 +217,13 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     marginTop: spacing.md,
   },
-  card: {
+  cardWrap: {
     alignSelf: 'stretch',
+    marginTop: spacing.xl,
+  },
+  card: {
     padding: spacing.xl,
     gap: spacing.md,
-    marginTop: spacing.xl,
   },
   checkButton: {},
   status: {
@@ -219,8 +236,8 @@ const styles = StyleSheet.create({
     color: colors.danger,
     textAlign: 'center',
   },
-  signOut: {
-    marginTop: spacing.xl,
+  signOutWrap: {
     alignSelf: 'stretch',
+    marginTop: spacing.xl,
   },
 });

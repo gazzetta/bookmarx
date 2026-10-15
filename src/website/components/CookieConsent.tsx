@@ -22,6 +22,7 @@ export default function CookieConsent() {
   }, [settingsOpen])
   if (!ready) return null
   const buttonClass = 'rounded-lg border border-ink/30 dark:border-white/40 px-4 py-2.5 font-semibold hover:bg-ink/10 dark:hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra-500'
+  const primaryClass = 'rounded-lg bg-terra-500 hover:bg-terra-600 text-white px-4 py-2.5 font-semibold transition-colors sm:ml-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terra-500'
   if (consent && !settingsOpen) return <button ref={settingsButton} type="button" onClick={() => {
     setCustomise(true); setAnalytics(consent.analytics); setPreferences(consent.preferences); openSettings()
   }} className="fixed bottom-3 left-3 z-50 rounded-lg bg-white dark:bg-[#242424] border border-cream-300 dark:border-white/30 px-3 py-2 text-sm shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-terra-500">Cookie settings</button>
@@ -36,10 +37,10 @@ export default function CookieConsent() {
       </div>}
       <div className="flex flex-wrap gap-3">
         <button type="button" className={buttonClass} onClick={() => save({ analytics: false, preferences: false })}>Reject optional</button>
-        <button type="button" className={buttonClass} onClick={() => save({ analytics: available, preferences: true })}>Accept optional</button>
         {(customise || settingsOpen) ? <button type="button" className={buttonClass} onClick={() => save({ analytics: available && analytics, preferences })}>Save choices</button>
           : <button type="button" className={buttonClass} onClick={() => setCustomise(true)}>Choose settings</button>}
         {consent && <button type="button" className={buttonClass} onClick={closeSettings}>Close settings</button>}
+        <button type="button" className={primaryClass} onClick={() => save({ analytics: available, preferences: true })}>Accept optional</button>
       </div>
     </div>
   </section>

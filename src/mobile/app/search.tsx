@@ -5,6 +5,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookmarkStore } from '../store/bookmarkStore';
 import { FolderRow, BookmarkRow, isBookmark } from '../components/ListItem';
+import { Atmosphere } from '../components/Atmosphere';
 import { EmptyState } from '../components/ui';
 import { colors, fonts, radius, shadow, spacing, type as ty } from '../constants/theme';
 import type { Bookmark, Folder } from '../types';
@@ -35,6 +36,7 @@ export default function SearchScreen() {
 
   return (
     <View style={styles.container}>
+      <Atmosphere subtle />
       <View style={styles.searchBar}>
         <Ionicons name="search" size={17} color={colors.inkMuted} />
         <TextInput

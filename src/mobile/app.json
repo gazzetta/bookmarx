@@ -65,6 +65,7 @@
             "./node_modules/@expo-google-fonts/outfit/600SemiBold/Outfit_600SemiBold.ttf",
             "./node_modules/@expo-google-fonts/outfit/700Bold/Outfit_700Bold.ttf",
             "./node_modules/@expo-google-fonts/fraunces/600SemiBold/Fraunces_600SemiBold.ttf",
+            "./node_modules/@expo-google-fonts/fraunces/700Bold/Fraunces_700Bold.ttf",
             "./node_modules/@expo-google-fonts/fraunces/500Medium_Italic/Fraunces_500Medium_Italic.ttf"
           ]
         }

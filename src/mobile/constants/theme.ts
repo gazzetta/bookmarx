@@ -30,6 +30,7 @@ export const colors = {
 
 export const fonts = {
   display: 'Fraunces_600SemiBold',
+  displayBold: 'Fraunces_700Bold',
   displayItalic: 'Fraunces_500Medium_Italic',
   body: 'Outfit_400Regular',
   medium: 'Outfit_500Medium',
@@ -77,10 +78,18 @@ export const shadow = {
     shadowRadius: 16,
     elevation: 7,
   },
+  /** The website's primary-button glow: 0 8px 30px -5px rgba(212,99,74,.35). */
+  glow: {
+    shadowColor: '#D4634A',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 15,
+    elevation: 6,
+  },
 } as const;
 
 export const type = {
-  hero: { fontFamily: fonts.display, fontSize: 34, letterSpacing: -0.8, color: colors.ink },
+  hero: { fontFamily: fonts.displayBold, fontSize: 34, letterSpacing: -0.8, color: colors.ink },
   title: { fontFamily: fonts.display, fontSize: 24, letterSpacing: -0.5, color: colors.ink },
   heading: { fontFamily: fonts.display, fontSize: 19, letterSpacing: -0.3, color: colors.ink },
   eyebrow: {

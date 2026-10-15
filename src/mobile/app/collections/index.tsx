@@ -7,7 +7,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useBookmarkStore } from '../../store/bookmarkStore';
-import { Field, Pill, PrimaryButton, SecondaryButton } from '../../components/ui';
+import { Atmosphere } from '../../components/Atmosphere';
+import { Field, Pill, PrimaryButton, Reveal, SecondaryButton } from '../../components/ui';
 import { colors, fonts, radius, shadow, spacing, type as ty } from '../../constants/theme';
 import type { Collection } from '../../types';
 
@@ -127,7 +128,9 @@ export default function CollectionsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.listCard}>
+      <Atmosphere subtle />
+      <Reveal style={styles.listWrap}>
+        <View style={styles.listCard}>
         <FlatList
           data={collections}
           keyExtractor={(item) => item.id}
@@ -139,7 +142,8 @@ export default function CollectionsScreen() {
             </View>
           }
         />
-      </View>
+        </View>
+      </Reveal>
 
       <View style={styles.footer}>
         {canWrite ? (
@@ -202,6 +206,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  listWrap: {
+    maxHeight: '75%',
+  },
   listCard: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -210,7 +217,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderLight,
     overflow: 'hidden',
-    maxHeight: '75%',
     ...shadow.card,
   },
   row: {

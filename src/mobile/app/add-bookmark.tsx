@@ -6,7 +6,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useBookmarkStore } from '../store/bookmarkStore';
 import { FolderPicker } from '../components/FolderPicker';
-import { Card, Field, PrimaryButton, SelectField } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, Field, PrimaryButton, Reveal, SelectField } from '../components/ui';
 import { colors, spacing, type as ty } from '../constants/theme';
 
 function normalizeUrl(input: string): string | null {
@@ -54,12 +55,15 @@ export default function AddBookmarkScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.container}>
+      <Atmosphere />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Card style={styles.card}>
+        <Reveal>
+          <Card style={styles.card}>
           <Field
             label="URL"
             placeholder="https://example.com"
@@ -84,7 +88,8 @@ export default function AddBookmarkScreen() {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <PrimaryButton label="Save bookmark" onPress={handleSave} loading={isSaving} icon="bookmark" />
-        </Card>
+          </Card>
+        </Reveal>
       </ScrollView>
 
       <FolderPicker
@@ -94,7 +99,8 @@ export default function AddBookmarkScreen() {
         onSelect={setParentId}
         onClose={() => setPickerVisible(false)}
       />
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -103,6 +109,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   content: {
     padding: spacing.lg,
   },

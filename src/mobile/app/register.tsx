@@ -4,7 +4,8 @@ import { useRouter, Link } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
 import { useAuthStore } from '../store/authStore';
 import { destinationFor } from '../services/access';
-import { Card, Field, PrimaryButton, Wordmark } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, Field, LogoMark, PrimaryButton, Reveal, Wordmark } from '../components/ui';
 import { colors, fonts, spacing, type as ty } from '../constants/theme';
 
 export default function RegisterScreen() {
@@ -33,51 +34,61 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.hero}>
-          <Wordmark size={44} />
-          <Text style={styles.tagline}>Your library starts here.</Text>
-        </View>
+    <View style={styles.container}>
+      <Atmosphere />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Reveal style={styles.hero}>
+            <LogoMark size={56} />
+            <View style={styles.heroWordmark}>
+              <Wordmark size={44} />
+            </View>
+            <Text style={styles.tagline}>Your library starts here.</Text>
+          </Reveal>
 
-        <Card style={styles.card}>
-          <Field
-            label="Display name"
-            placeholder="Optional"
-            value={displayName}
-            onChangeText={setDisplayName}
-            autoCapitalize="words"
-          />
-          <Field
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <Field
-            label="Password"
-            placeholder="Choose a password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton label="Create account" onPress={handleRegister} loading={isLoading} style={styles.submit} />
-        </Card>
+          <Reveal delay={140}>
+            <Card style={styles.card}>
+              <Field
+                label="Display name"
+                placeholder="Optional"
+                value={displayName}
+                onChangeText={setDisplayName}
+                autoCapitalize="words"
+              />
+              <Field
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Field
+                label="Password"
+                placeholder="Choose a password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <PrimaryButton label="Create account" onPress={handleRegister} loading={isLoading} style={styles.submit} />
+            </Card>
+          </Reveal>
 
-        <Link href="/login" asChild>
-          <Text style={styles.link}>
-            Already have an account? <Text style={styles.linkAccent}>Sign in</Text>
-          </Text>
-        </Link>
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Reveal delay={280}>
+            <Link href="/login" asChild>
+              <Text style={styles.link}>
+                Already have an account? <Text style={styles.linkAccent}>Sign in</Text>
+              </Text>
+            </Link>
+          </Reveal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -86,6 +97,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -94,6 +106,9 @@ const styles = StyleSheet.create({
   hero: {
     alignItems: 'center',
     marginBottom: spacing.xxxl,
+  },
+  heroWordmark: {
+    marginTop: spacing.lg,
   },
   tagline: {
     ...ty.accent,

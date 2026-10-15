@@ -4,7 +4,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
-import { Card, DangerButton, IconButton, SecondaryButton, SectionLabel } from '../../components/ui';
+import { Atmosphere } from '../../components/Atmosphere';
+import { Card, DangerButton, IconButton, Reveal, SecondaryButton, SectionLabel } from '../../components/ui';
 import { colors, fonts, radius, shadow, spacing, type as ty } from '../../constants/theme';
 import type { Session } from '../../types';
 
@@ -161,6 +162,7 @@ export default function SessionDetailScreen() {
 
   return (
     <View style={styles.container}>
+      <Atmosphere subtle />
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <IconButton name="arrow-back" onPress={() => router.back()} />
         <Text style={styles.headerTitle}>Session details</Text>
@@ -168,7 +170,8 @@ export default function SessionDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.summaryCard}>
+        <Reveal>
+          <Card style={styles.summaryCard}>
           <View style={styles.cardHeader}>
             <Text style={styles.sessionType}>{session.type.replace(/_/g, ' ').toLowerCase()}</Text>
             <View style={[styles.statusBadge, { backgroundColor: `${statusColor}1A` }]}>
@@ -195,10 +198,11 @@ export default function SessionDetailScreen() {
               <Text style={styles.statLabel}>Changes</Text>
             </View>
           </View>
-        </Card>
+          </Card>
+        </Reveal>
 
         {items.length > 0 && (
-          <View style={styles.section}>
+          <Reveal delay={110} style={styles.section}>
             <SectionLabel>Changed items</SectionLabel>
             <View style={styles.itemsCard}>
               {items.map((item, index) => (
@@ -217,7 +221,7 @@ export default function SessionDetailScreen() {
                 </View>
               ))}
             </View>
-          </View>
+          </Reveal>
         )}
 
         <View style={styles.actions}>

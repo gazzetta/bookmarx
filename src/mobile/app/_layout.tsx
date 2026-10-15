@@ -12,12 +12,15 @@ import {
 import {
   Fraunces_500Medium_Italic,
   Fraunces_600SemiBold,
+  Fraunces_700Bold,
 } from '@expo-google-fonts/fraunces';
 import NetInfo from '@react-native-community/netinfo';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { useAuthStore } from '../store/authStore';
 import { useSyncQueue } from '../store/syncQueue';
 import { AccessGate } from '../components/AccessGate';
+import { Atmosphere } from '../components/Atmosphere';
+import { LogoMark } from '../components/ui';
 import { destinationFor } from '../services/access';
 import { colors, fonts } from '../constants/theme';
 
@@ -42,6 +45,7 @@ export default function RootLayout() {
     Outfit_700Bold,
     Fraunces_500Medium_Italic,
     Fraunces_600SemiBold,
+    Fraunces_700Bold,
   });
 
   useEffect(() => {
@@ -63,7 +67,12 @@ export default function RootLayout() {
   }, []);
 
   if (!fontsLoaded && !fontError) {
-    return <View style={styles.boot} />;
+    return (
+      <View style={styles.boot}>
+        <Atmosphere />
+        <LogoMark size={64} />
+      </View>
+    );
   }
 
   return (
@@ -113,5 +122,7 @@ const styles = StyleSheet.create({
   boot: {
     flex: 1,
     backgroundColor: colors.cream,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

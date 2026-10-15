@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../hooks/useAuth';
 import { api } from '../../services/api';
 import { PremiumGate } from '../../components/PremiumGate';
+import { Atmosphere } from '../../components/Atmosphere';
 import { EmptyState, IconButton } from '../../components/ui';
 import { colors, fonts, radius, shadow, spacing, type as ty } from '../../constants/theme';
 import type { Session } from '../../types';
@@ -104,6 +105,7 @@ export default function SessionsScreen() {
 
   return (
     <View style={styles.container}>
+      <Atmosphere subtle />
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <IconButton name="arrow-back" onPress={() => router.back()} />
         <Text style={styles.headerTitle}>Sync history</Text>

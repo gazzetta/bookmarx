@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } fr
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '../services/api';
-import { Card, Field, IconButton, PrimaryButton, Wordmark } from '../components/ui';
+import { Atmosphere } from '../components/Atmosphere';
+import { Card, Field, IconButton, PrimaryButton, Reveal, Wordmark } from '../components/ui';
 import { colors, spacing, type as ty } from '../constants/theme';
 
 /**
@@ -47,57 +48,62 @@ export default function ResetPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={[styles.header, { paddingTop: insets.top }]}>
-          <IconButton name="arrow-back" onPress={() => router.back()} />
-        </View>
-        <View style={styles.hero}>
-          <Wordmark size={40} />
-        </View>
+    <View style={styles.container}>
+      <Atmosphere />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={[styles.header, { paddingTop: insets.top }]}>
+            <IconButton name="arrow-back" onPress={() => router.back()} />
+          </View>
+          <Reveal style={styles.hero}>
+            <Wordmark size={40} />
+          </Reveal>
 
-        {done ? (
-          <Card style={styles.card}>
-            <Text style={styles.title}>Password updated</Text>
-            <Text style={styles.body}>Your password has been reset. Sign in with your new password.</Text>
-            <PrimaryButton label="Sign in" onPress={() => router.replace('/login')} style={styles.submit} />
-          </Card>
-        ) : (
-          <Card style={styles.card}>
-            <Text style={styles.title}>Choose a new password</Text>
-            {!params.token ? (
-              <Field
-                label="Reset token"
-                placeholder="Paste the token from your reset link"
-                value={token}
-                onChangeText={setToken}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            ) : null}
-            <Field
-              label="New password"
-              placeholder="At least 8 characters"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-            <Field
-              label="Confirm password"
-              placeholder="Repeat the new password"
-              value={confirm}
-              onChangeText={setConfirm}
-              secureTextEntry
-            />
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            <PrimaryButton label="Reset password" onPress={submit} loading={isSaving} style={styles.submit} />
-          </Card>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          <Reveal delay={140}>
+            {done ? (
+              <Card style={styles.card}>
+                <Text style={styles.title}>Password updated</Text>
+                <Text style={styles.body}>Your password has been reset. Sign in with your new password.</Text>
+                <PrimaryButton label="Sign in" onPress={() => router.replace('/login')} style={styles.submit} />
+              </Card>
+            ) : (
+              <Card style={styles.card}>
+                <Text style={styles.title}>Choose a new password</Text>
+                {!params.token ? (
+                  <Field
+                    label="Reset token"
+                    placeholder="Paste the token from your reset link"
+                    value={token}
+                    onChangeText={setToken}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                ) : null}
+                <Field
+                  label="New password"
+                  placeholder="At least 8 characters"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+                <Field
+                  label="Confirm password"
+                  placeholder="Repeat the new password"
+                  value={confirm}
+                  onChangeText={setConfirm}
+                  secureTextEntry
+                />
+                {error ? <Text style={styles.error}>{error}</Text> : null}
+                <PrimaryButton label="Reset password" onPress={submit} loading={isSaving} style={styles.submit} />
+              </Card>
+            )}
+          </Reveal>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -106,6 +112,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  flex: { flex: 1 },
   scroll: {
     flexGrow: 1,
     padding: spacing.xl,

@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -11,11 +14,68 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, shadow, spacing, type as ty } from '../constants/theme';
 
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.card, style]}>{children}</View>;
+}
+
+/**
+ * Staggered fade-in-up entrance, matching the website's reveal motion
+ * (24px rise eased out over ~550ms). Wrap blocks in rising delay order.
+ */
+export function Reveal({
+  children,
+  delay = 0,
+  style,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const rise = useRef(new Animated.Value(18)).current;
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 550, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(rise, { toValue: 0, duration: 550, delay, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+    ]).start();
+  }, [delay]);
+  return (
+    <Animated.View style={[{ opacity, transform: [{ translateY: rise }] }, style]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** The website's nav glyph: a stroked bookmark on a rounded ink tile. */
+export function LogoMark({ size = 36 }: { size?: number }) {
+  const glyph = size * 0.56;
+  return (
+    <View style={[styles.logoMark, { width: size, height: size, borderRadius: size * 0.34 }]}>
+      <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+          stroke={colors.cream}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </View>
+  );
+}
+
+/** Press feedback shared by the buttons: quick settle-in, springy release. */
+function usePressScale() {
+  const scale = useRef(new Animated.Value(1)).current;
+  const onPressIn = () =>
+    Animated.timing(scale, { toValue: 0.965, duration: 110, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 6, useNativeDriver: true }).start();
+  return { scale, onPressIn, onPressOut };
 }
 
 interface ButtonProps {
@@ -30,50 +90,54 @@ interface ButtonProps {
 
 export function PrimaryButton({ label, onPress, loading, disabled, icon, style, textStyle }: ButtonProps) {
   const off = disabled || loading;
+  const press = usePressScale();
   return (
-    <TouchableOpacity
-      style={[styles.btn, styles.btnPrimary, off && styles.btnOff, style]}
-      onPress={onPress}
-      disabled={off}
-      activeOpacity={0.85}
-    >
-      {loading ? (
-        <ActivityIndicator color="#fff" size="small" />
-      ) : (
-        <>
-          {icon ? <Ionicons name={icon} size={18} color="#fff" /> : null}
-          <Text style={[styles.btnLabel, styles.btnPrimaryLabel, textStyle]}>{label}</Text>
-        </>
-      )}
-    </TouchableOpacity>
+    <Pressable onPress={onPress} disabled={off} onPressIn={press.onPressIn} onPressOut={press.onPressOut} style={style}>
+      <Animated.View style={[styles.btn, styles.btnPrimary, off && styles.btnOff, { transform: [{ scale: press.scale }] }]}>
+        {loading ? (
+          <ActivityIndicator color="#fff" size="small" />
+        ) : (
+          <>
+            {icon ? <Ionicons name={icon} size={18} color="#fff" /> : null}
+            <Text style={[styles.btnLabel, styles.btnPrimaryLabel, textStyle]}>{label}</Text>
+          </>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 
 export function SecondaryButton({ label, onPress, loading, disabled, icon, style, textStyle }: ButtonProps) {
+  const off = disabled || loading;
+  const press = usePressScale();
   return (
-    <TouchableOpacity
-      style={[styles.btn, styles.btnSecondary, disabled && styles.btnOff, style]}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.85}
-    >
-      {icon ? <Ionicons name={icon} size={18} color={colors.ink} /> : null}
-      <Text style={[styles.btnLabel, styles.btnSecondaryLabel, textStyle]}>{label}</Text>
-    </TouchableOpacity>
+    <Pressable onPress={onPress} disabled={off} onPressIn={press.onPressIn} onPressOut={press.onPressOut} style={style}>
+      <Animated.View style={[styles.btn, styles.btnSecondary, off && styles.btnOff, { transform: [{ scale: press.scale }] }]}>
+        {loading ? <ActivityIndicator color={colors.ink} size="small" /> : (
+          <>
+            {icon ? <Ionicons name={icon} size={18} color={colors.ink} /> : null}
+            <Text style={[styles.btnLabel, styles.btnSecondaryLabel, textStyle]}>{label}</Text>
+          </>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 
 export function DangerButton({ label, onPress, loading, disabled, icon, style }: ButtonProps) {
+  const off = disabled || loading;
+  const press = usePressScale();
   return (
-    <TouchableOpacity
-      style={[styles.btn, styles.btnDanger, disabled && styles.btnOff, style]}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.85}
-    >
-      {icon ? <Ionicons name={icon} size={18} color={colors.danger} /> : null}
-      <Text style={[styles.btnLabel, styles.btnDangerLabel]}>{label}</Text>
-    </TouchableOpacity>
+    <Pressable onPress={onPress} disabled={off} onPressIn={press.onPressIn} onPressOut={press.onPressOut} style={style}>
+      <Animated.View style={[styles.btn, styles.btnDanger, off && styles.btnOff, { transform: [{ scale: press.scale }] }]}>
+        {loading ? <ActivityIndicator color={colors.danger} size="small" /> : (
+          <>
+            {icon ? <Ionicons name={icon} size={18} color={colors.danger} /> : null}
+            <Text style={[styles.btnLabel, styles.btnDangerLabel]}>{label}</Text>
+          </>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -197,7 +261,21 @@ export function EmptyState({
   );
 }
 
-export function Wordmark({ size = 34 }: { size?: number }) {
+/**
+ * Brand lockup. `mark` renders the website's nav treatment — ink tile glyph
+ * beside a semibold Outfit wordmark. Without it, the hero treatment: the
+ * Fraunces wordmark with the italic terra "Marx".
+ */
+export function Wordmark({ size = 34, mark = false }: { size?: number; mark?: boolean }) {
+  if (mark) {
+    const markSize = Math.round(size * 0.92);
+    return (
+      <View style={styles.wordmarkRow}>
+        <LogoMark size={markSize} />
+        <Text style={[styles.wordmarkInline, { fontSize: size * 0.62 }]}>BookMarx</Text>
+      </View>
+    );
+  }
   return (
     <View style={styles.wordmark}>
       <Text style={[styles.wordmarkText, { fontSize: size }]}>
@@ -225,7 +303,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   btnOff: { opacity: 0.55 },
-  btnPrimary: { backgroundColor: colors.terra },
+  btnPrimary: { backgroundColor: colors.terra, ...shadow.glow },
   btnPrimaryLabel: { color: '#fff', fontFamily: fonts.semibold, fontSize: 16 },
   btnSecondary: {
     backgroundColor: 'transparent',
@@ -257,6 +335,11 @@ const styles = StyleSheet.create({
   },
   fieldFocused: {
     borderColor: colors.terra,
+    shadowColor: colors.terra,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.16,
+    shadowRadius: 7,
+    elevation: 2,
   },
   fieldError: { borderColor: colors.danger },
   fieldErrorText: { ...ty.caption, color: colors.danger, marginTop: spacing.xs },
@@ -316,7 +399,22 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { ...ty.heading, marginBottom: spacing.xs },
   emptyHint: { ...ty.small, color: colors.inkMuted, textAlign: 'center', maxWidth: 260, lineHeight: 20 },
+  logoMark: {
+    backgroundColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   wordmark: { alignItems: 'center' },
   wordmarkText: { fontFamily: fonts.display, letterSpacing: -1, color: colors.ink },
   wordmarkAccent: { fontFamily: fonts.displayItalic, color: colors.terra },
+  wordmarkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  wordmarkInline: {
+    fontFamily: fonts.semibold,
+    letterSpacing: -0.5,
+    color: colors.ink,
+  },
 });
