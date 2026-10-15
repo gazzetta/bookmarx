@@ -1,7 +1,7 @@
 # Build Mobile: BookMarx Premium
 
 Updated: 15 October 2026. Baseline: `2f08247` on `master`.
-Status: website/source audit and implementation plan complete; the new access policy and feature-parity phases below are not implemented yet.
+Status: Phase 1 (access/verification) is implemented and covered by the mobile regression suite; it is not yet proven on native builds, real inboxes or verified universal links. Feature-parity phases remain planned.
 This replaces the outdated scaffold-era plan. Old native-share snippets and the completion labels in `PROGRESS.md` are not evidence of a tested mobile release.
 
 ## Product decisions
@@ -93,18 +93,27 @@ Website workflows do not currently provide a full clipboard cut/paste or undo/re
 
 ## Implementation phases
 
-### Phase 1 — Membership, verification and auth contracts (first implementation batch)
+### Phase 1 — Membership, verification and auth contracts (first implementation batch — implemented)
 
-- [ ] Normalize the real `/auth/me` response and add contract tests against the actual endpoint. Keep server effective entitlements as the authority.
-- [ ] Add verification fields to User and preserve signup `verificationEmailSent`. Do not claim delivery when the API reports failure.
-- [ ] Implement Verify Email with masked/full signed-in address, inbox/junk guidance, resend cooldown, “I have verified my email”, delivery-failure retry and sign out.
-- [ ] Reuse `/auth/resend-verification` and `/auth/verify-email`; retain the website email template and one-use 24-hour token policy. Support opening the existing website link and refreshing after return; add verified universal/app links only after domain association is correctly deployed. Never log tokens or leak them to analytics.
-- [ ] Replace upgrade/plan/checkout UI on both platforms with neutral membership status. Remove indirect purchase prompts from settings, PremiumGate, collection dialogs and routes. Preserve old `/upgrade` deep links only as redirects to the neutral screen.
-- [ ] Introduce one access-state guard and central store/queue enforcement. Free and unverified users must not fetch/hydrate protected content or register a browser simply by signing in.
-- [ ] Revalidate before replay and on foreground; enforce expiry and the agreed offline window. Pause and preserve changes on entitlement/email denial instead of treating the 403 as a permanently rejected bookmark and dropping it.
-- [ ] Add forgot-password/reset flows using the existing backend; generic reset responses and no secret leakage.
+- [x] Normalize the real `/auth/me` response and add contract tests against the actual endpoint. Keep server effective entitlements as the authority.
+  - Evidence: `api.getMe()` reads `data` as `User` directly; a contract test registers a real user and asserts `data.id`/`data.emailVerified` against the live Express handler. `tests/mobile/reliability.mobile.ts` (35 tests).
+- [x] Add verification fields to User and preserve signup `verificationEmailSent`. Do not claim delivery when the API reports failure.
+  - Evidence: `User.emailVerified`/`emailVerifiedAt` added; `authService.register` carries `verificationEmailSent` into `authStore.emailDeliveryFailed`; regression test asserts a failed-delivery flag is recorded rather than claimed.
+- [x] Implement Verify Email with masked/full signed-in address, inbox/junk guidance, resend cooldown, “I have verified my email”, delivery-failure retry and sign out.
+  - Evidence: `src/mobile/app/verify-email.tsx` — full signed-in address, junk-folder guidance, resend honoring server `retryAfter`, recheck via `authStore.revalidate()`, `EMAIL_DELIVERY_FAILED` messaging, sign out, and one-time `?token=` deep-link confirmation.
+- [x] Reuse `/auth/resend-verification` and `/auth/verify-email`; retain the website email template and one-use 24-hour token policy. Support opening the existing website link and refreshing after return; add verified universal/app links only after domain association is correctly deployed. Never log tokens or leak them to analytics.
+  - Evidence: `api.resendVerificationEmail()`/`api.verifyEmail(token)` call the shared endpoints; the 429 `retryAfter` and `INVALID_VERIFICATION_TOKEN` shapes are asserted against the real backend. Tokens are only read from route params and POSTed — never logged. Universal-link capture of `bookmarx.cc/verify-email#token=…` still requires deployed AASA/assetlinks (Phase 8); `bookmarx://verify-email?token=` works today.
+- [x] Replace upgrade/plan/checkout UI on both platforms with neutral membership status. Remove indirect purchase prompts from settings, PremiumGate, collection dialogs and routes. Preserve old `/upgrade` deep links only as redirects to the neutral screen.
+  - Evidence: `src/mobile/app/membership.tsx` shows exactly “This app requires a BookMarx Premium membership.” with Check membership / Use another account / account-privacy-support links and no prices or purchase CTAs. `app/upgrade.tsx` is now a `Redirect` to `/membership`; `PremiumGate`, usage bars, settings and collections no longer carry upgrade copy.
+- [x] Introduce one access-state guard and central store/queue enforcement. Free and unverified users must not fetch/hydrate protected content or register a browser simply by signing in.
+  - Evidence: `services/access.ts` evaluates `loading/signed-out/verify-email/membership/allowed`; `components/AccessGate.tsx` routes every library route through it; `authStore.finishSignIn` skips stats/hydration for blocked accounts so no sync request or browser registration is made; the sync queue is enabled only at `allowed`.
+- [x] Revalidate before replay and on foreground; enforce expiry and the agreed offline window. Pause and preserve changes on entitlement/email denial instead of treating the 403 as a permanently rejected bookmark and dropping it.
+  - Evidence: foreground `AppState` refresh re-evaluates access before replay; a 24-hour offline grace window is recorded per account (`ACCESS_VALIDATION` marker) and never extends past a known expiry; `EMAIL_NOT_VERIFIED`/`PREMIUM_REQUIRED`/`SUBSCRIPTION_EXPIRED` responses pause the queue intact and trigger revalidation; a stale/forge-proof profile check asserts a server downgrade wins over stored Premium claims.
+- [x] Add forgot-password/reset flows using the existing backend; generic reset responses and no secret leakage.
+  - Evidence: `app/forgot-password.tsx` and `app/reset-password.tsx` call `/auth/forgot-password` and `/auth/reset-password`; the contract test asserts the generic success response.
 
 Exit tests: verified Premium, verified Free, unverified Premium/Free, expired/canceled/revoked membership, valid trial/lifetime/override, invalid credentials, offline/reconnect, forged local state, direct library/share links, delivery failure, resend 429, expired/reused verification token, and verification on another device. Test the exact real API shapes.
+Exit status: covered in the regression suite: verified Premium, verified Free, unverified, forged/stale local Premium claim, offline grace/reconnect, resend 429 (`retryAfter`), invalid verification token, share gating, queue pause-not-drop, real `/auth/me` shape. Not yet covered: live inbox delivery, expired/reused real token, verification completed on another device mid-session, and all native-device checks (Phase 7/8).
 
 ### Phase 2 — Native account/API foundation without browser integration
 
@@ -225,4 +234,6 @@ The no-promotion/no-purchase model is the user's product decision for both platf
 
 Work stays in `C:/CODING/bookmarx` on `master`, following the chosen workflow. Commit small, tested batches, update this file with each phase's evidence, and push completed batches. Do not mark a phase complete based only on source code, old PROGRESS checkmarks or a JS bundle export.
 
-Next implementation batch: Phase 1 — real auth-response normalization, verified-email journey, neutral membership screen and central native access/queue guard. Later phases remain planned; this planning update does not silently change production authentication or send emails.
+Phase 1 (auth-response normalization, verified-email journey, neutral membership screen, central native access/queue guard, password recovery) is implemented with regression coverage: 35 mobile tests, `typecheck:mobile`, `expo install --check` and both JS exports pass. It is not yet validated on native device builds, a real inbox or verified universal links.
+
+Next implementation batch: Phase 2 — account-scoped collection reads and transactional editor writes, native session/device semantics that stop consuming browser registrations, neutral endpoints usable while access is blocked, and real history response types (the `{ session, items }` vs `{ sessionId, folders, bookmarks, summary }` mismatch remains open).

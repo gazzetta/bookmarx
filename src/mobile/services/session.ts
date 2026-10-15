@@ -18,8 +18,13 @@ export function subscribeSession(listener: () => void) {
   return () => { listeners.delete(listener); };
 }
 
+/** Storage key scoped to an explicit account — usable before the session is activated. */
+export function keyForAccount(userId: string, key: string): string {
+  // Legacy unscoped caches/queues are deliberately not adopted: their owner is unknown.
+  return `account:${encodeURIComponent(userId)}:${key}`;
+}
+
 export function accountKey(key: string, snapshot = getSession()): string {
   if (!snapshot.userId) throw new Error('Sign in to access your library');
-  // Legacy unscoped caches/queues are deliberately not adopted: their owner is unknown.
-  return `account:${encodeURIComponent(snapshot.userId)}:${key}`;
+  return keyForAccount(snapshot.userId, key);
 }

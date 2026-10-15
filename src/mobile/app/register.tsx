@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
+import { useAuthStore } from '../store/authStore';
+import { destinationFor } from '../services/access';
 import { Card, Field, PrimaryButton, Wordmark } from '../components/ui';
 import { colors, fonts, spacing, type as ty } from '../constants/theme';
 
@@ -22,7 +24,9 @@ export default function RegisterScreen() {
 
     const result = await register(email, password, displayName || undefined);
     if (result.success) {
-      router.replace('/');
+      // New accounts are unverified — the access gate lands them on /verify-email.
+      const destination = destinationFor(useAuthStore.getState().access);
+      router.replace(destination ?? '/');
     } else {
       setError(result.error || 'Registration failed');
     }

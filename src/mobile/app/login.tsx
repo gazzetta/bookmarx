@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { useAuth } from '../hooks/useAuth';
+import { useAuthStore } from '../store/authStore';
+import { destinationFor } from '../services/access';
 import { Card, Field, PrimaryButton, Wordmark } from '../components/ui';
 import { colors, fonts, spacing, type as ty } from '../constants/theme';
 
@@ -21,7 +23,9 @@ export default function LoginScreen() {
 
     const result = await login(email, password);
     if (result.success) {
-      router.replace('/');
+      // Route by access level — unverified and nonmember accounts never reach the library.
+      const destination = destinationFor(useAuthStore.getState().access);
+      router.replace(destination ?? '/');
     } else {
       setError(result.error || 'Login failed');
     }
@@ -58,6 +62,9 @@ export default function LoginScreen() {
           />
           {error ? <Text style={styles.error}>{error}</Text> : null}
           <PrimaryButton label="Sign in" onPress={handleLogin} loading={isLoading} style={styles.submit} />
+          <Link href="/forgot-password" asChild>
+            <Text style={styles.forgot}>Forgot password?</Text>
+          </Link>
         </Card>
 
         <Link href="/register" asChild>
@@ -102,6 +109,11 @@ const styles = StyleSheet.create({
   },
   submit: {
     marginTop: spacing.xs,
+  },
+  forgot: {
+    ...ty.smallMedium,
+    color: colors.terra,
+    textAlign: 'center',
   },
   link: {
     ...ty.small,

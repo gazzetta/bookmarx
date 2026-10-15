@@ -195,18 +195,47 @@ class ApiClient {
     });
   }
 
-  async register(email: string, password: string, displayName?: string): Promise<ApiResponse<{ token: string; user: User }>> {
+  async register(email: string, password: string, displayName?: string): Promise<ApiResponse<{ token: string; user: User; verificationEmailSent?: boolean }>> {
     return this.request('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, displayName }),
     });
   }
 
-  async getMe(): Promise<ApiResponse<{ user: User }>> {
+  /** GET /auth/me returns the user object directly in `data` (not data.user). */
+  async getMe(): Promise<ApiResponse<User>> {
     return this.request('/auth/me');
   }
 
-  // ---- Public app config (pricing/limits/features for upgrade screen) ----
+  /** Authenticated resend of the signup verification email. 429 carries error.retryAfter (seconds). */
+  async resendVerificationEmail(): Promise<ApiResponse<{ emailVerified: boolean; verificationEmailSent?: boolean }>> {
+    return this.request('/auth/resend-verification', { method: 'POST' });
+  }
+
+  /** Confirm an email verification token from the website-sent link (one-use, 24h). */
+  async verifyEmail(token: string): Promise<ApiResponse<{ emailVerified: boolean }>> {
+    return this.request('/auth/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  /** Always succeeds server-side to prevent email enumeration. */
+  async forgotPassword(email: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async resetPassword(token: string, password: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    });
+  }
+
+  // ---- Public app config (branding/limits/features) ----
 
   async getAppConfig(): Promise<ApiResponse<AppConfig>> {
     return this.request('/config');

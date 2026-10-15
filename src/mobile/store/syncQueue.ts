@@ -15,6 +15,22 @@ export function subscribeQueue(listener: (event: QueueEvent) => void | Promise<v
   return () => { listeners.delete(listener); };
 }
 
+/**
+ * Server rejections that mean the account lost library access — never proof
+ * that the edit itself is invalid. The queue pauses and keeps the change so it
+ * can replay if access is restored (verification completed, renewal, etc.).
+ */
+const ACCESS_DENIED_CODES = new Set(['EMAIL_NOT_VERIFIED', 'PREMIUM_REQUIRED', 'SUBSCRIPTION_EXPIRED']);
+const isAccessDenied = (error?: { code?: string; status?: number }) =>
+  !!error && (ACCESS_DENIED_CODES.has(error.code ?? ''));
+
+type AccessDeniedHandler = () => void;
+let accessDeniedHandler: AccessDeniedHandler | null = null;
+/** Registered by the auth store so a server-side denial triggers revalidation. */
+export function setAccessDeniedHandler(handler: AccessDeniedHandler | null) {
+  accessDeniedHandler = handler;
+}
+
 interface SyncQueueStore {
   queue: QueuedChange[];
   isOnline: boolean;
@@ -139,6 +155,15 @@ export const useSyncQueue = create<SyncQueueStore>((set, get) => {
             if (!next) break;
             const response = await api.applyQueuedChange(next);
             if (!isCurrentSession(session)) return;
+            if (!response.success && isAccessDenied(response.error)) {
+              // Entitlement or verification was revoked server-side. Pause the
+              // queue intact — the change belongs to the account and replays
+              // only if a fresh check restores access.
+              set({ lastError: response.error?.message || 'Your account no longer has access' });
+              get().setEnabled(false);
+              accessDeniedHandler?.();
+              break;
+            }
             if (!response.success && (response.error?.retryable || response.error?.code === 'NETWORK_ERROR' || response.error?.status === 401)) {
               set({ lastError: response.error?.message || 'Sync will retry shortly' });
               break;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, spacing, type as ty } from '../constants/theme';
@@ -19,8 +19,9 @@ interface PremiumGateProps {
 }
 
 /**
- * Component that gates premium features
- * Shows an upgrade prompt for free users, renders children for premium users
+ * Component that gates premium features.
+ * Shows a neutral membership notice — never prices or purchase prompts —
+ * for free users, renders children for premium users.
  */
 export function PremiumGate({
   isPremium,
@@ -35,7 +36,7 @@ export function PremiumGate({
     return <>{children}</>;
   }
 
-  const message = customMessage || `${featureName} is a premium feature. Upgrade to unlock unlimited access.`;
+  const message = customMessage || `${featureName} requires a BookMarx Premium membership.`;
 
   return (
     <View style={styles.container}>
@@ -51,21 +52,14 @@ export function PremiumGate({
           <Ionicons name="bookmark" size={30} color={colors.terra} />
         </View>
 
-        <Text style={styles.title}>Premium feature</Text>
+        <Text style={styles.title}>Membership required</Text>
         <Text style={styles.message}>{message}</Text>
 
         <PrimaryButton
-          label="Upgrade to Premium"
-          icon="star"
-          onPress={() => router.push('/upgrade')}
+          label="Check membership"
+          icon="refresh"
+          onPress={() => router.push('/membership')}
         />
-
-        <TouchableOpacity
-          style={styles.learnMoreButton}
-          onPress={() => router.push('/upgrade')}
-        >
-          <Text style={styles.learnMoreText}>Learn more about Premium</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -90,21 +84,18 @@ interface PremiumFeatureListProps {
 }
 
 /**
- * Component showing feature comparison between tiers
+ * List of capabilities included in the signed-in account's plan.
+ * Informational only — no upsell copy or purchase prompts.
  */
 export function PremiumFeatureList({ currentTier }: PremiumFeatureListProps) {
   const isPremium = currentTier !== 'free';
 
   const features = [
-    { name: 'Unlimited bookmarks', free: false, premium: true },
-    { name: 'Unlimited browsers', free: false, premium: true },
-    { name: 'Sync history (30 days)', free: false, premium: true },
-    { name: 'Rollback changes', free: false, premium: true },
-    { name: 'Multiple collections', free: false, premium: true },
-    { name: 'Web editor', free: false, premium: true },
-    { name: 'Priority support', free: false, premium: true },
-    { name: 'Basic sync', free: true, premium: true },
-    { name: 'Mobile app', free: true, premium: true },
+    { name: 'Bookmark library on this device', included: true },
+    { name: 'Folders, search and collections', included: true },
+    { name: 'Sync with your BookMarx account', included: true },
+    { name: 'Sync history and rollback', included: isPremium },
+    { name: 'Multiple collections', included: isPremium },
   ];
 
   return (
@@ -113,20 +104,17 @@ export function PremiumFeatureList({ currentTier }: PremiumFeatureListProps) {
         <View key={index} style={[styles.featureRow, index === features.length - 1 && styles.featureRowLast]}>
           <View style={styles.featureIcon}>
             <Ionicons
-              name={feature.free || feature.premium ? 'checkmark-circle' : 'close-circle'}
+              name={feature.included ? 'checkmark-circle' : 'ellipse-outline'}
               size={18}
-              color={feature.free || feature.premium ? colors.sage : colors.inkFaint}
+              color={feature.included ? colors.sage : colors.inkFaint}
             />
           </View>
           <Text style={[
             styles.featureText,
-            !feature.free && !isPremium && styles.featureTextLocked
+            !feature.included && styles.featureTextLocked
           ]}>
             {feature.name}
           </Text>
-          {!feature.free && (
-            <Ionicons name="star" size={11} color={colors.amber} />
-          )}
         </View>
       ))}
     </View>
@@ -137,13 +125,12 @@ interface UsageLimitBarProps {
   current: number;
   max: number | null;
   label: string;
-  isPremium: boolean;
 }
 
 /**
- * Progress bar showing usage against limits
+ * Progress bar showing usage against server-reported limits
  */
-export function UsageLimitBar({ current, max, label, isPremium }: UsageLimitBarProps) {
+export function UsageLimitBar({ current, max, label }: UsageLimitBarProps) {
   const hasLimit = max !== null;
   const percentage = hasLimit ? Math.min((current / max) * 100, 100) : 0;
   const isNearLimit = hasLimit && percentage >= 80;
@@ -173,12 +160,6 @@ export function UsageLimitBar({ current, max, label, isPremium }: UsageLimitBarP
             ]}
           />
         </View>
-      )}
-
-      {!isPremium && max != null && (
-        <Text style={styles.upgradeHint}>
-          Upgrade to Premium for unlimited {label.toLowerCase()}
-        </Text>
       )}
     </View>
   );
@@ -224,14 +205,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
     lineHeight: 22,
     maxWidth: 280,
-  },
-  learnMoreButton: {
-    padding: spacing.md,
-    marginTop: spacing.sm,
-  },
-  learnMoreText: {
-    ...ty.smallMedium,
-    color: colors.terra,
   },
   featureList: {
     backgroundColor: colors.surface,
@@ -303,9 +276,5 @@ const styles = StyleSheet.create({
   },
   progressFillDanger: {
     backgroundColor: colors.danger,
-  },
-  upgradeHint: {
-    ...ty.caption,
-    marginTop: spacing.sm,
   },
 });

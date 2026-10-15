@@ -149,10 +149,10 @@ export default function CollectionsScreen() {
             onPress={() => openForm(null)}
           />
         ) : (
-          <TouchableOpacity style={styles.upgradeHint} onPress={() => router.push('/upgrade')}>
-            <Ionicons name="star" size={14} color={colors.amber} />
-            <Text style={styles.upgradeHintText}>
-              Multiple collections are a Premium feature
+          <TouchableOpacity style={styles.membershipHint} onPress={() => router.push('/membership')}>
+            <Ionicons name="information-circle-outline" size={14} color={colors.inkMuted} />
+            <Text style={styles.membershipHintText}>
+              Multiple collections require a Premium membership
             </Text>
           </TouchableOpacity>
         )}
@@ -264,14 +264,14 @@ const styles = StyleSheet.create({
   footer: {
     padding: spacing.lg,
   },
-  upgradeHint: {
+  membershipHint: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
     padding: spacing.lg,
   },
-  upgradeHintText: {
+  membershipHintText: {
     ...ty.small,
     color: colors.inkMuted,
   },

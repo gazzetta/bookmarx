@@ -19,7 +19,7 @@ import type { Bookmark, Folder } from '../types';
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, isLoading: authLoading, user, isPremium, stats } = useAuthStore();
+  const { isAuthenticated, isLoading: authLoading, user, stats } = useAuthStore();
   const {
     folders, bookmarks, collections, activeCollectionId,
     isLoading, error, hydrated, lastFetched,
@@ -131,13 +131,12 @@ export default function HomeScreen() {
 
       <OfflineBanner />
 
-      {stats && !isPremium && (
+      {stats && (
         <View style={styles.usageSection}>
           <UsageLimitBar
             current={stats.bookmarkCount}
             max={stats.limits.maxBookmarks}
             label="Bookmarks"
-            isPremium={isPremium}
           />
         </View>
       )}
@@ -177,7 +176,7 @@ export default function HomeScreen() {
               <EmptyState
                 icon="bookmark-outline"
                 title="Nothing here yet"
-                hint="Tap + to add your first bookmark, or sync from the browser extension."
+                hint="Tap + to add your first bookmark — it syncs to your BookMarx account."
               />
             }
           />

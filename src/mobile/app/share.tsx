@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useBookmarkStore } from '../store/bookmarkStore';
 import { useAuthStore } from '../store/authStore';
+import { destinationFor } from '../services/access';
 import { FolderPicker } from '../components/FolderPicker';
 import { Card, Field, PrimaryButton, SelectField } from '../components/ui';
 import { colors, radius, spacing, type as ty } from '../constants/theme';
@@ -19,7 +20,7 @@ export default function ShareScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { shareIntent, resetShareIntent } = useShareIntentContext();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, access } = useAuthStore();
   const { folders, addBookmark, getFolderById, getActiveCollection } = useBookmarkStore();
 
   const sharedUrl = useMemo(() => {
@@ -63,6 +64,8 @@ export default function ShareScreen() {
     }
   };
 
+  // Saving a shared link still requires auth + verification + membership.
+  // The pending share intent is left untouched so it survives the detour.
   if (!isAuthenticated) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -72,6 +75,28 @@ export default function ShareScreen() {
         <Text style={styles.centeredTitle}>Sign in to save</Text>
         <Text style={styles.centeredText}>Shared links can only be saved to your BookMarx library when you're signed in.</Text>
         <PrimaryButton label="Go to sign in" onPress={() => router.replace('/login')} style={styles.lockButton} />
+      </View>
+    );
+  }
+
+  if (access !== 'allowed') {
+    const verify = access === 'verify-email';
+    return (
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
+        <View style={styles.lockIcon}>
+          <Ionicons name={verify ? 'mail-unread-outline' : 'bookmark-outline'} size={28} color={colors.terra} />
+        </View>
+        <Text style={styles.centeredTitle}>{verify ? 'Verify your email to save' : 'Membership required'}</Text>
+        <Text style={styles.centeredText}>
+          {verify
+            ? 'Confirm your email address before saving shared links.'
+            : 'Saving to this app requires a BookMarx Premium membership.'}
+        </Text>
+        <PrimaryButton
+          label={verify ? 'Go to verification' : 'Check membership'}
+          onPress={() => router.replace(destinationFor(access) ?? '/')}
+          style={styles.lockButton}
+        />
       </View>
     );
   }

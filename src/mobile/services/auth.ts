@@ -39,10 +39,10 @@ class AuthService {
     return { success: false, error: response.error?.message || 'Login failed' };
   }
 
-  async register(email: string, password: string, displayName?: string): Promise<{ success: boolean; user?: User; token?: string; error?: string }> {
+  async register(email: string, password: string, displayName?: string): Promise<{ success: boolean; user?: User; token?: string; error?: string; verificationEmailSent?: boolean }> {
     const revision = ++credentialRevision;
     const response = await api.register(email, password, displayName);
-    
+
     if (revision !== credentialRevision) return { success: false, error: 'Sign-in was canceled' };
     if (response.success && response.data) {
       const data = response.data;
@@ -58,9 +58,9 @@ class AuthService {
         }
       });
       if (revision !== credentialRevision) return { success: false, error: 'Sign-in was canceled' };
-      return { success: true, user: response.data.user, token: response.data.token };
+      return { success: true, user: response.data.user, token: response.data.token, verificationEmailSent: response.data.verificationEmailSent };
     }
-    
+
     return { success: false, error: response.error?.message || 'Registration failed' };
   }
 

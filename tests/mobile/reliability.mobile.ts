@@ -13,7 +13,7 @@ vi.mock('expo-secure-store', () => ({
 vi.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++native.sequence}` }));
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
-const user = (id = 'A', premium = true) => ({ id, email: `${id}@example.com`, displayName: id, subscriptionTier: premium ? 'premium' as const : 'free' as const, isPremium: premium, bookmarkLimit: 100, browserLimit: 3, collectionLimit: 2 });
+const user = (id = 'A', premium = true) => ({ id, email: `${id}@example.com`, displayName: id, emailVerified: true, emailVerifiedAt: 1, subscriptionTier: premium ? 'premium' as const : 'free' as const, isPremium: premium, bookmarkLimit: 100, browserLimit: 3, collectionLimit: 2 });
 const counts = { bookmarkCount: 2, browserCount: 1, collectionCount: 1 };
 const bookmark = (masterId: string, title = masterId) => ({ id: 1, masterId, browserId: 'browser', userId: 'A', title, url: 'https://example.com', parentId: '', masterParentId: null, position: 0, dateAdded: 1, status: 'active' as const, syncVersion: 0, createdAt: 1, updatedAt: 1 });
 const success = <T>(data: T) => ({ success: true, data });
@@ -277,7 +277,7 @@ describe('premium and authentication', () => {
     const { authService } = await import('../../src/mobile/services/auth');
     const { useAuthStore: auth } = await import('../../src/mobile/store/authStore');
     vi.spyOn(api, 'getUserStats').mockResolvedValue(success(counts) as any);
-    vi.spyOn(api, 'getMe').mockResolvedValue(success({ user: user() }));
+    vi.spyOn(api, 'getMe').mockResolvedValue(success(user()));
     vi.spyOn(authService, 'login').mockResolvedValue({ success: true, user: user(), token: 'real-token' });
     return { api, authService, auth };
   }
@@ -293,7 +293,7 @@ describe('premium and authentication', () => {
   it('refreshes changed subscription status from the current profile', async () => {
     const { auth, api } = await authSetup();
     await auth.getState().login('A@example.com', 'password');
-    vi.mocked(api.getMe).mockResolvedValue(success({ user: user('A', false) }));
+    vi.mocked(api.getMe).mockResolvedValue(success(user('A', false)));
     await auth.getState().refreshStats();
     expect(auth.getState().isPremium).toBe(false);
   });
@@ -317,7 +317,7 @@ describe('premium and authentication', () => {
     vi.mocked(api.getMe).mockImplementationOnce(() => late.promise);
     const refresh = auth.getState().refreshStats();
     await auth.getState().logout();
-    late.resolve(success({ user: user() }));
+    late.resolve(success(user()));
     await refresh;
     expect(auth.getState().isAuthenticated).toBe(false);
     expect(auth.getState().user).toBeNull();
@@ -448,5 +448,141 @@ describe('API retries and stale responses', () => {
     late.resolve({ ok: false, status: 401, json: async () => ({ error: { message: 'Expired' } }) });
     expect((await request).error?.code).toBe('SESSION_CHANGED');
     expect(unauthorized).not.toHaveBeenCalled();
+  });
+});
+
+describe('access gating and verification', () => {
+  async function authSetup() {
+    const { api } = await import('../../src/mobile/services/api');
+    const { authService } = await import('../../src/mobile/services/auth');
+    const { useAuthStore: auth } = await import('../../src/mobile/store/authStore');
+    const { useSyncQueue: queue } = await import('../../src/mobile/store/syncQueue');
+    const { useBookmarkStore: bookmarks } = await import('../../src/mobile/store/bookmarkStore');
+    vi.spyOn(api, 'getUserStats').mockResolvedValue(success(counts) as any);
+    vi.spyOn(api, 'getMe').mockResolvedValue(success(user()));
+    return { api, authService, auth, queue, bookmarks };
+  }
+
+  it('blocks unverified sign-ins from the library and the sync queue', async () => {
+    const { api, authService, auth, queue, bookmarks } = await authSetup();
+    vi.spyOn(authService, 'login').mockResolvedValue({ success: true, user: { ...user(), emailVerified: false }, token: 't' });
+    const stats = vi.mocked(api.getUserStats);
+    expect((await auth.getState().login('A@example.com', 'password')).success).toBe(true);
+    expect(auth.getState().access).toBe('verify-email');
+    expect(auth.getState().accessReason).toBe('unverified');
+    expect(queue.getState().enabled).toBe(false);
+    // A blocked sign-in must not fetch protected content or hydrate the library.
+    expect(stats).not.toHaveBeenCalled();
+    expect(bookmarks.getState().hydrated).toBe(false);
+  });
+
+  it('records a failed signup delivery instead of claiming the email was sent', async () => {
+    const { authService, auth } = await authSetup();
+    vi.spyOn(authService, 'register').mockResolvedValue({ success: true, user: { ...user(), emailVerified: false }, token: 't', verificationEmailSent: false });
+    await auth.getState().register('A@example.com', 'password');
+    expect(auth.getState().access).toBe('verify-email');
+    expect(auth.getState().emailDeliveryFailed).toBe(true);
+  });
+
+  it('keeps a verified free account on the membership screen', async () => {
+    const { authService, auth, queue } = await authSetup();
+    vi.spyOn(authService, 'login').mockResolvedValue({ success: true, user: user('A', false), token: 't' });
+    await auth.getState().login('A@example.com', 'password');
+    expect(auth.getState().access).toBe('membership');
+    expect(auth.getState().accessReason).toBe('no-membership');
+    expect(auth.getState().isPremium).toBe(false);
+    expect(queue.getState().enabled).toBe(false);
+  });
+
+  it('unlocks the library offline only inside the recorded grace window', async () => {
+    const { api, auth } = await authSetup();
+    native.secure.set('auth_token', 'saved');
+    native.secure.set('user_data', JSON.stringify(user()));
+    vi.mocked(api.getMe).mockResolvedValue({ success: false, error: { code: 'NETWORK_ERROR', retryable: true, message: 'Offline' } });
+    // Never validated by this build: unknown status must not unlock.
+    await auth.getState().checkAuth();
+    expect(auth.getState().access).toBe('membership');
+    expect(auth.getState().accessReason).toBe('recheck');
+    // Inside the 24-hour window after a successful check the cached library opens.
+    native.disk.set('account:A:access_validation', JSON.stringify({ validatedAt: Date.now() - 60_000 }));
+    await auth.getState().checkAuth();
+    expect(auth.getState().access).toBe('allowed');
+    // Once the window has elapsed, access returns to a recheck — a stored
+    // Premium claim alone never extends it.
+    native.disk.set('account:A:access_validation', JSON.stringify({ validatedAt: Date.now() - 25 * 3600 * 1000 }));
+    await auth.getState().checkAuth();
+    expect(auth.getState().access).toBe('membership');
+  });
+
+  it('honors a server-side downgrade over forged or stale local state', async () => {
+    const { api, auth } = await authSetup();
+    native.secure.set('auth_token', 'saved');
+    // Locally stored profile claims verified Premium; the server disagrees.
+    native.secure.set('user_data', JSON.stringify(user()));
+    native.disk.set('account:A:access_validation', JSON.stringify({ validatedAt: Date.now() }));
+    vi.mocked(api.getMe).mockResolvedValue(success(user('A', false)));
+    await auth.getState().checkAuth();
+    expect(auth.getState().access).toBe('membership');
+    expect(auth.getState().isPremium).toBe(false);
+  });
+
+  it('pauses the queue without dropping changes on an access denial', async () => {
+    const { queue, bookmarks, apply } = await setup(true);
+    apply.mockResolvedValue({ success: false, error: { status: 403, code: 'EMAIL_NOT_VERIFIED', message: 'Verify your email address first' } });
+    await bookmarks.getState().addBookmark('https://paused.example', 'Paused', null);
+    expect(queue.getState().queue).toHaveLength(1);
+    expect(queue.getState().lastDroppedCount).toBe(0);
+    expect(queue.getState().enabled).toBe(false);
+    // Later attempts must not silently drain a paused queue.
+    await queue.getState().replay();
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(queue.getState().queue).toHaveLength(1);
+    expect(JSON.parse(native.disk.get('account:A:sync_queue')!)).toHaveLength(1);
+  });
+
+  it('confirms the real auth contract and verified-email enforcement on the backend', async () => {
+    vi.useRealTimers();
+    await import('../setup');
+    const backendHelpers = '../helpers.ts';
+    const { app, registerUser, dbReady, db } = await import(backendHelpers);
+    const request = (await import('supertest')).default;
+    await dbReady;
+    const registered = await registerUser({ verifyEmail: false });
+    const { setSessionUser } = await import('../../src/mobile/services/session');
+    const { api } = await import('../../src/mobile/services/api');
+    setSessionUser(registered.userId);
+    native.secure.set('auth_token', registered.token);
+    native.fetch.mockImplementation(async (url, options) => {
+      const pathname = new URL(url).pathname;
+      const call = options.method === 'POST' ? request(app).post(pathname) : request(app).get(pathname);
+      const response = await call.set(options.headers).send(options.body ? JSON.parse(options.body) : undefined);
+      return { ok: response.status < 400, status: response.status, json: async () => response.body };
+    });
+    try {
+      // GET /auth/me returns the user object directly in `data`.
+      const me = await api.getMe();
+      expect(me.success, JSON.stringify(me)).toBe(true);
+      expect(me.data?.id).toBe(registered.userId);
+      expect(me.data?.emailVerified).toBe(false);
+      // Library routes reject unverified accounts with a named code.
+      const denied = await api.getMasterCollection();
+      expect(denied.success).toBe(false);
+      expect(denied.error?.code).toBe('EMAIL_NOT_VERIFIED');
+      // Registration already minted a token, so an immediate resend hits the
+      // 60s cooldown — the client must surface the limit and its retryAfter.
+      const resend = await api.resendVerificationEmail();
+      expect(resend.success).toBe(false);
+      expect(resend.error?.code).toBe('VERIFICATION_RATE_LIMIT');
+      expect(resend.error?.retryAfter).toBeGreaterThan(0);
+      // Verification tokens are validated; a bogus one is rejected.
+      const verify = await api.verifyEmail('0'.repeat(64));
+      expect(verify.success).toBe(false);
+      expect(verify.error?.code).toBe('INVALID_VERIFICATION_TOKEN');
+      // Forgot-password stays generic.
+      const forgot = await api.forgotPassword(registered.email);
+      expect(forgot.success).toBe(true);
+    } finally {
+      db.close();
+    }
   });
 });

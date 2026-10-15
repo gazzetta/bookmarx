@@ -10,8 +10,9 @@ import { colors, fonts, radius, shadow, spacing, type as ty } from '../constants
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { user, stats, isPremium, logout } = useAuthStore();
+  const { user, stats, isPremium, access, logout } = useAuthStore();
   const version = Constants.expoConfig?.version ?? '1.0.0';
+  const libraryAccess = access === 'allowed';
 
   const confirmLogout = () => {
     Alert.alert('Sign out?', 'Your bookmarks stay synced to your account.', [
@@ -58,27 +59,42 @@ export default function SettingsScreen() {
       {stats ? (
         <View style={styles.section}>
           <SectionLabel>Usage</SectionLabel>
-          <UsageLimitBar current={stats.bookmarkCount} max={stats.limits.maxBookmarks} label="Bookmarks" isPremium={isPremium} />
-          <UsageLimitBar current={stats.browserCount} max={stats.limits.maxBrowsers} label="Connected browsers" isPremium={isPremium} />
-          <UsageLimitBar current={stats.collectionCount} max={stats.limits.maxCollections} label="Collections" isPremium={isPremium} />
+          <UsageLimitBar current={stats.bookmarkCount} max={stats.limits.maxBookmarks} label="Bookmarks" />
+          <UsageLimitBar current={stats.browserCount} max={stats.limits.maxBrowsers} label="Connected browsers" />
+          <UsageLimitBar current={stats.collectionCount} max={stats.limits.maxCollections} label="Collections" />
         </View>
       ) : null}
 
       <View style={styles.section}>
-        <SectionLabel>Manage</SectionLabel>
+        <SectionLabel>Account</SectionLabel>
         <View style={styles.card}>
-          <Row icon="albums" label="Collections" onPress={() => router.push('/collections')} />
-          <Row icon="time" label="Sync history" onPress={() => router.push('/sessions')} />
           <Row
-            icon="star"
-            label={isPremium ? 'Subscription' : 'Upgrade to Premium'}
-            iconBg={colors.amberTint}
-            iconColor={colors.amberText}
-            onPress={() => router.push('/upgrade')}
+            icon={user?.emailVerified ? 'checkmark-circle' : 'mail'}
+            label="Email verification"
+            value={user?.emailVerified ? 'Verified' : 'Not verified'}
+            iconBg={user?.emailVerified ? colors.sageTint : colors.amberTint}
+            iconColor={user?.emailVerified ? colors.sage : colors.amberText}
+            onPress={user?.emailVerified ? undefined : () => router.push('/verify-email')}
+          />
+          <Row
+            icon="card"
+            label="Membership"
+            value={isPremium ? 'Premium' : 'None'}
+            onPress={() => router.push('/membership')}
             isLast
           />
         </View>
       </View>
+
+      {libraryAccess ? (
+        <View style={styles.section}>
+          <SectionLabel>Manage</SectionLabel>
+          <View style={styles.card}>
+            <Row icon="albums" label="Collections" onPress={() => router.push('/collections')} />
+            <Row icon="time" label="Sync history" onPress={() => router.push('/sessions')} isLast />
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <SectionLabel>About</SectionLabel>

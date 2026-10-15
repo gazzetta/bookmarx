@@ -13,10 +13,14 @@ export function useAuth() {
     isLoading: store.isLoading,
     isAuthenticated: store.isAuthenticated,
     isPremium: store.isPremium,
+    access: store.access,
+    accessReason: store.accessReason,
+    emailDeliveryFailed: store.emailDeliveryFailed,
     login: store.login,
     register: store.register,
     logout: store.logout,
     checkAuth: store.checkAuth,
     refreshStats: store.refreshStats,
+    revalidate: store.revalidate,
   };
 }

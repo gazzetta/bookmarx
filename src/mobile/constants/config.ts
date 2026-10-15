@@ -21,4 +21,5 @@ export const STORAGE_KEYS = {
   COLLECTION_CACHE_PREFIX: 'collection_cache_',
   SYNC_QUEUE: 'sync_queue',
   LAST_FETCH_PREFIX: 'last_fetch_',
+  ACCESS_VALIDATION: 'access_validation',
 } as const;

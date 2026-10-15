@@ -112,8 +112,8 @@ export default function SessionsScreen() {
 
       <PremiumGate
         isPremium={isPremium}
-        featureName="Sync History"
-        customMessage="View your sync history and roll back changes with Premium — never lose your bookmarks again."
+        featureName="Sync history"
+        customMessage="Sync history and rollback require a BookMarx Premium membership."
       >
         {isLoading ? (
           <View style={styles.centered}>

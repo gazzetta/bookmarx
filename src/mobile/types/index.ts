@@ -2,6 +2,9 @@ export interface User {
   id: string;
   email: string;
   displayName: string | null;
+  /** Server-reported verification state. Absent/undefined is treated as unverified. */
+  emailVerified?: boolean;
+  emailVerifiedAt?: number | null;
   subscriptionTier?: 'free' | 'premium' | 'lifetime';
   subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'expired';
   subscriptionEndsAt?: string | null;
@@ -18,6 +21,8 @@ export interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   isPremium: boolean;
+  /** True only when the signup response confirmed the verification email was accepted for delivery. */
+  verificationEmailSent?: boolean;
 }
 
 export interface Bookmark {
@@ -69,6 +74,8 @@ export interface ApiResponse<T> {
     code?: string;
     status?: number;
     retryable?: boolean;
+    /** Seconds to wait before retrying, when the server rate-limits (e.g. resend 429). */
+    retryAfter?: number;
   };
 }
 
