@@ -84,7 +84,7 @@ function RegisterForm() {
         const buttonDiv = document.getElementById('google-signup-button')
         if (buttonDiv) {
           window.google.accounts.id.renderButton(buttonDiv, {
-            theme: 'outline',
+            theme: 'filled_black',
             size: 'large',
             width: '100%',
             text: 'signup_with',

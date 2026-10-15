@@ -34,7 +34,7 @@ export default function AccountSettings() {
       finally { setBusy(false) }
     } })
     button.current.replaceChildren()
-    window.google.accounts.id.renderButton(button.current, { theme: 'outline', size: 'large', width: 280 })
+    window.google.accounts.id.renderButton(button.current, { theme: 'filled_black', size: 'large', width: 280 })
   }
   if (isLoading || !user) return <p role="status">Loading account…</p>
   return <DashboardLayout>

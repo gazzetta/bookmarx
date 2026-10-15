@@ -106,65 +106,70 @@ export default function SubscriptionPage() {
         </div>
 
         {/* Current Plan Card */}
-        <div className={`relative overflow-hidden rounded-[2.5rem] border p-10 mb-12 shadow-xl ${isPremium
+        <div className={`relative overflow-hidden rounded-3xl border px-6 py-5 mb-12 shadow-xl ${isPremium
           ? 'bg-gradient-to-br from-primary-600 to-primary-700 border-primary-500 text-white shadow-primary-500/20'
           : 'bg-white dark:bg-[#242424] border-slate-200 dark:border-white/[0.06] shadow-slate-200/50 dark:shadow-none'
           }`}>
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-6">
-              <div className={`w-20 h-20 rounded-3xl flex items-center justify-center text-4xl shadow-inner ${isPremium ? 'bg-white/10' : 'bg-slate-50 dark:bg-white/5'
+          <div className="relative z-10 flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-4">
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-inner ${isPremium ? 'bg-white/10' : 'bg-slate-50 dark:bg-white/5'
                 }`}>
-                {isPremium ? '💎' : '🌱'}
+                {isPremium ? (
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  </svg>
+                ) : (
+                  <svg className="w-6 h-6 text-slate-400 dark:text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                )}
               </div>
-              <div className="text-center md:text-left">
-                <div className={`text-sm font-black uppercase tracking-[0.2em] mb-1 ${isPremium ? 'text-white/60' : 'text-slate-400 dark:text-white/40'}`}>
+              <div className="text-center sm:text-left">
+                <div className={`text-[10px] font-black uppercase tracking-[0.15em] mb-0.5 ${isPremium ? 'text-white/60' : 'text-slate-400 dark:text-white/40'}`}>
                   Current Status
                 </div>
-                <h2 className={`text-3xl font-black antialiased ${isPremium ? 'text-white' : 'text-slate-900 dark:text-cream-100'}`}>
+                <h2 className={`text-xl font-black antialiased ${isPremium ? 'text-white' : 'text-slate-900 dark:text-cream-100'}`}>
                   {isPremium ? 'Premium' : 'Free'}
                 </h2>
-                {isPremium && (
-                  <div className="mt-2 inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-xs font-bold text-white/90">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
-                    {user.subscriptionExpiresAt
-                      ? `Active until ${formatDate(user.subscriptionExpiresAt)}`
-                      : 'Lifetime Access Activated'}
-                  </div>
-                )}
               </div>
             </div>
             {isPremium && (
+              <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-xs font-bold text-white/90">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+                {user.subscriptionExpiresAt
+                  ? `Active until ${formatDate(user.subscriptionExpiresAt)}`
+                  : 'Lifetime Access Activated'}
+              </div>
+            )}
+
+            {!isPremium ? (
+              <div className="sm:ml-auto flex items-center gap-7 sm:gap-9 pt-4 sm:pt-0 border-t sm:border-t-0 sm:border-l border-slate-100 dark:border-white/5 sm:pl-8 w-full sm:w-auto justify-center sm:justify-start">
+                {[
+                  { value: user.bookmarkLimit.toLocaleString(), label: 'Bookmarks' },
+                  { value: user.browserLimit, label: 'Browsers' },
+                  { value: user.collectionLimit, label: 'Collections' },
+                ].map((stat) => (
+                  <div key={stat.label} className="text-center">
+                    <div className="text-lg font-black leading-tight text-slate-900 dark:text-cream-100">{stat.value}</div>
+                    <div className="text-[9px] font-black uppercase tracking-wider text-slate-400 dark:text-white/40">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
               <button
                 onClick={handleManageSubscription}
-                className="bg-white dark:bg-cream-100 text-primary-600 dark:text-terra-400 hover:bg-slate-50 dark:hover:bg-white px-8 py-3.5 rounded-2xl font-bold transition-all shadow-lg active:scale-95"
+                className="sm:ml-auto bg-white dark:bg-cream-100 text-primary-600 dark:text-terra-400 hover:bg-slate-50 dark:hover:bg-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg active:scale-95"
               >
                 Billing Portal
               </button>
             )}
           </div>
 
-          {!isPremium && (
-            <div className="mt-10 grid grid-cols-3 gap-6 pt-10 border-t border-slate-100 dark:border-white/5">
-              <div className="text-center">
-                <div className="text-2xl font-black text-slate-900 dark:text-cream-100">{user.bookmarkLimit.toLocaleString()}</div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-white/40 mt-1">Bookmarks</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black text-slate-900 dark:text-cream-100">{user.browserLimit}</div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-white/40 mt-1">Browsers</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black text-slate-900 dark:text-cream-100">{user.collectionLimit}</div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 dark:text-white/40 mt-1">Collections</div>
-              </div>
-            </div>
-          )}
-
           {/* Decorative blobs for premium card */}
           {isPremium && (
             <>
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-12 translate-x-12"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary-400/20 rounded-full blur-2xl translate-y-12 -translate-x-12"></div>
+              <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -translate-y-12 translate-x-12"></div>
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary-400/20 rounded-full blur-2xl translate-y-12 -translate-x-12"></div>
             </>
           )}
         </div>

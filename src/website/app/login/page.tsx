@@ -77,7 +77,7 @@ export default function LoginPage() {
       if (buttonDiv) {
         buttonDiv.innerHTML = ''
         window.google.accounts.id.renderButton(buttonDiv, {
-          theme: 'outline',
+          theme: 'filled_black',
           size: 'large',
           width: '400',
           text: 'signin_with',
