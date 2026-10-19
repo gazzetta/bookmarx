@@ -79,7 +79,7 @@ export default function LoginPage() {
         window.google.accounts.id.renderButton(buttonDiv, {
           theme: 'filled_black',
           size: 'large',
-          width: '400',
+          width: Math.min(400, buttonDiv.clientWidth || 400),
           text: 'signin_with',
           shape: 'rectangular',
           logo_alignment: 'center',
@@ -151,7 +151,7 @@ export default function LoginPage() {
           <div className="mb-6">
             <div
               id="google-signin-button"
-              className="w-full flex justify-center"
+              className="google-auth-button w-full flex justify-center"
               style={{ minHeight: '44px' }}
             >
               {googleLoading ? (

@@ -86,7 +86,7 @@ function RegisterForm() {
           window.google.accounts.id.renderButton(buttonDiv, {
             theme: 'filled_black',
             size: 'large',
-            width: '100%',
+            width: Math.min(400, buttonDiv.clientWidth || 400),
             text: 'signup_with',
             shape: 'rectangular',
             logo_alignment: 'center',
@@ -171,7 +171,7 @@ function RegisterForm() {
           <div className="mb-6">
             <div
               id="google-signup-button"
-              className="w-full flex justify-center"
+              className="google-auth-button w-full flex justify-center"
               style={{ minHeight: '44px' }}
             >
               {googleLoading ? (

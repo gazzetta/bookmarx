@@ -47,7 +47,7 @@ export default function AccountSettings() {
         <label className="block" htmlFor="link-password">Current BookMarx password</label>
         <input id="link-password" ref={password} type="password" autoComplete="current-password" disabled={busy} className="w-full rounded-lg border p-3 bg-transparent" />
         {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? <>
-          <div ref={button} aria-busy={busy} />
+          <div ref={button} aria-busy={busy} className="google-auth-button" />
           <Script src="https://accounts.google.com/gsi/client" onReady={initialize} />
         </> : <p>Google sign-in is not configured for this website yet.</p>}
         {message && <p role="status">{message}</p>}

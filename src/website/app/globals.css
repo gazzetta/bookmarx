@@ -5,6 +5,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Google's transparent iframe canvas needs a light embedding colour scheme.
+   The button itself retains Google's filled-black theme. */
+.google-auth-button {
+  color-scheme: light;
+}
+
 /* ═══════════════════════════════════════════════
    BOOKMARX — Design System
    Warm, editorial, Claude-inspired aesthetic
